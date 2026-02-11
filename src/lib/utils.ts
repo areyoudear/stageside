@@ -70,6 +70,22 @@ export function normalizeArtistName(name: string): string {
     .trim();
 }
 
+// Genre affinity map - genres that are often liked together
+const GENRE_AFFINITIES: Record<string, string[]> = {
+  "rock": ["alternative", "indie", "punk", "metal", "grunge"],
+  "pop": ["dance", "electronic", "r&b", "indie pop"],
+  "hip-hop": ["rap", "r&b", "urban", "trap"],
+  "rap": ["hip-hop", "r&b", "urban", "trap"],
+  "electronic": ["edm", "dance", "house", "techno", "dubstep", "trance"],
+  "edm": ["electronic", "dance", "house", "techno"],
+  "indie": ["alternative", "indie rock", "indie pop", "folk"],
+  "r&b": ["soul", "hip-hop", "pop", "urban"],
+  "jazz": ["blues", "soul", "funk"],
+  "country": ["folk", "americana", "bluegrass"],
+  "metal": ["rock", "hard rock", "punk"],
+  "folk": ["indie", "acoustic", "singer-songwriter", "country"],
+};
+
 /**
  * Calculate match score between user profile and concert
  */
@@ -99,6 +115,27 @@ export function calculateMatchScore(
     }
   }
 
+  // Check for partial artist name matches (e.g., "Taylor Swift" matches "The Taylor Swift Experience")
+  if (score === 0) {
+    for (const concertArtist of normalizedConcertArtists) {
+      for (let i = 0; i < normalizedUserArtists.length; i++) {
+        const userArtist = normalizedUserArtists[i];
+        // Check if one contains the other (but require at least 5 chars to avoid false positives)
+        if (userArtist.length >= 5 && concertArtist.includes(userArtist)) {
+          score += 80;
+          reasons.push(`Similar to ${userTopArtists[i]}`);
+          break;
+        }
+        if (concertArtist.length >= 5 && userArtist.includes(concertArtist)) {
+          score += 80;
+          reasons.push(`Similar to ${userTopArtists[i]}`);
+          break;
+        }
+      }
+      if (score > 0) break;
+    }
+  }
+
   // Check recently played artists
   if (score === 0) {
     for (const artist of normalizedConcertArtists) {
@@ -110,19 +147,41 @@ export function calculateMatchScore(
     }
   }
 
-  // Genre matching
+  // Genre matching with affinity scoring
   const normalizedConcertGenres = concertGenres.map((g) => g.toLowerCase());
   const normalizedUserGenres = userTopGenres.map((g) => g.toLowerCase());
 
-  const matchingGenres = normalizedConcertGenres.filter((g) =>
+  // Direct genre matches
+  const directMatches = normalizedConcertGenres.filter((g) =>
     normalizedUserGenres.some((ug) => g.includes(ug) || ug.includes(g))
   );
 
-  if (matchingGenres.length > 0) {
-    score += matchingGenres.length * 15;
+  if (directMatches.length > 0) {
+    // Primary genre match gets more points
+    score += 20 + (directMatches.length - 1) * 10;
     if (reasons.length === 0) {
-      reasons.push(`Matches your ${matchingGenres[0]} taste`);
+      reasons.push(`Matches your ${directMatches[0]} taste`);
     }
+  }
+
+  // Check for affinity matches (related genres)
+  if (reasons.length === 0) {
+    for (const userGenre of normalizedUserGenres) {
+      const affinities = GENRE_AFFINITIES[userGenre] || [];
+      const affinityMatch = normalizedConcertGenres.find((cg) =>
+        affinities.some((a) => cg.includes(a))
+      );
+      if (affinityMatch) {
+        score += 15;
+        reasons.push(`You might like this ${affinityMatch} show`);
+        break;
+      }
+    }
+  }
+
+  // Bonus for multiple genre matches (shows versatility)
+  if (directMatches.length >= 2) {
+    score += 5;
   }
 
   return { score, reasons };
