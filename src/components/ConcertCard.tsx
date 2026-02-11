@@ -13,6 +13,8 @@ import {
   Users,
   Flame,
   Clock,
+  Sparkles,
+  Star,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,32 +34,121 @@ interface ConcertCardProps {
   isDemo?: boolean;
 }
 
-// Map genres to vibes
-function getVibe(genres: string[]): { type: VibeType; label: string; icon: typeof Zap; color: string } {
+// Map genres to vibes with colors
+function getVibe(genres: string[]): { 
+  type: VibeType; 
+  label: string; 
+  icon: typeof Zap; 
+  color: string;
+  bgGradient: string;
+  borderColor: string;
+} {
   const genreString = genres.join(" ").toLowerCase();
 
-  if (genreString.match(/jazz|acoustic|classical|soul|r&b|ambient|folk/)) {
-    return { type: "chill", label: "Chill Vibes", icon: Music2, color: "text-blue-400 bg-blue-500/20" };
+  if (genreString.match(/jazz|acoustic|classical|soul|r&b|ambient|folk|lounge/)) {
+    return { 
+      type: "chill", 
+      label: "Chill", 
+      icon: Music2, 
+      color: "text-sky-400",
+      bgGradient: "from-sky-500/20 via-sky-500/10 to-transparent",
+      borderColor: "border-sky-500/30 hover:border-sky-500/60"
+    };
   }
-  if (genreString.match(/edm|electronic|dance|house|techno|dubstep/)) {
-    return { type: "energetic", label: "High Energy", icon: Zap, color: "text-yellow-400 bg-yellow-500/20" };
+  if (genreString.match(/edm|electronic|dance|house|techno|dubstep|trance/)) {
+    return { 
+      type: "energetic", 
+      label: "High Energy", 
+      icon: Zap, 
+      color: "text-yellow-400",
+      bgGradient: "from-yellow-500/20 via-yellow-500/10 to-transparent",
+      borderColor: "border-yellow-500/30 hover:border-yellow-500/60"
+    };
   }
-  if (genreString.match(/indie|singer|songwriter|acoustic|small/)) {
-    return { type: "intimate", label: "Intimate Show", icon: Users, color: "text-purple-400 bg-purple-500/20" };
+  if (genreString.match(/indie|singer|songwriter|acoustic|alternative/)) {
+    return { 
+      type: "intimate", 
+      label: "Intimate", 
+      icon: Users, 
+      color: "text-violet-400",
+      bgGradient: "from-violet-500/20 via-violet-500/10 to-transparent",
+      borderColor: "border-violet-500/30 hover:border-violet-500/60"
+    };
   }
-  if (genreString.match(/rock|metal|punk|hip-hop|rap|pop/)) {
-    return { type: "festival", label: "Big Energy", icon: Flame, color: "text-orange-400 bg-orange-500/20" };
+  if (genreString.match(/rock|metal|punk|hip-hop|rap|pop|latin/)) {
+    return { 
+      type: "festival", 
+      label: "Big Show", 
+      icon: Flame, 
+      color: "text-orange-400",
+      bgGradient: "from-orange-500/20 via-orange-500/10 to-transparent",
+      borderColor: "border-orange-500/30 hover:border-orange-500/60"
+    };
   }
-  return { type: "diverse", label: "Mixed Vibes", icon: Music2, color: "text-pink-400 bg-pink-500/20" };
+  return { 
+    type: "diverse", 
+    label: "Mixed", 
+    icon: Music2, 
+    color: "text-fuchsia-400",
+    bgGradient: "from-fuchsia-500/20 via-fuchsia-500/10 to-transparent",
+    borderColor: "border-fuchsia-500/30 hover:border-fuchsia-500/60"
+  };
 }
 
-// Get urgency level
-function getUrgency(daysLeft: number): { show: boolean; label: string; color: string } | null {
+// Get urgency level with more emotion
+function getUrgency(daysLeft: number): { show: boolean; label: string; color: string; emoji: string } | null {
   if (daysLeft <= 0) return null;
-  if (daysLeft === 1) return { show: true, label: "Tomorrow!", color: "bg-red-500 text-white" };
-  if (daysLeft <= 3) return { show: true, label: `${daysLeft} days left`, color: "bg-orange-500 text-white" };
-  if (daysLeft <= 7) return { show: true, label: "This week", color: "bg-amber-500/80 text-white" };
+  if (daysLeft === 1) return { show: true, label: "Tomorrow!", color: "bg-red-500 text-white", emoji: "🔥" };
+  if (daysLeft <= 3) return { show: true, label: `${daysLeft} days`, color: "bg-orange-500 text-white", emoji: "⚡" };
+  if (daysLeft <= 7) return { show: true, label: "This week", color: "bg-amber-500/90 text-white", emoji: "📅" };
   return null;
+}
+
+// Match score ring component
+function MatchScoreRing({ score, isPerfect }: { score: number; isPerfect: boolean }) {
+  const circumference = 2 * Math.PI * 18;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
+  
+  return (
+    <div className="relative w-14 h-14 flex items-center justify-center">
+      <svg className="w-14 h-14 -rotate-90" viewBox="0 0 44 44">
+        {/* Background ring */}
+        <circle
+          cx="22"
+          cy="22"
+          r="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          className="text-zinc-800"
+        />
+        {/* Progress ring */}
+        <circle
+          cx="22"
+          cy="22"
+          r="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          className={cn(
+            "transition-all duration-700",
+            isPerfect ? "text-green-400" : score >= 80 ? "text-emerald-400" : score >= 60 ? "text-yellow-400" : "text-orange-400"
+          )}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={cn(
+          "text-sm font-bold",
+          isPerfect ? "text-green-400" : "text-white"
+        )}>
+          {score}%
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export function ConcertCard({
@@ -83,33 +174,31 @@ export function ConcertCard({
     setIsSaved(!isSaved);
   };
 
-  // Determine match quality for styling
-  const matchQuality = concert.matchScore
-    ? concert.matchScore >= 100
-      ? "perfect"
-      : concert.matchScore >= 70
-      ? "great"
-      : concert.matchScore >= 40
-      ? "good"
-      : "match"
-    : null;
+  // Determine match quality
+  const matchScore = concert.matchScore || 0;
+  const isPerfectMatch = matchScore >= 95;
+  const isGreatMatch = matchScore >= 75;
+  const isGoodMatch = matchScore >= 50;
 
   return (
     <Card
       className={cn(
-        "group relative overflow-hidden border transition-all duration-300",
-        "bg-zinc-900/70 hover:bg-zinc-900",
-        matchQuality === "perfect"
-          ? "border-green-500/50 hover:border-green-500"
-          : matchQuality === "great"
-          ? "border-emerald-500/30 hover:border-emerald-500/50"
-          : "border-zinc-800 hover:border-zinc-700"
+        "group relative overflow-hidden transition-all duration-500",
+        "bg-zinc-900/80 backdrop-blur-sm hover:bg-zinc-900",
+        isPerfectMatch 
+          ? "border-2 border-green-500/50 hover:border-green-400 shadow-lg shadow-green-500/10 hover:shadow-green-500/20"
+          : isGreatMatch
+          ? `border ${vibe.borderColor}`
+          : "border border-zinc-800/80 hover:border-zinc-700"
       )}
     >
-      {/* Perfect match glow effect */}
-      {matchQuality === "perfect" && (
-        <div className="absolute inset-0 bg-gradient-to-b from-green-500/10 to-transparent pointer-events-none" />
+      {/* Perfect match shimmer effect */}
+      {isPerfectMatch && (
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-green-500/10 to-transparent animate-shimmer pointer-events-none" />
       )}
+
+      {/* Genre-colored top accent */}
+      <div className={cn("absolute top-0 left-0 right-0 h-1 bg-gradient-to-r", vibe.bgGradient.replace('to-transparent', 'to-transparent'))} />
 
       {/* Image Section */}
       <div className="relative aspect-[16/9] overflow-hidden">
@@ -118,144 +207,169 @@ export function ConcertCard({
             src={concert.imageUrl}
             alt={concert.name}
             fill
-            className="object-cover transition-transform duration-500 group-hover:scale-110"
+            className="object-cover transition-all duration-700 group-hover:scale-110 group-hover:brightness-110"
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-600/80 to-pink-600/80 flex items-center justify-center">
-            <Music2 className="w-12 h-12 text-white/60" />
+          <div className={cn("absolute inset-0 bg-gradient-to-br flex items-center justify-center", vibe.bgGradient)}>
+            <Music2 className="w-16 h-16 text-white/30" />
           </div>
         )}
 
-        {/* Gradient overlay for readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        {/* Gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent" />
+        <div className={cn("absolute inset-0 bg-gradient-to-br opacity-30 group-hover:opacity-40 transition-opacity", vibe.bgGradient)} />
 
-        {/* Top badges row */}
-        <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
-          {/* Match Score Badge */}
-          {concert.matchScore !== undefined && concert.matchScore > 0 && (
-            <Badge
-              className={cn(
-                "font-bold shadow-lg",
-                matchQuality === "perfect"
-                  ? "bg-green-500 text-white border-green-400"
-                  : matchQuality === "great"
-                  ? "bg-emerald-500/90 text-white border-emerald-400"
-                  : "bg-zinc-800/90 text-green-400 border-zinc-700"
-              )}
-            >
-              {matchQuality === "perfect" ? "⭐ Perfect Match" : `${concert.matchScore}% Match`}
-            </Badge>
-          )}
-
-          {/* Urgency Badge */}
-          {urgency && (
-            <Badge className={cn("font-medium shadow-lg animate-pulse", urgency.color)}>
-              <Clock className="w-3 h-3 mr-1" />
-              {urgency.label}
-            </Badge>
-          )}
-        </div>
-
-        {/* Bottom overlay - Vibe indicator */}
-        <div className="absolute bottom-3 left-3 right-12">
-          <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium", vibe.color)}>
-            <vibe.icon className="w-3.5 h-3.5" />
-            {vibe.label}
+        {/* Urgency badge */}
+        {urgency && (
+          <div className={cn(
+            "absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg",
+            urgency.color
+          )}>
+            <span>{urgency.emoji}</span>
+            <span>{urgency.label}</span>
           </div>
-        </div>
+        )}
 
         {/* Save Button */}
         {(isAuthenticated || isDemo) && (
           <button
             onClick={handleSaveToggle}
-            className="absolute bottom-3 right-3 p-2.5 rounded-full bg-black/50 backdrop-blur-sm hover:bg-black/70 transition-all hover:scale-110"
+            className={cn(
+              "absolute top-3 left-3 p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
+              isSaved 
+                ? "bg-red-500/20 hover:bg-red-500/30" 
+                : "bg-black/30 hover:bg-black/50"
+            )}
             aria-label={isSaved ? "Remove from saved" : "Save concert"}
           >
             <Heart
               className={cn(
-                "w-5 h-5 transition-colors",
-                isSaved ? "fill-red-500 text-red-500" : "text-white"
+                "w-5 h-5 transition-all",
+                isSaved ? "fill-red-500 text-red-500 scale-110" : "text-white/80 hover:text-white"
               )}
             />
           </button>
         )}
+
+        {/* Vibe indicator pill */}
+        <div className="absolute bottom-3 left-3">
+          <div className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md",
+            "bg-black/40 border border-white/10",
+            vibe.color
+          )}>
+            <vibe.icon className="w-3.5 h-3.5" />
+            <span>{vibe.label}</span>
+          </div>
+        </div>
       </div>
 
       {/* Content Section */}
-      <CardContent className="p-4 space-y-3">
-        {/* Artist Name */}
-        <div>
-          <h3 className="font-bold text-lg text-white line-clamp-1 group-hover:text-purple-300 transition-colors">
-            {concert.artists.join(", ")}
-          </h3>
-          {concert.name !== concert.artists.join(", ") && (
-            <p className="text-sm text-zinc-400 line-clamp-1">{concert.name}</p>
+      <CardContent className="p-5 space-y-4">
+        {/* Header with match score */}
+        <div className="flex items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-lg text-white line-clamp-1 group-hover:text-purple-200 transition-colors">
+              {concert.artists.join(", ")}
+            </h3>
+            {concert.name !== concert.artists.join(", ") && (
+              <p className="text-sm text-zinc-500 line-clamp-1 mt-0.5">{concert.name}</p>
+            )}
+          </div>
+          
+          {/* Match Score Ring */}
+          {matchScore > 0 && (
+            <MatchScoreRing score={matchScore} isPerfect={isPerfectMatch} />
           )}
         </div>
 
-        {/* Why You'll Love This - Only for matches */}
+        {/* Why You'll Love This - Emotional connection */}
         {concert.matchReasons && concert.matchReasons.length > 0 && (
-          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
-            <span className="text-lg">✨</span>
-            <div>
-              <p className="text-xs font-medium text-green-400 uppercase tracking-wide">Why you&apos;ll love this</p>
-              <p className="text-sm text-green-300/90">{concert.matchReasons[0]}</p>
+          <div className={cn(
+            "relative p-3 rounded-xl overflow-hidden",
+            isPerfectMatch 
+              ? "bg-gradient-to-br from-green-500/15 to-emerald-500/10 border border-green-500/20" 
+              : "bg-gradient-to-br from-violet-500/10 to-purple-500/5 border border-violet-500/10"
+          )}>
+            <div className="flex items-start gap-2">
+              {isPerfectMatch ? (
+                <Star className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-violet-400 mt-0.5 flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  "text-[10px] font-semibold uppercase tracking-wider mb-1",
+                  isPerfectMatch ? "text-green-400" : "text-violet-400"
+                )}>
+                  {isPerfectMatch ? "Perfect for you" : "Why you'll love this"}
+                </p>
+                <p className={cn(
+                  "text-sm leading-relaxed",
+                  isPerfectMatch ? "text-green-200/90" : "text-zinc-300"
+                )}>
+                  {concert.matchReasons[0]}
+                </p>
+              </div>
             </div>
           </div>
         )}
 
         {/* Event Details */}
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2 text-zinc-300">
-            <Calendar className="w-4 h-4 flex-shrink-0 text-purple-400" />
-            <span className="font-medium">{formatDate(concert.date)}</span>
-            {concert.time && (
-              <span className="text-zinc-500">
-                • {concert.time.slice(0, 5)}
-              </span>
-            )}
+        <div className="grid grid-cols-1 gap-2">
+          <div className="flex items-center gap-3 text-sm">
+            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-4 h-4 text-purple-400" />
+            </div>
+            <div>
+              <span className="font-medium text-white">{formatDate(concert.date)}</span>
+              {concert.time && (
+                <span className="text-zinc-500 ml-2">
+                  {concert.time.slice(0, 5)}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-zinc-400">
-            <MapPin className="w-4 h-4 flex-shrink-0 text-purple-400" />
-            <span className="line-clamp-1">
-              {concert.venue.name}
-              <span className="text-zinc-500">
-                {" "}• {concert.venue.city}
-                {concert.venue.state && `, ${concert.venue.state}`}
+          <div className="flex items-center gap-3 text-sm">
+            <div className="w-8 h-8 rounded-lg bg-fuchsia-500/10 flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-4 h-4 text-fuchsia-400" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-zinc-300 line-clamp-1">{concert.venue.name}</span>
+              <span className="text-zinc-500 text-xs ml-1">
+                {concert.venue.city}{concert.venue.state && `, ${concert.venue.state}`}
               </span>
-            </span>
+            </div>
           </div>
         </div>
 
         {/* Price + Genres Row */}
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center justify-between pt-1 border-t border-zinc-800/50">
           {/* Price Range */}
           <div className="flex items-center gap-2">
             {concert.priceRange ? (
               <div className="flex items-center gap-1.5">
-                <Ticket className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-semibold text-emerald-400">
+                <span className="text-base font-bold text-emerald-400">
                   ${concert.priceRange.min}
                 </span>
                 <span className="text-xs text-zinc-500">
-                  - ${concert.priceRange.max}
+                  – ${concert.priceRange.max}
                 </span>
               </div>
             ) : (
               <span className="text-sm text-zinc-500">Price TBA</span>
             )}
-            {/* Show available sources indicator */}
             <TicketSourcesInline concert={concert} />
           </div>
 
           {/* Genre pills */}
           {concert.genres.length > 0 && (
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               {concert.genres.slice(0, 2).map((genre) => (
                 <span
                   key={genre}
-                  className="px-2 py-0.5 text-xs rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700"
+                  className="px-2.5 py-1 text-[10px] font-medium rounded-full bg-zinc-800/80 text-zinc-400 uppercase tracking-wide"
                 >
                   {genre}
                 </span>
@@ -264,44 +378,56 @@ export function ConcertCard({
           )}
         </div>
 
-        {/* Get Tickets Button */}
+        {/* Action Button */}
         {isDemo ? (
           <Button
-            className="w-full mt-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white"
-            onClick={() => alert("Connect Spotify to get real ticket links!")}
+            className="w-full h-11 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/50 text-white font-medium"
+            onClick={() => alert("Connect your music to get real tickets!")}
           >
-            <ExternalLink className="w-4 h-4 mr-2" />
+            <Ticket className="w-4 h-4 mr-2" />
             Get Tickets (Demo)
           </Button>
         ) : (
-          <div className="mt-1">
-            <TicketSourcesDropdown 
-              concert={concert} 
-              isPerfectMatch={matchQuality === "perfect"}
-            />
-          </div>
+          <TicketSourcesDropdown 
+            concert={concert} 
+            isPerfectMatch={isPerfectMatch}
+          />
         )}
       </CardContent>
     </Card>
   );
 }
 
-// Loading skeleton for ConcertCard
+// Loading skeleton with emotion
 export function ConcertCardSkeleton() {
   return (
-    <Card className="overflow-hidden bg-zinc-900/50 border-zinc-800">
-      <div className="aspect-[16/9] bg-zinc-800 animate-pulse" />
-      <CardContent className="p-4 space-y-3">
-        <div className="space-y-2">
-          <div className="h-6 bg-zinc-800 rounded animate-pulse w-3/4" />
-          <div className="h-4 bg-zinc-800 rounded animate-pulse w-1/2" />
+    <Card className="overflow-hidden bg-zinc-900/50 border border-zinc-800/50">
+      <div className="relative">
+        <div className="aspect-[16/9] bg-gradient-to-br from-zinc-800 to-zinc-900 animate-pulse" />
+        <div className="absolute bottom-3 left-3">
+          <div className="h-6 w-20 bg-zinc-800/80 rounded-full animate-pulse" />
         </div>
-        <div className="h-16 bg-zinc-800/50 rounded-lg animate-pulse" />
-        <div className="space-y-2">
-          <div className="h-4 bg-zinc-800 rounded animate-pulse w-full" />
-          <div className="h-4 bg-zinc-800 rounded animate-pulse w-2/3" />
+      </div>
+      <CardContent className="p-5 space-y-4">
+        <div className="flex items-start gap-4">
+          <div className="flex-1 space-y-2">
+            <div className="h-5 bg-zinc-800 rounded animate-pulse w-3/4" />
+            <div className="h-4 bg-zinc-800/50 rounded animate-pulse w-1/2" />
+          </div>
+          <div className="w-14 h-14 rounded-full bg-zinc-800 animate-pulse" />
         </div>
-        <div className="h-10 bg-zinc-800 rounded animate-pulse w-full mt-2" />
+        <div className="h-16 bg-zinc-800/30 rounded-xl animate-pulse" />
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-zinc-800 rounded-lg animate-pulse" />
+            <div className="h-4 bg-zinc-800 rounded animate-pulse w-32" />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-zinc-800 rounded-lg animate-pulse" />
+            <div className="h-4 bg-zinc-800 rounded animate-pulse w-40" />
+          </div>
+        </div>
+        <div className="h-11 bg-zinc-800 rounded-lg animate-pulse w-full" />
       </CardContent>
     </Card>
   );
