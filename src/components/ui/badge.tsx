@@ -13,6 +13,14 @@ const badgeVariants = cva(
         outline: "text-foreground",
         success: "border-transparent bg-green-500/20 text-green-400 hover:bg-green-500/30",
         spotify: "border-transparent bg-[#1DB954]/20 text-[#1DB954]",
+        // Vibe variants
+        chill: "border-transparent bg-blue-500/20 text-blue-400",
+        energetic: "border-transparent bg-yellow-500/20 text-yellow-400",
+        intimate: "border-transparent bg-purple-500/20 text-purple-400",
+        festival: "border-transparent bg-orange-500/20 text-orange-400",
+        // Urgency variants  
+        urgent: "border-transparent bg-red-500 text-white animate-pulse",
+        warning: "border-transparent bg-amber-500 text-white",
       },
     },
     defaultVariants: {

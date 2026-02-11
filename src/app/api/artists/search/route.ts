@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
           id: attraction.id,
           name: attraction.name,
           imageUrl: image?.url || null,
-          genres: [...new Set(genres)], // Dedupe
+          genres: Array.from(new Set(genres)), // Dedupe
         };
       }
     );
