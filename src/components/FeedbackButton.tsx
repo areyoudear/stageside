@@ -54,14 +54,14 @@ export function FeedbackButton({ userEmail }: FeedbackButtonProps) {
 
   return (
     <>
-      {/* Floating Feedback Button */}
+      {/* Floating Feedback Button - Dark theme */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-full shadow-lg transition-all hover:scale-105 group"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-full shadow-lg transition-all hover:scale-105 group"
         aria-label="Send feedback"
       >
         <MessageSquare className="w-5 h-5 text-purple-400" />
-        <span className="text-sm font-medium text-zinc-200 hidden sm:inline group-hover:text-white transition-colors">
+        <span className="text-sm font-medium text-zinc-300 hidden sm:inline group-hover:text-white transition-colors">
           Feedback
         </span>
       </button>
@@ -156,7 +156,7 @@ export function FeedbackButton({ userEmail }: FeedbackButtonProps) {
                 <Button
                   type="submit"
                   disabled={isSubmitting || !feedback.trim()}
-                  className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
+                  className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

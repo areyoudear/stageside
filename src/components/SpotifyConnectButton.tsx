@@ -4,6 +4,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Loader2, LogOut, Music2 } from "lucide-react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 interface SpotifyConnectButtonProps {
   size?: "default" | "sm" | "lg" | "xl";
@@ -18,10 +19,32 @@ export function SpotifyConnectButton({
 }: SpotifyConnectButtonProps) {
   const { data: session, status } = useSession();
 
+  // Size-specific styles
+  const sizeStyles = {
+    sm: "h-9 px-3 text-sm",
+    default: "h-10 px-4 text-sm",
+    lg: "h-12 px-6 text-base",
+    xl: "h-14 px-8 text-lg",
+  };
+
+  const iconSizes = {
+    sm: "w-4 h-4",
+    default: "w-5 h-5",
+    lg: "w-5 h-5",
+    xl: "w-6 h-6",
+  };
+
   if (status === "loading") {
     return (
-      <Button variant="spotify" size={size} disabled className={className}>
-        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+      <Button 
+        disabled 
+        className={cn(
+          "bg-[#1DB954] text-white font-semibold",
+          sizeStyles[size],
+          className
+        )}
+      >
+        <Loader2 className={cn("animate-spin mr-2", iconSizes[size])} />
         Loading...
       </Button>
     );
@@ -65,13 +88,15 @@ export function SpotifyConnectButton({
 
   return (
     <Button
-      variant="spotify"
-      size={size}
       onClick={() => signIn("spotify", { callbackUrl: "/dashboard" })}
-      className={className}
+      className={cn(
+        "bg-[#1DB954] hover:bg-[#1ed760] text-white font-semibold shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all",
+        sizeStyles[size],
+        className
+      )}
     >
       <svg
-        className="w-5 h-5 mr-2"
+        className={cn("mr-2", iconSizes[size])}
         viewBox="0 0 24 24"
         fill="currentColor"
         xmlns="http://www.w3.org/2000/svg"

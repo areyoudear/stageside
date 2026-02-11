@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Search, X, Music, Plus, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, X, Music, Plus, Loader2, TrendingUp } from "lucide-react";
 
 interface Artist {
   id: string;
@@ -151,11 +150,7 @@ export function ArtistPicker({
                 setShowResults(true);
               }}
               onFocus={() => setShowResults(true)}
-              placeholder={
-                selectedArtists.length === 0
-                  ? "Search for your favorite artists..."
-                  : `Add more artists (${selectedArtists.length}/${maxArtists})...`
-              }
+              placeholder="Search for artists..."
               className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
             />
             {isSearching && (
@@ -207,7 +202,7 @@ export function ArtistPicker({
                 </ul>
               ) : query.length >= 2 && !isSearching ? (
                 <div className="px-4 py-6 text-center text-zinc-500">
-                  No artists found for "{query}"
+                  No artists found for &quot;{query}&quot;
                 </div>
               ) : null}
             </div>
@@ -222,7 +217,7 @@ export function ArtistPicker({
             ? `Pick at least ${minArtists} artists`
             : !hasEnough
             ? `Add ${minArtists - selectedArtists.length} more`
-            : `${selectedArtists.length} artists selected`}
+            : ""}
         </span>
         {selectedArtists.length > 0 && (
           <button
@@ -237,36 +232,46 @@ export function ArtistPicker({
   );
 }
 
-// Quick suggestions component
-export function PopularArtistSuggestions({
-  onSelect,
-  exclude = [],
-}: {
+// Trending artists chips for quick-add
+interface TrendingArtistChipsProps {
   onSelect: (artist: Artist) => void;
   exclude?: string[];
-}) {
-  const popularArtists: Artist[] = [
+  location?: string;
+}
+
+export function TrendingArtistChips({
+  onSelect,
+  exclude = [],
+  location = "near you",
+}: TrendingArtistChipsProps) {
+  // These would ideally come from an API, but static for now
+  const trendingArtists: Artist[] = [
     { id: "taylor-swift", name: "Taylor Swift", imageUrl: null, genres: ["Pop"] },
-    { id: "drake", name: "Drake", imageUrl: null, genres: ["Hip-Hop"] },
-    { id: "the-weeknd", name: "The Weeknd", imageUrl: null, genres: ["R&B"] },
-    { id: "bad-bunny", name: "Bad Bunny", imageUrl: null, genres: ["Reggaeton"] },
-    { id: "sza", name: "SZA", imageUrl: null, genres: ["R&B"] },
-    { id: "kendrick-lamar", name: "Kendrick Lamar", imageUrl: null, genres: ["Hip-Hop"] },
+    { id: "drake", name: "Drake", imageUrl: null, genres: ["Hip-Hop", "R&B"] },
+    { id: "the-weeknd", name: "The Weeknd", imageUrl: null, genres: ["R&B", "Pop"] },
+    { id: "bad-bunny", name: "Bad Bunny", imageUrl: null, genres: ["Reggaeton", "Latin"] },
+    { id: "sza", name: "SZA", imageUrl: null, genres: ["R&B", "Soul"] },
+    { id: "kendrick-lamar", name: "Kendrick Lamar", imageUrl: null, genres: ["Hip-Hop", "Rap"] },
+    { id: "dua-lipa", name: "Dua Lipa", imageUrl: null, genres: ["Pop", "Dance"] },
+    { id: "tyler-creator", name: "Tyler, The Creator", imageUrl: null, genres: ["Hip-Hop", "Alternative"] },
   ];
 
-  const available = popularArtists.filter((a) => !exclude.includes(a.id));
+  const available = trendingArtists.filter((a) => !exclude.includes(a.id));
 
   if (available.length === 0) return null;
 
   return (
     <div className="space-y-2">
-      <p className="text-sm text-zinc-500">Quick add popular artists:</p>
+      <div className="flex items-center gap-2 text-sm text-zinc-500">
+        <TrendingUp className="w-4 h-4 text-green-500" />
+        <span>Trending {location}:</span>
+      </div>
       <div className="flex flex-wrap gap-2">
-        {available.map((artist) => (
+        {available.slice(0, 5).map((artist) => (
           <button
             key={artist.id}
             onClick={() => onSelect(artist)}
-            className="px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm transition-colors"
+            className="px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-green-500/50 text-zinc-300 hover:text-white text-sm transition-all"
           >
             + {artist.name}
           </button>
@@ -274,4 +279,15 @@ export function PopularArtistSuggestions({
       </div>
     </div>
   );
+}
+
+// Re-export for backward compatibility
+export function PopularArtistSuggestions({
+  onSelect,
+  exclude = [],
+}: {
+  onSelect: (artist: Artist) => void;
+  exclude?: string[];
+}) {
+  return <TrendingArtistChips onSelect={onSelect} exclude={exclude} />;
 }

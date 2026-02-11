@@ -2,12 +2,13 @@
 
 import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X } from "lucide-react";
+import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocationSearch, Location } from "@/components/LocationSearch";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
 import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
-import { ArtistPicker } from "@/components/ArtistPicker";
+import { ArtistPicker, TrendingArtistChips } from "@/components/ArtistPicker";
+import { SpotifyUpsellCard } from "@/components/SpotifyUpsellCard";
 import { cn } from "@/lib/utils";
 import type { Concert } from "@/lib/ticketmaster";
 
@@ -20,6 +21,15 @@ interface Artist {
 
 // Vibe filter types
 type VibeFilter = "all" | "chill" | "energetic" | "intimate" | "festival";
+
+// Sort options
+type SortOption = "match" | "date" | "price";
+
+const SORT_OPTIONS: { value: SortOption; label: string; icon: typeof ArrowUpDown }[] = [
+  { value: "match", label: "Best Match", icon: Sparkles },
+  { value: "date", label: "Date", icon: Calendar },
+  { value: "price", label: "Price (Low to High)", icon: DollarSign },
+];
 
 const VIBE_FILTERS: { value: VibeFilter; label: string; icon: typeof Music2; genres: string[] }[] = [
   { value: "all", label: "All Vibes", icon: Music, genres: [] },
@@ -47,22 +57,49 @@ export default function DiscoverPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [vibeFilter, setVibeFilter] = useState<VibeFilter>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("match");
 
   const hasEnoughArtists = selectedArtists.length >= 3;
   const canSearch = hasEnoughArtists && location;
 
-  // Filter concerts by vibe
-  const filteredConcerts = useMemo(() => {
-    if (vibeFilter === "all") return concerts;
+  // Filter and sort concerts
+  const filteredAndSortedConcerts = useMemo(() => {
+    let result = concerts;
     
-    const filterConfig = VIBE_FILTERS.find(f => f.value === vibeFilter);
-    if (!filterConfig) return concerts;
+    // Apply vibe filter
+    if (vibeFilter !== "all") {
+      const filterConfig = VIBE_FILTERS.find(f => f.value === vibeFilter);
+      if (filterConfig) {
+        result = result.filter(concert => {
+          const concertGenres = concert.genres.join(" ").toLowerCase();
+          return filterConfig.genres.some(g => concertGenres.includes(g));
+        });
+      }
+    }
 
-    return concerts.filter(concert => {
-      const concertGenres = concert.genres.join(" ").toLowerCase();
-      return filterConfig.genres.some(g => concertGenres.includes(g));
+    // Apply sorting
+    result = [...result].sort((a, b) => {
+      switch (sortBy) {
+        case "match":
+          return (b.matchScore || 0) - (a.matchScore || 0);
+        case "date":
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        case "price":
+          const priceA = a.priceRange?.min ?? Infinity;
+          const priceB = b.priceRange?.min ?? Infinity;
+          return priceA - priceB;
+        default:
+          return 0;
+      }
     });
-  }, [concerts, vibeFilter]);
+
+    return result;
+  }, [concerts, vibeFilter, sortBy]);
+
+  // Check if we should show the upsell (any low matches in results)
+  const hasLowMatches = useMemo(() => {
+    return concerts.some(c => (c.matchScore || 0) < 40);
+  }, [concerts]);
 
   // Fetch concerts matched to user's selected artists
   const fetchConcerts = useCallback(async () => {
@@ -102,22 +139,49 @@ export default function DiscoverPage() {
 
   // Save handler (local only for now)
   const handleSaveConcert = async (concertId: string) => {
+    // Update UI state
     setConcerts((prev) =>
       prev.map((c) => (c.id === concertId ? { ...c, isSaved: true } : c))
     );
+    // Persist to localStorage
+    const saved = JSON.parse(localStorage.getItem('savedConcerts') || '[]');
+    if (!saved.includes(concertId)) {
+      localStorage.setItem('savedConcerts', JSON.stringify([...saved, concertId]));
+    }
   };
 
   const handleUnsaveConcert = async (concertId: string) => {
     setConcerts((prev) =>
       prev.map((c) => (c.id === concertId ? { ...c, isSaved: false } : c))
     );
+    const saved = JSON.parse(localStorage.getItem('savedConcerts') || '[]');
+    localStorage.setItem('savedConcerts', JSON.stringify(saved.filter((id: string) => id !== concertId)));
   };
 
-  const highMatches = filteredConcerts.filter((c) => (c.matchScore || 0) >= 50).length;
-  const perfectMatches = filteredConcerts.filter((c) => (c.matchScore || 0) >= 100).length;
+  const highMatches = filteredAndSortedConcerts.filter((c) => (c.matchScore || 0) >= 50).length;
+  const perfectMatches = filteredAndSortedConcerts.filter((c) => (c.matchScore || 0) >= 100).length;
 
   // Extract genres from selected artists for display
   const selectedGenres = Array.from(new Set(selectedArtists.flatMap((a) => a.genres))).slice(0, 6);
+
+  // Progress indicator (visual dots instead of (3/10))
+  const renderProgressDots = () => {
+    const total = 10;
+    const filled = Math.min(selectedArtists.length, total);
+    return (
+      <div className="flex items-center gap-1">
+        {Array.from({ length: total }).map((_, i) => (
+          <div
+            key={i}
+            className={cn(
+              "w-2 h-2 rounded-full transition-all",
+              i < filled ? "bg-green-500" : "bg-zinc-700"
+            )}
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
@@ -132,29 +196,31 @@ export default function DiscoverPage() {
               <span className="text-xl font-bold text-white">Stageside</span>
             </Link>
 
-            <Link href="/">
-              <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:text-white">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Connect Spotify
-              </Button>
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/saved" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                <Bookmark className="w-4 h-4" />
+                <span className="hidden sm:inline">Saved</span>
+              </Link>
+              <Link href="/">
+                <Button className="bg-green-600 hover:bg-green-500 text-white">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Connect Spotify
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+        {/* Header - Removed "Quick Match" label */}
         <div className="mb-8">
-          <div className="flex items-center gap-2 text-purple-400 mb-2">
-            <Users className="w-5 h-5" />
-            <span className="text-sm font-medium">Quick Match</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            Find concerts you'll love
+            Find concerts you&apos;ll love
           </h1>
           <p className="text-zinc-400">
-            Pick your favorite artists and we'll find matching concerts near you.
+            Pick your favorite artists and we&apos;ll find matching concerts near you.
           </p>
         </div>
 
@@ -169,11 +235,14 @@ export default function DiscoverPage() {
                 Pick at least 3 artists you want to see live
               </p>
             </div>
-            {selectedArtists.length >= 3 && (
-              <span className="px-2 py-1 rounded-md bg-green-500/10 text-green-400 text-xs font-medium">
-                ✓ Ready
-              </span>
-            )}
+            <div className="flex items-center gap-3">
+              {renderProgressDots()}
+              {selectedArtists.length >= 3 && (
+                <span className="px-2 py-1 rounded-md bg-green-500/10 text-green-400 text-xs font-medium">
+                  ✓ Ready
+                </span>
+              )}
+            </div>
           </div>
 
           <ArtistPicker
@@ -183,10 +252,32 @@ export default function DiscoverPage() {
             maxArtists={10}
           />
 
-          {/* Show inferred genres */}
+          {/* Trending artists - quick add chips */}
+          {selectedArtists.length < 10 && (
+            <div className="mt-4 pt-4 border-t border-zinc-800">
+              <TrendingArtistChips
+                onSelect={(artist) => {
+                  if (selectedArtists.length < 10 && !selectedArtists.find(a => a.id === artist.id)) {
+                    setSelectedArtists([...selectedArtists, artist]);
+                  }
+                }}
+                exclude={selectedArtists.map(a => a.id)}
+              />
+            </div>
+          )}
+
+          {/* Show inferred genres with explainer */}
           {selectedGenres.length > 0 && (
             <div className="mt-4 pt-4 border-t border-zinc-800">
-              <p className="text-sm text-zinc-500 mb-2">Genres we'll match:</p>
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-sm text-zinc-500">Genres we&apos;ll match:</p>
+                <div className="group relative">
+                  <HelpCircle className="w-4 h-4 text-zinc-600 cursor-help" />
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-zinc-800 rounded-lg text-xs text-zinc-300 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl border border-zinc-700">
+                    We&apos;ll also show concerts from similar artists in these genres
+                  </div>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {selectedGenres.map((genre) => (
                   <span
@@ -221,12 +312,12 @@ export default function DiscoverPage() {
               <DateRangePicker value={dateRange} onChange={setDateRange} />
             </div>
 
-            {/* Search Button */}
+            {/* Search Button - GREEN */}
             <div className="flex items-end">
               <Button
                 onClick={fetchConcerts}
                 disabled={!canSearch || isLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 h-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-green-600 hover:bg-green-500 h-10 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <>
@@ -263,13 +354,13 @@ export default function DiscoverPage() {
               Ready when you are
             </h2>
             <p className="text-zinc-500 max-w-md mx-auto">
-              Pick your favorite artists and location above, then hit "Find Concerts" to see personalized matches.
+              Pick your favorite artists and location above, then hit &quot;Find Concerts&quot; to see personalized matches.
             </p>
           </div>
         ) : isLoading ? (
-          // Loading State
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
+          // Loading State - 3 column grid
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
               <ConcertCardSkeleton key={i} />
             ))}
           </div>
@@ -280,7 +371,7 @@ export default function DiscoverPage() {
               <span className="text-4xl">😕</span>
             </div>
             <h2 className="text-xl font-semibold text-white mb-2">
-              Couldn't load concerts
+              Couldn&apos;t load concerts
             </h2>
             <p className="text-zinc-500 max-w-md mx-auto mb-4">{error}</p>
             <Button onClick={fetchConcerts} variant="outline" className="border-zinc-700">
@@ -288,23 +379,23 @@ export default function DiscoverPage() {
             </Button>
           </div>
         ) : concerts.length === 0 ? (
-          // No Results
+          // No Results with helpful nudges
           <div className="text-center py-16">
             <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-6">
               <span className="text-4xl">🎵</span>
             </div>
             <h2 className="text-xl font-semibold text-white mb-2">
-              No concerts found
+              No matches found
             </h2>
             <p className="text-zinc-500 max-w-md mx-auto">
-              Try expanding your date range, search area, or add more artists.
+              Try adding more artists or expanding your date range.
             </p>
           </div>
         ) : (
           <>
-            {/* Results Header with Stats and Filters */}
+            {/* Results Header with Stats, Sort, and Filters */}
             <div className="space-y-4 mb-6">
-              {/* Stats Row */}
+              {/* Stats and Sort Row */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-white">
@@ -322,7 +413,7 @@ export default function DiscoverPage() {
                         <span className="text-zinc-400"> great matches found</span>
                       </>
                     ) : (
-                      <span className="text-zinc-300">{filteredConcerts.length} concerts found</span>
+                      <span className="text-zinc-300">{filteredAndSortedConcerts.length} concerts match your taste</span>
                     )}
                   </h2>
                   <p className="text-sm text-zinc-500">
@@ -333,19 +424,30 @@ export default function DiscoverPage() {
                   </p>
                 </div>
 
-                {/* Quick stats */}
-                {concerts.length > 0 && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-zinc-300">
-                      {concerts.length} total
-                    </span>
-                    {vibeFilter !== "all" && filteredConcerts.length !== concerts.length && (
-                      <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300">
-                        {filteredConcerts.length} shown
-                      </span>
-                    )}
+                {/* Sort Controls */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-zinc-500">Sort by:</span>
+                  <div className="flex items-center bg-zinc-800/50 rounded-lg p-1">
+                    {SORT_OPTIONS.map((option) => {
+                      const Icon = option.icon;
+                      return (
+                        <button
+                          key={option.value}
+                          onClick={() => setSortBy(option.value)}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                            sortBy === option.value
+                              ? "bg-green-600 text-white"
+                              : "text-zinc-400 hover:text-white hover:bg-zinc-700/50"
+                          )}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">{option.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Vibe Filters */}
@@ -400,8 +502,8 @@ export default function DiscoverPage() {
               </div>
             </div>
 
-            {/* Concert Grid */}
-            {filteredConcerts.length === 0 ? (
+            {/* Concert Grid - 3 columns */}
+            {filteredAndSortedConcerts.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-zinc-400">No {VIBE_FILTERS.find(f => f.value === vibeFilter)?.label.toLowerCase()} concerts found.</p>
                 <button
@@ -412,23 +514,29 @@ export default function DiscoverPage() {
                 </button>
               </div>
             ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 stagger-children">
-              {filteredConcerts.map((concert) => (
-                <ConcertCard
-                  key={concert.id}
-                  concert={concert}
-                  onSave={handleSaveConcert}
-                  onUnsave={handleUnsaveConcert}
-                  isAuthenticated={false}
-                />
-              ))}
-            </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+                {filteredAndSortedConcerts.map((concert, index) => (
+                  <>
+                    <ConcertCard
+                      key={concert.id}
+                      concert={concert}
+                      onSave={handleSaveConcert}
+                      onUnsave={handleUnsaveConcert}
+                      isAuthenticated={true}
+                    />
+                    {/* Insert upsell card after every 6th low-match result */}
+                    {hasLowMatches && index === 5 && (
+                      <SpotifyUpsellCard key="upsell" />
+                    )}
+                  </>
+                ))}
+              </div>
             )}
 
             {/* CTA at bottom */}
-            <div className="mt-16 py-12 px-8 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-2xl border border-purple-500/20">
+            <div className="mt-16 py-12 px-8 bg-gradient-to-r from-green-900/20 to-emerald-900/20 rounded-2xl border border-green-500/20">
               <div className="max-w-xl mx-auto text-center">
-                <Sparkles className="w-10 h-10 text-purple-400 mx-auto mb-4" />
+                <Sparkles className="w-10 h-10 text-green-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-white mb-2">
                   Want even better matches?
                 </h3>
@@ -439,7 +547,7 @@ export default function DiscoverPage() {
                 <Link href="/">
                   <Button
                     size="lg"
-                    className="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
+                    className="bg-green-600 hover:bg-green-500"
                   >
                     Connect Spotify
                     <ArrowRight className="w-4 h-4 ml-2" />

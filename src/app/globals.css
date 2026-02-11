@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Stageside Color System Documentation
+ * =====================================
+ * 
+ * PRIMARY ACTIONS (Green - Spotify-inspired):
+ * - bg-green-600 / hover:bg-green-500 - Primary CTA buttons
+ * - text-green-400 - Match scores, success states
+ * - border-green-500 - Perfect match highlights
+ * 
+ * MATCH/RELEVANCE (Green gradient):
+ * - text-green-400 - High match (80%+)
+ * - text-emerald-400 - Good match (60-79%)
+ * - text-yellow-400 - Moderate match (40-59%)
+ * - text-orange-400 - Low match (<40%)
+ * 
+ * URGENCY/TIME (Orange/Amber):
+ * - bg-red-500 - Tomorrow/urgent
+ * - bg-orange-500 - 2-3 days
+ * - bg-amber-500 - This week
+ * 
+ * BRAND/ACCENT (Purple/Violet):
+ * - from-violet-500 to-fuchsia-500 - Brand gradients
+ * - text-purple-400 - Secondary accents
+ * - border-purple-500 - Focus states
+ * 
+ * VIBES (Genre-based):
+ * - text-sky-400 - Chill (jazz, acoustic)
+ * - text-yellow-400 - High Energy (EDM, electronic)
+ * - text-violet-400 - Intimate (indie, singer-songwriter)
+ * - text-orange-400 - Big Shows (rock, hip-hop, pop)
+ * - text-fuchsia-400 - Mixed/diverse
+ * 
+ * INTERACTIVE STATES:
+ * - bg-zinc-800 hover:bg-zinc-700 - Secondary buttons
+ * - border-zinc-700 hover:border-zinc-600 - Borders
+ * - text-zinc-400 hover:text-white - Text links
+ */
+
 @layer base {
   :root {
     --background: 0 0% 3.9%;
@@ -10,20 +48,30 @@
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 6%;
     --popover-foreground: 0 0% 98%;
-    --primary: 270 80% 60%;
+    --primary: 142 76% 36%; /* Green for primary actions */
     --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
+    --accent: 270 80% 60%; /* Purple accent */
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 270 80% 60%;
+    --ring: 142 76% 36%; /* Green ring for focus */
     --radius: 0.5rem;
+    
+    /* Custom color tokens */
+    --color-spotify: 142 76% 36%;
+    --color-match-perfect: 142 69% 58%;
+    --color-match-great: 160 84% 39%;
+    --color-match-good: 48 96% 53%;
+    --color-match-low: 25 95% 53%;
+    --color-urgency-critical: 0 84% 60%;
+    --color-urgency-high: 25 95% 53%;
+    --color-urgency-medium: 38 92% 50%;
   }
 }
 
@@ -122,10 +170,10 @@
 
   @keyframes glow {
     0%, 100% {
-      box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
     }
     50% {
-      box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
+      box-shadow: 0 0 30px rgba(34, 197, 94, 0.5);
     }
   }
 
@@ -261,7 +309,7 @@
   }
   
   .card-hover:hover {
-    @apply shadow-xl shadow-purple-500/10;
+    @apply shadow-xl shadow-green-500/10;
   }
 
   /* Perfect match highlight */
@@ -279,10 +327,10 @@
   }
 }
 
-/* Focus visible styles */
+/* Focus visible styles - using green */
 @layer base {
   :focus-visible {
-    @apply outline-none ring-2 ring-purple-500 ring-offset-2 ring-offset-zinc-950;
+    @apply outline-none ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950;
   }
 }
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Mail, Check } from "lucide-react";
+import { Loader2, Mail, Check, Sparkles } from "lucide-react";
 
 interface EmailSignupFormProps {
   location?: {
@@ -42,7 +42,7 @@ export function EmailSignupForm({ location, className }: EmailSignupFormProps) {
 
       if (response.ok) {
         setStatus("success");
-        setMessage("You're subscribed! Check your email for confirmation.");
+        setMessage("You're in! Check your inbox for your first personalized picks.");
         setEmail("");
       } else {
         setStatus("error");
@@ -56,7 +56,7 @@ export function EmailSignupForm({ location, className }: EmailSignupFormProps) {
 
   if (status === "success") {
     return (
-      <div className={`flex items-center gap-2 text-green-400 ${className}`}>
+      <div className={`flex items-center justify-center gap-2 text-green-400 ${className}`}>
         <Check className="w-5 h-5" />
         <span>{message}</span>
       </div>
@@ -64,40 +64,51 @@ export function EmailSignupForm({ location, className }: EmailSignupFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className={className}>
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email for weekly updates"
-            className="pl-10 bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
-            disabled={status === "loading"}
-          />
+    <div className={className}>
+      {/* Positive framing header */}
+      <div className="text-center mb-4">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Sparkles className="w-5 h-5 text-purple-400" />
+          <h3 className="text-lg font-semibold text-white">Get personalized picks weekly</h3>
         </div>
-        <Button
-          type="submit"
-          disabled={status === "loading" || !email}
-          className="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
-        >
-          {status === "loading" ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Subscribing...
-            </>
-          ) : (
-            "Subscribe"
-          )}
-        </Button>
+        <p className="text-sm text-zinc-500">No Spotify required. Just enter your email.</p>
       </div>
-      {status === "error" && (
-        <p className="mt-2 text-sm text-red-400">{message}</p>
-      )}
-      <p className="mt-2 text-xs text-zinc-500">
-        Get weekly concert recommendations based on your music taste. Unsubscribe anytime.
-      </p>
-    </form>
+
+      <form onSubmit={handleSubmit}>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="pl-10 bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
+              disabled={status === "loading"}
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={status === "loading" || !email}
+            className="bg-green-600 hover:bg-green-500 text-white font-medium"
+          >
+            {status === "loading" ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Subscribing...
+              </>
+            ) : (
+              "Subscribe"
+            )}
+          </Button>
+        </div>
+        {status === "error" && (
+          <p className="mt-2 text-sm text-red-400">{message}</p>
+        )}
+        <p className="mt-3 text-xs text-zinc-600 text-center">
+          Weekly concert recommendations based on trending shows. Unsubscribe anytime.
+        </p>
+      </form>
+    </div>
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ExternalLink, Check, Ticket } from "lucide-react";
+import { ChevronDown, ExternalLink, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { formatTicketSources, TICKET_SOURCE_COLORS, type TicketSource } from "@/lib/ticket-sources";
+import { formatTicketSources, TICKET_SOURCE_COLORS } from "@/lib/ticket-sources";
 
 interface TicketSourcesDropdownProps {
   concert: {
@@ -27,46 +27,44 @@ export function TicketSourcesDropdown({ concert, isPerfectMatch = false }: Ticke
 
   if (!primarySource) return null;
 
+  // Standardized CTA text: "From $X" when price exists, "Get Tickets" when TBA
+  const ctaText = primarySource.price 
+    ? `From $${primarySource.price.min}` 
+    : "Get Tickets";
+
   return (
     <div className="relative">
       {/* Main Button with Dropdown Toggle */}
       <div className="flex gap-1">
-        {/* Primary ticket button */}
+        {/* Primary ticket button - ALL GREEN */}
         <Button
           asChild
-          className={cn(
-            "flex-1 font-semibold transition-all",
-            isPerfectMatch
-              ? "bg-green-600 hover:bg-green-500 text-white"
-              : "bg-purple-600 hover:bg-purple-500 text-white"
-          )}
+          className="flex-1 font-semibold transition-all bg-green-600 hover:bg-green-500 text-white"
         >
           <a href={primarySource.url} target="_blank" rel="noopener noreferrer">
             <Ticket className="w-4 h-4 mr-2" />
-            {primarySource.price ? (
-              <>From ${primarySource.price.min}</>
-            ) : (
-              "Get Tickets"
-            )}
+            {ctaText}
           </a>
         </Button>
 
-        {/* Dropdown toggle */}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setIsOpen(!isOpen)}
-          className={cn(
-            "border-zinc-700 hover:bg-zinc-800 transition-all",
-            isOpen && "bg-zinc-800"
-          )}
-          aria-label="Show more ticket sources"
-        >
-          <ChevronDown className={cn(
-            "w-4 h-4 transition-transform",
-            isOpen && "rotate-180"
-          )} />
-        </Button>
+        {/* Dropdown toggle - only show if multiple sources */}
+        {sources.length > 1 && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsOpen(!isOpen)}
+            className={cn(
+              "border-zinc-700 hover:bg-zinc-800 transition-all",
+              isOpen && "bg-zinc-800"
+            )}
+            aria-label="Show more ticket sources"
+          >
+            <ChevronDown className={cn(
+              "w-4 h-4 transition-transform",
+              isOpen && "rotate-180"
+            )} />
+          </Button>
+        )}
       </div>
 
       {/* Dropdown */}
@@ -108,7 +106,7 @@ export function TicketSourcesDropdown({ concert, isPerfectMatch = false }: Ticke
                   ) : (
                     <span className="text-xs text-zinc-500">Check price</span>
                   )}
-                  <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-purple-400" />
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-green-400" />
                 </div>
               </a>
             ))}

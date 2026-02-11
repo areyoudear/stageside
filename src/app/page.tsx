@@ -3,9 +3,9 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
-import { MusicServicesGrid } from "@/components/MusicServiceButton";
+import { ExpandableServices } from "@/components/ExpandableServices";
 import { EmailSignupForm } from "@/components/EmailSignupForm";
-import { Music, MapPin, Calendar, Sparkles, ArrowRight, Zap, Shield, Plane, Music2, Heart, TrendingUp, Clock, Star } from "lucide-react";
+import { Music, MapPin, Calendar, Sparkles, ArrowRight, Zap, Shield, Plane, Music2, Heart, TrendingUp, Clock, Star, ChevronDown, Bookmark } from "lucide-react";
 
 export default async function LandingPage() {
   try {
@@ -29,12 +29,18 @@ export default async function LandingPage() {
               </div>
               <span className="text-xl font-bold text-white">Stageside</span>
             </Link>
-            <SpotifyConnectButton size="sm" showName={false} />
+            <div className="flex items-center gap-4">
+              <Link href="/saved" className="text-sm text-zinc-400 hover:text-white transition-colors hidden sm:flex items-center gap-1">
+                <Bookmark className="w-4 h-4" />
+                Saved
+              </Link>
+              <SpotifyConnectButton size="sm" showName={false} />
+            </div>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section - Emotion First */}
+      {/* Hero Section - Simplified with TWO clear CTAs */}
       <section className="relative min-h-screen flex items-center justify-center pt-16">
         {/* Immersive background */}
         <div className="absolute inset-0 overflow-hidden">
@@ -66,44 +72,33 @@ export default async function LandingPage() {
             , not just find.
           </h1>
 
-          {/* Subheadline - benefit focused */}
+          {/* Subheadline - explains HOW matching works */}
           <p className="text-xl sm:text-2xl text-zinc-400 mb-12 max-w-2xl mx-auto leading-relaxed animate-fade-in" style={{ animationDelay: '0.15s' }}>
-            Turn your music taste into unforgettable live experiences.
-            We match you with shows that actually fit your vibe.
+            We analyze your listening history to surface concerts ranked by how well they match your taste.
           </p>
 
-          {/* Primary CTA cluster */}
-          <div className="flex flex-col items-center gap-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-            {/* Main CTA */}
+          {/* TWO clear CTAs - Primary: Connect Spotify, Secondary: Pick Artists */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            {/* Primary CTA - Spotify (Green) */}
+            <SpotifyConnectButton size="xl" className="w-full sm:w-auto" />
+
+            {/* Secondary CTA - Pick Your Artists */}
             <Link
               href="/discover"
-              className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold text-lg shadow-xl shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] transition-all duration-300"
+              className="group w-full sm:w-auto px-8 py-4 rounded-2xl border-2 border-zinc-700 text-white font-semibold text-lg hover:border-purple-500/50 hover:bg-purple-500/10 transition-all duration-300 flex items-center justify-center gap-3"
             >
-              <span className="relative z-10 flex items-center gap-3">
-                <span>See Your Concerts</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </span>
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <span>Pick Your Artists</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
+          </div>
 
-            {/* Secondary options */}
-            <div className="flex items-center gap-4 text-sm text-zinc-500">
-              <span>or connect</span>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <SpotifyConnectButton size="md" />
-            </div>
-            
-            <MusicServicesGrid 
-              connectedServices={[]}
-              size="sm"
-              className="max-w-md opacity-60 hover:opacity-100 transition-opacity"
-            />
+          {/* More services - expandable */}
+          <div className="mt-6 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+            <ExpandableServices />
           </div>
 
           {/* Trust signals */}
-          <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-zinc-500 text-sm animate-fade-in" style={{ animationDelay: '0.5s' }}>
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-zinc-500 text-sm animate-fade-in" style={{ animationDelay: '0.5s' }}>
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2">
                 {[...Array(4)].map((_, i) => (
@@ -135,14 +130,14 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Discovery Preview - Dynamic blocks */}
+      {/* Discovery Preview - "See what you'd discover" */}
       <section className="py-24 px-4 sm:px-6 lg:px-8 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-900/50 to-zinc-950" />
         
         <div className="relative max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              Discovery that feels personal
+              See what you&apos;d discover
             </h2>
             <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
               Not just a list of concerts. Curated moments waiting to happen.
@@ -170,7 +165,7 @@ export default async function LandingPage() {
                       <p className="text-sm font-medium text-white truncate">{show}</p>
                       <p className="text-xs text-zinc-500">{['Tomorrow', 'Friday', 'Saturday'][i]}</p>
                     </div>
-                    <span className="text-xs text-orange-400 font-medium">{[95, 88, 82][i]}%</span>
+                    <span className="text-xs text-green-400 font-medium">{[95, 88, 82][i]}%</span>
                   </div>
                 ))}
               </div>
@@ -195,7 +190,7 @@ export default async function LandingPage() {
                       <p className="text-sm font-medium text-white truncate">{show}</p>
                       <p className="text-xs text-zinc-500">Perfect match</p>
                     </div>
-                    <span className="text-xs text-violet-400 font-medium">{[98, 94, 91][i]}%</span>
+                    <span className="text-xs text-green-400 font-medium">{[98, 94, 91][i]}%</span>
                   </div>
                 ))}
               </div>
@@ -321,15 +316,21 @@ export default async function LandingPage() {
             Stop scrolling through endless event listings.<br />
             Start discovering shows made for you.
           </p>
-          <Link
-            href="/discover"
-            className="inline-flex items-center gap-3 px-10 py-5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold text-lg shadow-xl shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] transition-all duration-300"
-          >
-            <span>Find Your Concerts</span>
-            <ArrowRight className="w-5 h-5" />
-          </Link>
           
-          <div className="mt-8">
+          {/* Two CTAs again */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <SpotifyConnectButton size="lg" />
+            <Link
+              href="/discover"
+              className="group px-8 py-4 rounded-2xl border-2 border-zinc-700 text-white font-semibold text-lg hover:border-purple-500/50 hover:bg-purple-500/10 transition-all duration-300 flex items-center gap-3"
+            >
+              <span>Pick Your Artists</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+          
+          {/* Email signup with positive framing */}
+          <div className="mt-12 max-w-md mx-auto">
             <EmailSignupForm />
           </div>
         </div>
@@ -348,6 +349,7 @@ export default async function LandingPage() {
             
             <div className="flex items-center gap-6 text-sm text-zinc-500">
               <Link href="/discover" className="hover:text-white transition-colors">Discover</Link>
+              <Link href="/saved" className="hover:text-white transition-colors">Saved</Link>
               <span className="text-zinc-700">•</span>
               <span>Concert data by Ticketmaster</span>
             </div>
