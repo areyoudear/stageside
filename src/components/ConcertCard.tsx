@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
   Calendar,
@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, daysUntil, cn } from "@/lib/utils";
 import { TicketSourcesDropdown, TicketSourcesInline } from "@/components/TicketSourcesDropdown";
+import { track } from "@/lib/analytics";
 import type { Concert } from "@/lib/ticketmaster";
 
 // Vibe types based on genre
@@ -109,7 +110,7 @@ function getUrgency(daysLeft: number): { show: boolean; label: string; color: st
 }
 
 // Match score component with explainer tooltip
-function MatchScoreWithTooltip({ score, isPerfect }: { score: number; isPerfect: boolean }) {
+function MatchScoreWithTooltip({ score, isPerfect, onTooltipHover }: { score: number; isPerfect: boolean; onTooltipHover?: () => void }) {
   const circumference = 2 * Math.PI * 18;
   const strokeDashoffset = circumference - (score / 100) * circumference;
   
@@ -157,7 +158,7 @@ function MatchScoreWithTooltip({ score, isPerfect }: { score: number; isPerfect:
       
       {/* Explainer tooltip */}
       <div className="absolute top-0 right-0 -mr-1 -mt-1">
-        <div className="relative">
+        <div className="relative" onMouseEnter={onTooltipHover}>
           <HelpCircle className="w-3.5 h-3.5 text-zinc-600 cursor-help" />
           <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-zinc-800 rounded-lg text-xs text-zinc-300 w-52 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-xl border border-zinc-700">
             <p className="font-medium text-white mb-1">Match Score</p>
@@ -180,6 +181,8 @@ export function ConcertCard({
   const [imageError, setImageError] = useState(false);
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const hoverStartTime = useRef<number | null>(null);
+  const hasTrackedTooltip = useRef(false);
 
   // Load saved state from localStorage on mount
   useEffect(() => {
@@ -189,15 +192,52 @@ export function ConcertCard({
     }
   }, [concert.id]);
 
+  // Track hover interactions
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    hoverStartTime.current = Date.now();
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    // Only track if hovered for more than 500ms (meaningful engagement)
+    if (hoverStartTime.current && Date.now() - hoverStartTime.current > 500) {
+      track('concert_card_hovered', {
+        concert_id: concert.id,
+        artist: concert.artists.join(", "),
+        match_score: concert.matchScore || 0,
+      });
+    }
+    hoverStartTime.current = null;
+  };
+
+  // Track tooltip view
+  const handleTooltipHover = () => {
+    if (!hasTrackedTooltip.current) {
+      hasTrackedTooltip.current = true;
+      track('match_tooltip_viewed', { concert_id: concert.id });
+    }
+  };
+
   const daysLeft = daysUntil(concert.date);
   const vibe = useMemo(() => getVibe(concert.genres), [concert.genres]);
   const urgency = useMemo(() => getUrgency(daysLeft), [daysLeft]);
 
   const handleSaveToggle = () => {
+    const artistName = concert.artists.join(", ");
     if (isSaved) {
+      track('concert_unsaved', {
+        concert_id: concert.id,
+        artist: artistName,
+      });
       onUnsave?.(concert.id);
       setIsSaved(false);
     } else {
+      track('concert_saved', {
+        concert_id: concert.id,
+        artist: artistName,
+        match_score: concert.matchScore,
+      });
       onSave?.(concert.id);
       setIsSaved(true);
       setShowSavedFeedback(true);
@@ -215,6 +255,11 @@ export function ConcertCard({
     if (navigator.share) {
       try {
         await navigator.share(shareData);
+        track('concert_shared', {
+          concert_id: concert.id,
+          artist: concert.artists.join(", "),
+          method: 'native',
+        });
       } catch (err) {
         // User cancelled or error
         console.log('Share cancelled');
@@ -222,8 +267,20 @@ export function ConcertCard({
     } else {
       // Fallback: copy to clipboard
       navigator.clipboard.writeText(shareData.url);
+      track('concert_shared', {
+        concert_id: concert.id,
+        artist: concert.artists.join(", "),
+        method: 'clipboard',
+      });
       alert('Link copied to clipboard!');
     }
+  };
+
+  const handleSetAlert = () => {
+    track('set_alert_clicked', {
+      concert_id: concert.id,
+      artist: concert.artists.join(", "),
+    });
   };
 
   // Determine match quality
@@ -242,8 +299,8 @@ export function ConcertCard({
           ? `border ${vibe.borderColor}`
           : "border border-zinc-800/80 hover:border-zinc-700"
       )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Perfect match shimmer effect */}
       {isPerfectMatch && (
@@ -347,7 +404,7 @@ export function ConcertCard({
           
           {/* Match Score with Tooltip */}
           {matchScore > 0 && (
-            <MatchScoreWithTooltip score={matchScore} isPerfect={isPerfectMatch} />
+            <MatchScoreWithTooltip score={matchScore} isPerfect={isPerfectMatch} onTooltipHover={handleTooltipHover} />
           )}
         </div>
 
@@ -417,7 +474,10 @@ export function ConcertCard({
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-zinc-500">Price TBA</span>
-                <button className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1">
+                <button 
+                  onClick={handleSetAlert}
+                  className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                >
                   <Bell className="w-3 h-3" />
                   Set alert
                 </button>

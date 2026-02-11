@@ -1,10 +1,34 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { track } from "@/lib/analytics";
 
-export function SpotifyUpsellCard() {
+interface SpotifyUpsellCardProps {
+  trigger?: 'low_matches' | 'scroll' | 'manual';
+}
+
+export function SpotifyUpsellCard({ trigger = 'low_matches' }: SpotifyUpsellCardProps) {
+  const hasTrackedShow = useRef(false);
+
+  useEffect(() => {
+    if (!hasTrackedShow.current) {
+      hasTrackedShow.current = true;
+      track('upsell_banner_shown', {
+        location: window.location.pathname,
+        trigger,
+      });
+    }
+  }, [trigger]);
+
+  const handleClick = () => {
+    track('upsell_banner_clicked', {
+      location: window.location.pathname,
+    });
+  };
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-green-500/30 bg-gradient-to-br from-green-900/20 via-zinc-900 to-zinc-900 p-6 flex flex-col items-center justify-center text-center min-h-[300px]">
       {/* Background glow */}
@@ -24,7 +48,7 @@ export function SpotifyUpsellCard() {
           Connect Spotify to match concerts to your full listening history
         </p>
         
-        <Link href="/">
+        <Link href="/" onClick={handleClick}>
           <Button className="bg-green-600 hover:bg-green-500 text-white font-medium">
             Connect Spotify
             <ArrowRight className="w-4 h-4 ml-2" />

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Search, X, Music, Plus, Loader2, TrendingUp } from "lucide-react";
+import { track } from "@/lib/analytics";
 
 interface Artist {
   id: string;
@@ -31,11 +32,20 @@ export function ArtistPicker({
   const resultsRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
 
+  // Track search queries (debounced separately)
+  const lastTrackedQuery = useRef<string>("");
+  
   // Search for artists
   const searchArtists = useCallback(async (searchQuery: string) => {
     if (searchQuery.length < 2) {
       setResults([]);
       return;
+    }
+
+    // Track search query (only if significantly different from last tracked)
+    if (searchQuery.length >= 3 && searchQuery !== lastTrackedQuery.current) {
+      lastTrackedQuery.current = searchQuery;
+      track('artist_search', { query: searchQuery });
     }
 
     setIsSearching(true);
@@ -87,11 +97,24 @@ export function ArtistPicker({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const addArtist = (artist: Artist) => {
+  const addArtist = (artist: Artist, source: 'search' | 'trending' = 'search') => {
     if (selectedArtists.length >= maxArtists) return;
     if (selectedArtists.find((a) => a.id === artist.id)) return;
 
-    onArtistsChange([...selectedArtists, artist]);
+    track('artist_added', { 
+      artist_name: artist.name, 
+      artist_id: artist.id,
+      source 
+    });
+
+    // Track genres detected when we have enough artists
+    const newArtists = [...selectedArtists, artist];
+    const allGenres = Array.from(new Set(newArtists.flatMap((a) => a.genres)));
+    if (allGenres.length > 0 && newArtists.length >= 3) {
+      track('genre_detected', { genres: allGenres });
+    }
+
+    onArtistsChange(newArtists);
     setQuery("");
     setResults([]);
     setShowResults(false);
@@ -99,6 +122,13 @@ export function ArtistPicker({
   };
 
   const removeArtist = (artistId: string) => {
+    const artist = selectedArtists.find((a) => a.id === artistId);
+    if (artist) {
+      track('artist_removed', { 
+        artist_name: artist.name, 
+        artist_id: artist.id 
+      });
+    }
     onArtistsChange(selectedArtists.filter((a) => a.id !== artistId));
   };
 
@@ -260,6 +290,14 @@ export function TrendingArtistChips({
 
   if (available.length === 0) return null;
 
+  const handleTrendingClick = (artist: Artist) => {
+    track('trending_artist_clicked', { 
+      artist_name: artist.name, 
+      artist_id: artist.id 
+    });
+    onSelect(artist);
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-sm text-zinc-500">
@@ -270,7 +308,7 @@ export function TrendingArtistChips({
         {available.slice(0, 5).map((artist) => (
           <button
             key={artist.id}
-            onClick={() => onSelect(artist)}
+            onClick={() => handleTrendingClick(artist)}
             className="px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-green-500/50 text-zinc-300 hover:text-white text-sm transition-all"
           >
             + {artist.name}

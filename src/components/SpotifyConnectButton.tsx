@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, LogOut, Music2 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 
 interface SpotifyConnectButtonProps {
   size?: "default" | "sm" | "lg" | "xl";
@@ -88,7 +89,11 @@ export function SpotifyConnectButton({
 
   return (
     <Button
-      onClick={() => signIn("spotify", { callbackUrl: "/dashboard" })}
+      onClick={() => {
+        track('spotify_connect_started', { location: window.location.pathname });
+        track('cta_click', { cta: 'connect_spotify', location: window.location.pathname });
+        signIn("spotify", { callbackUrl: "/dashboard" });
+      }}
       className={cn(
         "bg-[#1DB954] hover:bg-[#1ed760] text-white font-semibold shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all",
         sizeStyles[size],

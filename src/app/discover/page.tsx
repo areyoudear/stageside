@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
 import { ArtistPicker, TrendingArtistChips } from "@/components/ArtistPicker";
 import { SpotifyUpsellCard } from "@/components/SpotifyUpsellCard";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 import type { Concert } from "@/lib/ticketmaster";
 
 interface Artist {
@@ -62,6 +63,53 @@ export default function DiscoverPage() {
   const hasEnoughArtists = selectedArtists.length >= 3;
   const canSearch = hasEnoughArtists && location;
 
+  // Track location changes
+  const handleLocationChange = (newLocation: Location | null) => {
+    if (newLocation) {
+      track('location_set', { 
+        city: newLocation.name, 
+        method: 'search' 
+      });
+    }
+    setLocation(newLocation);
+  };
+
+  // Track date range changes
+  const handleDateRangeChange = (newRange: DateRange) => {
+    track('date_range_selected', {
+      range: newRange.label || 'custom',
+      start_date: newRange.startDate.toISOString().split('T')[0],
+      end_date: newRange.endDate.toISOString().split('T')[0],
+    });
+    setDateRange(newRange);
+  };
+
+  // Track vibe filter changes
+  const handleVibeFilterChange = (newFilter: VibeFilter) => {
+    const count = newFilter === "all" 
+      ? concerts.length 
+      : concerts.filter(c => {
+          const filterConfig = VIBE_FILTERS.find(f => f.value === newFilter);
+          if (!filterConfig) return false;
+          const genres = c.genres.join(" ").toLowerCase();
+          return filterConfig.genres.some(g => genres.includes(g));
+        }).length;
+    
+    track('filter_used', {
+      filter: newFilter === 'all' ? 'all' : newFilter === 'energetic' ? 'high_energy' : newFilter === 'festival' ? 'big_shows' : newFilter,
+      result_count: count,
+    });
+    setVibeFilter(newFilter);
+  };
+
+  // Track sort changes
+  const handleSortChange = (newSort: SortOption) => {
+    track('sort_changed', {
+      sort: newSort === 'match' ? 'best_match' : newSort,
+    });
+    setSortBy(newSort);
+  };
+
   // Filter and sort concerts
   const filteredAndSortedConcerts = useMemo(() => {
     let result = concerts;
@@ -105,9 +153,18 @@ export default function DiscoverPage() {
   const fetchConcerts = useCallback(async () => {
     if (!location || selectedArtists.length < 3) return;
 
+    // Track search initiated
+    track('find_concerts_clicked', {
+      artist_count: selectedArtists.length,
+      location: location.name,
+      date_range: dateRange.label || 'custom',
+    });
+
     setIsLoading(true);
     setHasSearched(true);
     setError(null);
+
+    const startTime = Date.now();
 
     try {
       const params = new URLSearchParams({
@@ -122,14 +179,40 @@ export default function DiscoverPage() {
       const response = await fetch(`/api/concerts/matched?${params.toString()}`);
       const data = await response.json();
 
+      // Track API call
+      track('api_call', {
+        api: 'ticketmaster',
+        response_time_ms: Date.now() - startTime,
+        success: !data.error,
+        error: data.error,
+      });
+
       if (data.error) {
         setError(data.error);
         setConcerts([]);
       } else {
-        setConcerts(data.concerts || []);
+        const loadedConcerts = data.concerts || [];
+        setConcerts(loadedConcerts);
+        
+        // Track results loaded
+        const perfectMatches = loadedConcerts.filter((c: Concert) => (c.matchScore || 0) >= 95).length;
+        const highMatches = loadedConcerts.filter((c: Concert) => (c.matchScore || 0) >= 75).length;
+        
+        track('results_loaded', {
+          count: loadedConcerts.length,
+          perfect_matches: perfectMatches,
+          high_matches: highMatches,
+          location: location.name,
+        });
       }
     } catch (err) {
       console.error("Error fetching concerts:", err);
+      track('api_call', {
+        api: 'ticketmaster',
+        response_time_ms: Date.now() - startTime,
+        success: false,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
       setError("Failed to load concerts. Please try again.");
       setConcerts([]);
     } finally {
@@ -258,6 +341,8 @@ export default function DiscoverPage() {
               <TrendingArtistChips
                 onSelect={(artist) => {
                   if (selectedArtists.length < 10 && !selectedArtists.find(a => a.id === artist.id)) {
+                    // Note: TrendingArtistChips already tracks trending_artist_clicked
+                    // Here we just add the artist - the artist_added tracking happens in ArtistPicker
                     setSelectedArtists([...selectedArtists, artist]);
                   }
                 }}
@@ -301,7 +386,7 @@ export default function DiscoverPage() {
                 <MapPin className="w-4 h-4 inline mr-1" />
                 Location
               </label>
-              <LocationSearch value={location} onChange={setLocation} />
+              <LocationSearch value={location} onChange={handleLocationChange} />
             </div>
 
             {/* Date Range */}
@@ -309,7 +394,7 @@ export default function DiscoverPage() {
               <label className="block text-sm font-medium text-zinc-400 mb-2">
                 Date Range
               </label>
-              <DateRangePicker value={dateRange} onChange={setDateRange} />
+              <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
             </div>
 
             {/* Search Button - GREEN */}
@@ -433,7 +518,7 @@ export default function DiscoverPage() {
                       return (
                         <button
                           key={option.value}
-                          onClick={() => setSortBy(option.value)}
+                          onClick={() => handleSortChange(option.value)}
                           className={cn(
                             "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
                             sortBy === option.value
@@ -466,7 +551,7 @@ export default function DiscoverPage() {
                   return (
                     <button
                       key={filter.value}
-                      onClick={() => setVibeFilter(filter.value)}
+                      onClick={() => handleVibeFilterChange(filter.value)}
                       disabled={count === 0 && filter.value !== "all"}
                       className={cn(
                         "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
@@ -492,7 +577,7 @@ export default function DiscoverPage() {
                 })}
                 {vibeFilter !== "all" && (
                   <button
-                    onClick={() => setVibeFilter("all")}
+                    onClick={() => handleVibeFilterChange("all")}
                     className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
                     title="Clear filter"
                   >

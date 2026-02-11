@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mail, Check, Sparkles } from "lucide-react";
+import { track } from "@/lib/analytics";
 
 interface EmailSignupFormProps {
   location?: {
@@ -18,6 +19,14 @@ export function EmailSignupForm({ location, className }: EmailSignupFormProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+  const hasFocused = useRef(false);
+
+  const handleFocus = () => {
+    if (!hasFocused.current) {
+      hasFocused.current = true;
+      track('email_signup_started', { location: 'landing_page' });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +53,11 @@ export function EmailSignupForm({ location, className }: EmailSignupFormProps) {
         setStatus("success");
         setMessage("You're in! Check your inbox for your first personalized picks.");
         setEmail("");
+        track('email_signup_completed', { 
+          location: 'landing_page', 
+          has_location: !!location 
+        });
+        hasFocused.current = false;
       } else {
         setStatus("error");
         setMessage(data.error || "Something went wrong. Please try again.");
@@ -82,6 +96,7 @@ export function EmailSignupForm({ location, className }: EmailSignupFormProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={handleFocus}
               placeholder="Enter your email"
               className="pl-10 bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
               disabled={status === "loading"}

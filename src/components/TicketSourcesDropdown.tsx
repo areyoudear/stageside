@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronDown, ExternalLink, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatTicketSources, TICKET_SOURCE_COLORS } from "@/lib/ticket-sources";
+import { track, startTimer, endTimer } from "@/lib/analytics";
 
 interface TicketSourcesDropdownProps {
   concert: {
@@ -20,10 +21,46 @@ interface TicketSourcesDropdownProps {
 export function TicketSourcesDropdown({ concert, isPerfectMatch = false }: TicketSourcesDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { sources, cheapestSource } = formatTicketSources(concert);
+  const timerKey = useRef(`ticket-dropdown-${concert.date}-${concert.venue.name}`);
 
   // Primary source (Ticketmaster if available, otherwise first source)
   const primarySource = sources.find(s => s.name === "Ticketmaster") || sources[0];
   const otherSources = sources.filter(s => s.name !== primarySource?.name);
+
+  // Track dropdown open/close
+  const handleToggle = () => {
+    if (!isOpen) {
+      // Opening
+      track('ticket_source_expanded', {
+        concert_id: `${concert.date}-${concert.venue.name}`,
+        sources_count: sources.length,
+      });
+      startTimer(timerKey.current);
+    } else {
+      // Closing - track time spent
+      const timeSpent = endTimer(timerKey.current);
+      if (timeSpent > 1000) {
+        track('price_compared', {
+          concert_id: `${concert.date}-${concert.venue.name}`,
+          time_spent_ms: timeSpent,
+          sources_viewed: sources.length,
+        });
+      }
+    }
+    setIsOpen(!isOpen);
+  };
+
+  // Track ticket link clicks
+  const handleTicketClick = (sourceName: string, price?: { min: number }) => {
+    const vendorName = sourceName.toLowerCase().replace(/\s+/g, '') as 'ticketmaster' | 'seatgeek' | 'stubhub' | 'vividseats' | 'gametime' | 'other';
+    track('ticket_link_clicked', {
+      vendor: ['ticketmaster', 'seatgeek', 'stubhub', 'vividseats', 'gametime'].includes(vendorName) ? vendorName : 'other',
+      concert_id: `${concert.date}-${concert.venue.name}`,
+      artist: concert.artists.join(", "),
+      price: price?.min,
+      is_cheapest: sourceName === cheapestSource,
+    });
+  };
 
   if (!primarySource) return null;
 
@@ -41,7 +78,12 @@ export function TicketSourcesDropdown({ concert, isPerfectMatch = false }: Ticke
           asChild
           className="flex-1 font-semibold transition-all bg-green-600 hover:bg-green-500 text-white"
         >
-          <a href={primarySource.url} target="_blank" rel="noopener noreferrer">
+          <a 
+            href={primarySource.url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            onClick={() => handleTicketClick(primarySource.name, primarySource.price)}
+          >
             <Ticket className="w-4 h-4 mr-2" />
             {ctaText}
           </a>
@@ -52,7 +94,7 @@ export function TicketSourcesDropdown({ concert, isPerfectMatch = false }: Ticke
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={handleToggle}
             className={cn(
               "border-zinc-700 hover:bg-zinc-800 transition-all",
               isOpen && "bg-zinc-800"
@@ -81,6 +123,7 @@ export function TicketSourcesDropdown({ concert, isPerfectMatch = false }: Ticke
                 href={source.url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => handleTicketClick(source.name, source.price)}
                 className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-zinc-800 transition-colors group"
               >
                 <div className="flex items-center gap-2">
@@ -124,7 +167,7 @@ export function TicketSourcesDropdown({ concert, isPerfectMatch = false }: Ticke
       {isOpen && (
         <div
           className="fixed inset-0 z-0"
-          onClick={() => setIsOpen(false)}
+          onClick={handleToggle}
         />
       )}
     </div>

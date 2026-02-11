@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
 import { ExpandableServices } from "@/components/ExpandableServices";
 import { EmailSignupForm } from "@/components/EmailSignupForm";
+import { TrackedLink, TrackedSection } from "@/components/LandingAnalytics";
 import { Music, MapPin, Calendar, Sparkles, ArrowRight, Zap, Shield, Plane, Music2, Heart, TrendingUp, Clock, Star, ChevronDown, Bookmark } from "lucide-react";
 
 export default async function LandingPage() {
@@ -83,13 +84,14 @@ export default async function LandingPage() {
             <SpotifyConnectButton size="xl" className="w-full sm:w-auto" />
 
             {/* Secondary CTA - Pick Your Artists */}
-            <Link
+            <TrackedLink
               href="/discover"
+              cta="pick_artists"
               className="group w-full sm:w-auto px-8 py-4 rounded-2xl border-2 border-zinc-700 text-white font-semibold text-lg hover:border-purple-500/50 hover:bg-purple-500/10 transition-all duration-300 flex items-center justify-center gap-3"
             >
               <span>Pick Your Artists</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            </TrackedLink>
           </div>
 
           {/* More services - expandable */}
@@ -235,7 +237,7 @@ export default async function LandingPage() {
       </section>
 
       {/* How It Works - Simplified */}
-      <section id="how-it-works" className="py-24 px-4 sm:px-6 lg:px-8">
+      <TrackedSection sectionId="how_it_works" id="how-it-works" className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
@@ -266,7 +268,7 @@ export default async function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </TrackedSection>
 
       {/* Features Grid */}
       <section className="py-24 px-4 sm:px-6 lg:px-8 bg-zinc-900/30">
@@ -320,13 +322,14 @@ export default async function LandingPage() {
           {/* Two CTAs again */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
             <SpotifyConnectButton size="lg" />
-            <Link
+            <TrackedLink
               href="/discover"
+              cta="pick_artists"
               className="group px-8 py-4 rounded-2xl border-2 border-zinc-700 text-white font-semibold text-lg hover:border-purple-500/50 hover:bg-purple-500/10 transition-all duration-300 flex items-center gap-3"
             >
               <span>Pick Your Artists</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            </TrackedLink>
           </div>
           
           {/* Email signup with positive framing */}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { MusicServiceButton, MusicServiceType } from "@/components/MusicServiceButton";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 
 export function ExpandableServices() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -15,10 +16,21 @@ export function ExpandableServices() {
     "deezer",
   ];
 
+  const handleExpand = () => {
+    if (!isExpanded) {
+      track('cta_click', { cta: 'more_services', location: window.location.pathname });
+    }
+    setIsExpanded(!isExpanded);
+  };
+
+  const handleServiceClick = (service: MusicServiceType) => {
+    track('service_selected', { service });
+  };
+
   return (
     <div className="flex flex-col items-center gap-3">
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={handleExpand}
         className="flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
       >
         <span>More services</span>
@@ -33,12 +45,13 @@ export function ExpandableServices() {
       {isExpanded && (
         <div className="flex flex-wrap justify-center gap-2 animate-fade-in">
           {otherServices.map((service) => (
-            <MusicServiceButton
-              key={service}
-              service={service}
-              size="sm"
-              showStatus={false}
-            />
+            <div key={service} onClick={() => handleServiceClick(service)}>
+              <MusicServiceButton
+                service={service}
+                size="sm"
+                showStatus={false}
+              />
+            </div>
           ))}
         </div>
       )}
