@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
 import { MusicServicesGrid } from "@/components/MusicServiceButton";
 import { EmailSignupForm } from "@/components/EmailSignupForm";
-import { Music, MapPin, Calendar, Sparkles, ArrowRight } from "lucide-react";
+import { Music, MapPin, Calendar, Sparkles, ArrowRight, Zap, Shield, Plane, Music2 } from "lucide-react";
 
 export default async function LandingPage() {
   // If user is already logged in, redirect to dashboard
@@ -37,24 +37,28 @@ export default async function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center">
+      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        {/* Background gradient orbs */}
+        <div className="absolute top-20 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl opacity-30 pointer-events-none" />
+        <div className="absolute top-40 right-1/4 w-80 h-80 bg-pink-500/20 rounded-full blur-3xl opacity-20 pointer-events-none" />
+        
+        <div className="max-w-4xl mx-auto text-center relative">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm mb-8 animate-fade-in">
             <Sparkles className="w-4 h-4" />
             <span>Powered by your music streaming history</span>
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight animate-slide-up">
             Discover concerts{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-[length:200%_auto] animate-[gradient_3s_linear_infinite]">
               you&apos;ll actually love
             </span>
           </h1>
 
           {/* Subheadline */}
-          <p className="text-lg sm:text-xl text-zinc-400 mb-10 max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-zinc-400 mb-10 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
             Connect your music streaming services, pick your city, and we&apos;ll show you 
             upcoming concerts from artists you already listen to. No more FOMO.
           </p>
@@ -168,14 +172,20 @@ export default async function LandingPage() {
       {/* Features */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-white text-center mb-12">
+          <h2 className="text-3xl font-bold text-white text-center mb-4">
             Why Music Fans Love Stageside
           </h2>
+          <p className="text-zinc-400 text-center mb-12 max-w-2xl mx-auto">
+            We&apos;re not just another ticket site. We help you discover shows you&apos;ll actually remember.
+          </p>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
+            <div className="group p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-purple-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/5">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Music2 className="w-6 h-6 text-purple-400" />
+              </div>
               <h3 className="text-lg font-semibold text-white mb-2">
-                🎵 Multi-Service Support
+                Multi-Service Support
               </h3>
               <p className="text-zinc-400">
                 Connect Spotify, Apple Music, YouTube Music, Tidal, or Deezer. 
@@ -183,9 +193,12 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
+            <div className="group p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-green-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/5">
+              <div className="w-12 h-12 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Zap className="w-6 h-6 text-green-400" />
+              </div>
               <h3 className="text-lg font-semibold text-white mb-2">
-                🎯 Personalized Matching
+                Personalized Matching
               </h3>
               <p className="text-zinc-400">
                 We combine data from all your services to rank concerts by how well 
@@ -193,9 +206,12 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
+            <div className="group p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-blue-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Plane className="w-6 h-6 text-blue-400" />
+              </div>
               <h3 className="text-lg font-semibold text-white mb-2">
-                📍 Travel-Friendly
+                Travel-Friendly
               </h3>
               <p className="text-zinc-400">
                 Planning a trip? Enter any city and date range to find concerts
@@ -203,9 +219,12 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
+            <div className="group p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-amber-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/5">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Shield className="w-6 h-6 text-amber-400" />
+              </div>
               <h3 className="text-lg font-semibold text-white mb-2">
-                🔒 Privacy First
+                Privacy First
               </h3>
               <p className="text-zinc-400">
                 We only read your listening history. We never post anything,
@@ -232,15 +251,32 @@ export default async function LandingPage() {
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-zinc-800">
         <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <Music className="w-4 h-4 text-white" />
+          <div className="flex flex-col gap-8">
+            {/* Top section */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                  <Music className="w-4 h-4 text-white" />
+                </div>
+                <span className="font-semibold text-white">Stageside</span>
               </div>
-              <span className="font-semibold text-white">Stageside</span>
+              <div className="flex items-center gap-6 text-sm text-zinc-500">
+                <span>Compare prices across Ticketmaster, SeatGeek, StubHub & more</span>
+              </div>
             </div>
-            <div className="text-sm text-zinc-500">
-              © 2026 Stageside. Concert data by Ticketmaster.
+            
+            {/* Bottom section */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-zinc-800/50">
+              <div className="text-sm text-zinc-600">
+                © 2026 Stageside. Made with 🎵 in San Francisco.
+              </div>
+              <div className="flex items-center gap-4 text-sm text-zinc-500">
+                <Link href="/discover" className="hover:text-purple-400 transition-colors">
+                  Discover
+                </Link>
+                <span className="text-zinc-700">•</span>
+                <span>Concert data by Ticketmaster</span>
+              </div>
             </div>
           </div>
         </div>

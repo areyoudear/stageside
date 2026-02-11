@@ -129,6 +129,15 @@
     }
   }
 
+  @keyframes gradient {
+    0% {
+      background-position: 0% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out forwards;
   }
