@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Music, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function AccessPage() {
+function AccessForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -97,7 +97,7 @@ export default function AccessPage() {
           </form>
 
           <p className="mt-6 text-center text-zinc-500 text-xs">
-            Don't have an access code?{" "}
+            Don&apos;t have an access code?{" "}
             <a
               href="mailto:hello@getstageside.com"
               className="text-purple-400 hover:text-purple-300"
@@ -113,5 +113,21 @@ export default function AccessPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950 flex items-center justify-center px-4">
+      <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+    </main>
+  );
+}
+
+export default function AccessPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AccessForm />
+    </Suspense>
   );
 }
