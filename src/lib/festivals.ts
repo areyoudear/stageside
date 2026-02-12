@@ -897,3 +897,356 @@ export function swapItineraryArtist(
 
   return newItinerary;
 }
+
+// ============================================
+// FESTIVAL BUDDY - GROUP ITINERARY GENERATOR
+// ============================================
+
+export interface GroupMemberMatch {
+  userId: string;
+  username: string;
+  displayName: string;
+  matchScore: number;
+  matchType: 'perfect' | 'genre' | 'discovery' | 'none';
+  matchReason?: string;
+}
+
+export interface GroupItinerarySlot {
+  artist: FestivalArtistMatch;
+  decidedBy: 'consensus' | 'strongest-match' | 'compromise';
+  winningMember?: { userId: string; username: string; score: number };
+  memberMatches: GroupMemberMatch[];
+  groupScore: number; // Average of all member scores
+  alternatives?: Array<{
+    artist: FestivalArtistMatch;
+    memberMatches: GroupMemberMatch[];
+    groupScore: number;
+  }>;
+  conflictResolution?: {
+    losingMember: { userId: string; username: string; preferredArtist: string };
+    reason: string;
+  };
+}
+
+export interface GroupItineraryDay {
+  dayName: string;
+  date: string;
+  slots: GroupItinerarySlot[];
+  groupScore: number;
+  consensusCount: number; // Slots where everyone agrees
+  compromiseCount: number; // Slots where someone "lost"
+}
+
+export interface GeneratedGroupItinerary {
+  days: GroupItineraryDay[];
+  totalGroupScore: number;
+  consensusRate: number; // % of slots with consensus
+  memberSatisfaction: Array<{
+    userId: string;
+    username: string;
+    satisfactionScore: number; // % of their must-sees included
+    mustSeesCovered: number;
+    mustSeesTotal: number;
+    compromises: number; // Times they "lost" a conflict
+  }>;
+  highlights: string[];
+}
+
+interface MemberProfile {
+  userId: string;
+  username: string;
+  displayName: string;
+  artistMatches: Map<string, { score: number; type: string; reason?: string }>;
+}
+
+/**
+ * Generate a group festival itinerary
+ * Resolves conflicts by strongest match score
+ */
+export function generateGroupFestivalItinerary(
+  lineup: FestivalArtist[],
+  festival: Festival,
+  memberProfiles: MemberProfile[],
+  options?: {
+    maxPerDay?: number;
+    restBreakMinutes?: number;
+  }
+): GeneratedGroupItinerary {
+  const maxPerDay = options?.maxPerDay ?? 8;
+  const restBreakMinutes = options?.restBreakMinutes ?? 60;
+
+  // Calculate match scores for each artist for each member
+  const artistGroupScores = new Map<string, {
+    artist: FestivalArtist;
+    memberMatches: GroupMemberMatch[];
+    groupScore: number;
+    maxScore: number;
+    maxScoreMember: { userId: string; username: string };
+  }>();
+
+  for (const artist of lineup) {
+    const normalizedName = artist.artist_name.toLowerCase();
+    const memberMatches: GroupMemberMatch[] = [];
+    let totalScore = 0;
+    let maxScore = 0;
+    let maxScoreMember = memberProfiles[0];
+
+    for (const member of memberProfiles) {
+      const match = member.artistMatches.get(normalizedName);
+      const score = match?.score ?? 0;
+      const matchType = (match?.type as GroupMemberMatch['matchType']) ?? 'none';
+
+      memberMatches.push({
+        userId: member.userId,
+        username: member.username,
+        displayName: member.displayName,
+        matchScore: score,
+        matchType,
+        matchReason: match?.reason,
+      });
+
+      totalScore += score;
+
+      if (score > maxScore) {
+        maxScore = score;
+        maxScoreMember = member;
+      }
+    }
+
+    artistGroupScores.set(artist.id, {
+      artist,
+      memberMatches,
+      groupScore: memberProfiles.length > 0 ? totalScore / memberProfiles.length : 0,
+      maxScore,
+      maxScoreMember: { userId: maxScoreMember.userId, username: maxScoreMember.username },
+    });
+  }
+
+  // Group artists by day
+  const artistsByDay = new Map<string, typeof lineup>();
+  lineup.forEach(artist => {
+    const day = artist.day || 'Day 1';
+    if (!artistsByDay.has(day)) {
+      artistsByDay.set(day, []);
+    }
+    artistsByDay.get(day)!.push(artist);
+  });
+
+  const dayNames = Array.from(artistsByDay.keys()).sort();
+  const generatedDays: GroupItineraryDay[] = [];
+  
+  // Track member satisfaction
+  const memberStats = new Map<string, {
+    mustSeesCovered: number;
+    mustSeesTotal: number;
+    compromises: number;
+  }>();
+  
+  for (const member of memberProfiles) {
+    // Count must-sees (score >= 80)
+    let mustSeesTotal = 0;
+    member.artistMatches.forEach((match) => {
+      if (match.score >= 80) mustSeesTotal++;
+    });
+    memberStats.set(member.userId, { mustSeesCovered: 0, mustSeesTotal, compromises: 0 });
+  }
+
+  let totalConsensus = 0;
+  let totalCompromise = 0;
+  let totalGroupScore = 0;
+
+  for (const dayName of dayNames) {
+    const dayArtists = artistsByDay.get(dayName)!;
+    const daySlots: GroupItinerarySlot[] = [];
+    const scheduledTimes = new Set<string>();
+
+    // Sort artists by group score (highest first)
+    const sortedArtists = dayArtists
+      .map(artist => artistGroupScores.get(artist.id)!)
+      .filter(Boolean)
+      .sort((a, b) => b.groupScore - a.groupScore);
+
+    // Helper to check time availability
+    const isTimeAvailable = (artist: FestivalArtist): boolean => {
+      if (!artist.start_time) return true;
+      
+      const startMins = timeToMinutes(artist.start_time);
+      
+      for (const slot of daySlots) {
+        if (!slot.artist.start_time || !slot.artist.end_time) continue;
+        
+        const schedStart = timeToMinutes(slot.artist.start_time);
+        const schedEnd = timeToMinutes(slot.artist.end_time);
+        
+        if (startMins >= schedStart - restBreakMinutes && startMins < schedEnd + restBreakMinutes) {
+          return false;
+        }
+      }
+      
+      return true;
+    };
+
+    // Find conflicts at same time and resolve
+    const getConflictingArtists = (artist: FestivalArtist) => {
+      if (!artist.start_time) return [];
+      
+      const startMins = timeToMinutes(artist.start_time);
+      
+      return sortedArtists.filter(a => {
+        if (a.artist.id === artist.id || !a.artist.start_time) return false;
+        const aStart = timeToMinutes(a.artist.start_time);
+        const aEnd = timeToMinutes(a.artist.end_time || a.artist.start_time) + 60;
+        return startMins >= aStart && startMins < aEnd;
+      });
+    };
+
+    // Schedule artists
+    for (const artistData of sortedArtists) {
+      if (daySlots.length >= maxPerDay) break;
+      if (!isTimeAvailable(artistData.artist)) continue;
+
+      // Check for conflicts at this time
+      const conflicts = getConflictingArtists(artistData.artist);
+      
+      // Determine decision type
+      let decidedBy: GroupItinerarySlot['decidedBy'] = 'consensus';
+      let conflictResolution: GroupItinerarySlot['conflictResolution'];
+      let winningMember: GroupItinerarySlot['winningMember'];
+
+      // Check if everyone agrees (all have score > 0 or all have score 0)
+      const hasSupport = artistData.memberMatches.filter(m => m.matchScore > 0);
+      const isConsensus = hasSupport.length === memberProfiles.length || hasSupport.length === 0;
+
+      if (!isConsensus && artistData.maxScore > 0) {
+        // Someone specifically wanted this
+        decidedBy = 'strongest-match';
+        winningMember = {
+          userId: artistData.maxScoreMember.userId,
+          username: artistData.maxScoreMember.username,
+          score: artistData.maxScore,
+        };
+
+        // Check if anyone else had a conflicting preference
+        for (const conflict of conflicts) {
+          const losingMembers = conflict.memberMatches.filter(m => 
+            m.matchScore > artistData.memberMatches.find(am => am.userId === m.userId)?.matchScore!
+          );
+          
+          if (losingMembers.length > 0) {
+            decidedBy = 'compromise';
+            const loser = losingMembers[0];
+            conflictResolution = {
+              losingMember: {
+                userId: loser.userId,
+                username: loser.username,
+                preferredArtist: conflict.artist.artist_name,
+              },
+              reason: `${winningMember.username}'s ${artistData.maxScore}% match beats ${loser.username}'s ${loser.matchScore}% for ${conflict.artist.artist_name}`,
+            };
+
+            // Track compromise
+            const stats = memberStats.get(loser.userId);
+            if (stats) stats.compromises++;
+
+            break;
+          }
+        }
+      }
+
+      // Build alternatives list
+      const alternatives = conflicts.slice(0, 3).map(c => ({
+        artist: c.artist as FestivalArtistMatch,
+        memberMatches: c.memberMatches,
+        groupScore: c.groupScore,
+      }));
+
+      // Track must-sees covered
+      for (const member of artistData.memberMatches) {
+        if (member.matchScore >= 80) {
+          const stats = memberStats.get(member.userId);
+          if (stats) stats.mustSeesCovered++;
+        }
+      }
+
+      if (decidedBy === 'consensus') totalConsensus++;
+      else totalCompromise++;
+
+      daySlots.push({
+        artist: artistData.artist as FestivalArtistMatch,
+        decidedBy,
+        winningMember,
+        memberMatches: artistData.memberMatches,
+        groupScore: artistData.groupScore,
+        alternatives: alternatives.length > 0 ? alternatives : undefined,
+        conflictResolution,
+      });
+
+      if (artistData.artist.start_time) {
+        scheduledTimes.add(artistData.artist.start_time);
+      }
+    }
+
+    // Sort by time
+    daySlots.sort((a, b) => {
+      if (!a.artist.start_time) return 1;
+      if (!b.artist.start_time) return -1;
+      return timeToMinutes(a.artist.start_time) - timeToMinutes(b.artist.start_time);
+    });
+
+    const dayGroupScore = daySlots.reduce((sum, s) => sum + s.groupScore, 0);
+    totalGroupScore += dayGroupScore;
+
+    generatedDays.push({
+      dayName,
+      date: getDayDate(dayName, festival.dates.start),
+      slots: daySlots,
+      groupScore: dayGroupScore,
+      consensusCount: daySlots.filter(s => s.decidedBy === 'consensus').length,
+      compromiseCount: daySlots.filter(s => s.decidedBy === 'compromise').length,
+    });
+  }
+
+  // Calculate member satisfaction
+  const memberSatisfaction = memberProfiles.map(member => {
+    const stats = memberStats.get(member.userId)!;
+    const satisfactionScore = stats.mustSeesTotal > 0 
+      ? Math.round((stats.mustSeesCovered / stats.mustSeesTotal) * 100)
+      : 100;
+
+    return {
+      userId: member.userId,
+      username: member.username,
+      satisfactionScore,
+      mustSeesCovered: stats.mustSeesCovered,
+      mustSeesTotal: stats.mustSeesTotal,
+      compromises: stats.compromises,
+    };
+  });
+
+  // Generate highlights
+  const highlights: string[] = [];
+  const totalSlots = generatedDays.reduce((sum, d) => sum + d.slots.length, 0);
+  const consensusRate = totalSlots > 0 ? Math.round((totalConsensus / totalSlots) * 100) : 0;
+
+  highlights.push(`${consensusRate}% consensus - ${totalConsensus} slots everyone agrees on`);
+  
+  if (totalCompromise > 0) {
+    highlights.push(`${totalCompromise} conflicts resolved by strongest match`);
+  }
+
+  const avgSatisfaction = memberSatisfaction.reduce((sum, m) => sum + m.satisfactionScore, 0) / memberSatisfaction.length;
+  highlights.push(`${Math.round(avgSatisfaction)}% average satisfaction`);
+
+  return {
+    days: generatedDays,
+    totalGroupScore,
+    consensusRate,
+    memberSatisfaction,
+    highlights,
+  };
+}
+
+function getDayDate(dayName: string, festivalStart: string): string {
+  const date = getDateFromDayName(dayName, festivalStart);
+  return date?.toISOString().split('T')[0] || '';
+}
