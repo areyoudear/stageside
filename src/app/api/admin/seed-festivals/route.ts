@@ -11,41 +11,57 @@ const festivalImages: Record<string, string> = {
   'acl': 'https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?w=1200&q=80',
 };
 
-// Sample Coachella 2026 lineup
+// Real Coachella 2026 lineup (April 10-12 & 17-19, 2026)
 const coachellaLineup = [
-  // Headliners
-  { artist_name: 'Beyoncé', day: 'Friday', stage: 'Coachella Stage', start_time: '23:00', end_time: '01:00', headliner: true, genres: ['Pop', 'R&B', 'Hip-Hop'] },
-  { artist_name: 'Kendrick Lamar', day: 'Saturday', stage: 'Coachella Stage', start_time: '23:15', end_time: '01:00', headliner: true, genres: ['Hip-Hop', 'Rap'] },
-  { artist_name: 'Radiohead', day: 'Sunday', stage: 'Coachella Stage', start_time: '22:30', end_time: '00:30', headliner: true, genres: ['Alternative', 'Rock', 'Electronic'] },
+  // HEADLINERS
+  { artist_name: 'Sabrina Carpenter', headliner: true, genres: ['Pop'] },
+  { artist_name: 'Justin Bieber', headliner: true, genres: ['Pop', 'R&B'] },
+  { artist_name: 'Karol G', headliner: true, genres: ['Reggaeton', 'Latin Pop'] },
+  { artist_name: 'Anyma', headliner: true, genres: ['Electronic', 'Techno'] },
   
-  // Sub-headliners
-  { artist_name: 'Doja Cat', day: 'Friday', stage: 'Coachella Stage', start_time: '21:00', end_time: '22:15', headliner: false, genres: ['Pop', 'Hip-Hop', 'R&B'] },
-  { artist_name: 'Fred Again..', day: 'Saturday', stage: 'Outdoor Theatre', start_time: '21:30', end_time: '23:00', headliner: false, genres: ['Electronic', 'House'] },
-  { artist_name: 'Dua Lipa', day: 'Sunday', stage: 'Coachella Stage', start_time: '20:30', end_time: '21:45', headliner: false, genres: ['Pop', 'Dance'] },
-  
-  // Friday acts
-  { artist_name: 'Tyler, The Creator', day: 'Friday', stage: 'Outdoor Theatre', start_time: '20:30', end_time: '21:45', headliner: false, genres: ['Hip-Hop', 'Rap', 'Alternative'] },
-  { artist_name: 'Charli XCX', day: 'Friday', stage: 'Mojave', start_time: '19:00', end_time: '20:00', headliner: false, genres: ['Pop', 'Electronic'] },
-  { artist_name: 'Jungle', day: 'Friday', stage: 'Gobi', start_time: '18:30', end_time: '19:30', headliner: false, genres: ['Electronic', 'Funk', 'Soul'] },
-  { artist_name: 'Peggy Gou', day: 'Friday', stage: 'Yuma', start_time: '22:00', end_time: '23:30', headliner: false, genres: ['Electronic', 'House', 'Techno'] },
-  { artist_name: 'Raye', day: 'Friday', stage: 'Outdoor Theatre', start_time: '17:30', end_time: '18:30', headliner: false, genres: ['Pop', 'R&B'] },
-  { artist_name: 'Ethel Cain', day: 'Friday', stage: 'Mojave', start_time: '16:00', end_time: '17:00', headliner: false, genres: ['Indie', 'Alternative', 'Gothic'] },
-  
-  // Saturday acts
-  { artist_name: 'Skrillex', day: 'Saturday', stage: 'Sahara', start_time: '23:30', end_time: '01:00', headliner: false, genres: ['Electronic', 'Dubstep', 'House'] },
-  { artist_name: 'Ice Spice', day: 'Saturday', stage: 'Coachella Stage', start_time: '19:00', end_time: '20:00', headliner: false, genres: ['Hip-Hop', 'Rap'] },
-  { artist_name: 'Turnstile', day: 'Saturday', stage: 'Outdoor Theatre', start_time: '18:00', end_time: '19:00', headliner: false, genres: ['Hardcore', 'Punk', 'Rock'] },
-  { artist_name: 'Floating Points', day: 'Saturday', stage: 'Yuma', start_time: '20:00', end_time: '21:30', headliner: false, genres: ['Electronic', 'Ambient'] },
-  { artist_name: 'Royel Otis', day: 'Saturday', stage: 'Gobi', start_time: '16:30', end_time: '17:30', headliner: false, genres: ['Indie', 'Rock'] },
-  { artist_name: 'Mannequin Pussy', day: 'Saturday', stage: 'Sonora', start_time: '15:00', end_time: '16:00', headliner: false, genres: ['Punk', 'Rock', 'Alternative'] },
-  
-  // Sunday acts
-  { artist_name: 'Jamie xx', day: 'Sunday', stage: 'Outdoor Theatre', start_time: '22:00', end_time: '23:30', headliner: false, genres: ['Electronic', 'House'] },
-  { artist_name: 'SZA', day: 'Sunday', stage: 'Coachella Stage', start_time: '18:30', end_time: '19:45', headliner: false, genres: ['R&B', 'Pop', 'Hip-Hop'] },
-  { artist_name: 'LCD Soundsystem', day: 'Sunday', stage: 'Outdoor Theatre', start_time: '19:30', end_time: '21:00', headliner: false, genres: ['Electronic', 'Rock', 'Dance'] },
-  { artist_name: 'Clairo', day: 'Sunday', stage: 'Mojave', start_time: '17:00', end_time: '18:00', headliner: false, genres: ['Indie', 'Pop'] },
-  { artist_name: 'Four Tet', day: 'Sunday', stage: 'Yuma', start_time: '20:30', end_time: '22:00', headliner: false, genres: ['Electronic', 'Ambient', 'House'] },
-  { artist_name: 'Beach House', day: 'Sunday', stage: 'Gobi', start_time: '19:00', end_time: '20:15', headliner: false, genres: ['Indie', 'Dream Pop'] },
+  // Major Acts
+  { artist_name: 'Addison Rae', headliner: false, genres: ['Pop'] },
+  { artist_name: 'Alex G', headliner: false, genres: ['Indie Rock'] },
+  { artist_name: 'Armin van Buuren x Adam Beyer', headliner: false, genres: ['Trance', 'Techno'] },
+  { artist_name: 'BIA', headliner: false, genres: ['Hip-Hop', 'Rap'] },
+  { artist_name: 'BIGBANG', headliner: false, genres: ['K-Pop'] },
+  { artist_name: 'BINI', headliner: false, genres: ['P-Pop'] },
+  { artist_name: 'Black Flag', headliner: false, genres: ['Punk', 'Hardcore'] },
+  { artist_name: 'Blood Orange', headliner: false, genres: ['R&B', 'Electronic'] },
+  { artist_name: 'Blondshell', headliner: false, genres: ['Indie Rock'] },
+  { artist_name: 'Boys Noize', headliner: false, genres: ['Electronic', 'Techno'] },
+  { artist_name: 'Central Cee', headliner: false, genres: ['UK Rap', 'Hip-Hop'] },
+  { artist_name: 'CLIPSE', headliner: false, genres: ['Hip-Hop', 'Rap'] },
+  { artist_name: 'CMAT', headliner: false, genres: ['Country', 'Pop'] },
+  { artist_name: 'Creepy Nuts', headliner: false, genres: ['J-Hip-Hop'] },
+  { artist_name: 'David Byrne', headliner: false, genres: ['Art Rock', 'New Wave'] },
+  { artist_name: 'David Guetta', headliner: false, genres: ['EDM', 'House'] },
+  { artist_name: 'Davido', headliner: false, genres: ['Afrobeats'] },
+  { artist_name: 'Devo', headliner: false, genres: ['New Wave', 'Synth-Pop'] },
+  { artist_name: 'Dijon', headliner: false, genres: ['R&B', 'Indie'] },
+  { artist_name: 'Disclosure', headliner: false, genres: ['Electronic', 'House'] },
+  { artist_name: 'DJ Snake', headliner: false, genres: ['EDM', 'House'] },
+  { artist_name: 'DRAIN', headliner: false, genres: ['Hardcore', 'Punk'] },
+  { artist_name: 'Duke Dumont', headliner: false, genres: ['House', 'Electronic'] },
+  { artist_name: 'Ethel Cain', headliner: false, genres: ['Indie', 'Gothic', 'Folk'] },
+  { artist_name: 'Fatboy Slim', headliner: false, genres: ['Electronic', 'Big Beat'] },
+  { artist_name: 'FKA twigs', headliner: false, genres: ['Art Pop', 'Electronic', 'R&B'] },
+  { artist_name: 'Foster the People', headliner: false, genres: ['Indie Pop', 'Alternative'] },
+  { artist_name: 'Fujii Kaze', headliner: false, genres: ['J-Pop', 'R&B'] },
+  { artist_name: 'Geese', headliner: false, genres: ['Indie Rock'] },
+  { artist_name: 'Gigi Perez', headliner: false, genres: ['Pop', 'Indie'] },
+  { artist_name: 'GIVĒON', headliner: false, genres: ['R&B'] },
+  { artist_name: 'Gordo', headliner: false, genres: ['House', 'Electronic'] },
+  { artist_name: 'Green Velvet', headliner: false, genres: ['House', 'Techno'] },
+  { artist_name: 'Groove Armada', headliner: false, genres: ['Electronic', 'House'] },
+  { artist_name: 'Holly Humberstone', headliner: false, genres: ['Indie Pop'] },
+  { artist_name: 'Hot Mulligan', headliner: false, genres: ['Emo', 'Pop Punk'] },
+  { artist_name: 'Iggy Pop', headliner: false, genres: ['Punk', 'Rock'] },
+  { artist_name: 'Interpol', headliner: false, genres: ['Post-Punk', 'Indie Rock'] },
+  { artist_name: 'Jane Remover', headliner: false, genres: ['Hyperpop', 'Electronic'] },
+  { artist_name: 'Turnstile', headliner: false, genres: ['Hardcore', 'Punk'] },
+  { artist_name: 'Nine Inch Nails', headliner: false, genres: ['Industrial', 'Rock'] },
+  { artist_name: 'The XX', headliner: false, genres: ['Indie Pop', 'Electronic'] },
 ];
 
 function normalizeArtistName(name: string): string {
