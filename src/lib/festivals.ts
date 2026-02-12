@@ -33,11 +33,11 @@ export async function getFestivals(options?: {
   let query = adminClient
     .from('festivals')
     .select('*')
-    .order('dates->start', { ascending: true });
+    .order('dates->>start', { ascending: true });
   
   if (options?.upcoming) {
     const today = new Date().toISOString().split('T')[0];
-    query = query.gte('dates->end', today);
+    query = query.gte('dates->>end', today);
   }
   
   if (options?.limit) {
