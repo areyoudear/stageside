@@ -1,192 +1,292 @@
 import { NextAuthOptions } from "next-auth";
 import { JWT } from "next-auth/jwt";
-import SpotifyProvider from "next-auth/providers/spotify";
+import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import { upsertUser, saveMusicProfile, upsertMusicConnection, saveRelatedArtists } from "./supabase";
-import { getUserMusicProfile, SpotifyArtist } from "./spotify";
-import { MusicServiceType } from "./music-types";
+import { createAdminClient } from "./supabase";
+import bcrypt from "bcryptjs";
 
 // Extend the default session types
 declare module "next-auth" {
   interface Session {
-    accessToken?: string;
     user: {
       id: string;
-      spotifyId?: string;
-      provider?: string;
-      name?: string | null;
       email?: string | null;
+      name?: string | null;
+      username?: string | null;
       image?: string | null;
+      provider?: string;
     };
+  }
+
+  interface User {
+    id: string;
+    email?: string | null;
+    name?: string | null;
+    username?: string | null;
+    image?: string | null;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    accessToken?: string;
-    refreshToken?: string;
-    accessTokenExpires?: number;
-    spotifyId?: string;
-    provider?: string;
     userId?: string;
+    username?: string;
+    provider?: string;
     error?: string;
   }
 }
 
-// Spotify scopes we need
-const SPOTIFY_SCOPES = [
-  "user-read-email",
-  "user-top-read",
-  "user-read-recently-played",
-  "user-follow-read",
-].join(" ");
-
-// YouTube scopes for YouTube Music data
-const YOUTUBE_SCOPES = [
-  "https://www.googleapis.com/auth/youtube.readonly",
-  "https://www.googleapis.com/auth/userinfo.email",
-  "https://www.googleapis.com/auth/userinfo.profile",
-].join(" ");
+/**
+ * Hash a password using bcrypt
+ */
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
+}
 
 /**
- * Refresh Spotify access token
+ * Compare a password with a hash
  */
-async function refreshAccessToken(token: JWT): Promise<JWT> {
-  try {
-    const url = "https://accounts.spotify.com/api/token";
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
+}
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(
-          `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
-        ).toString("base64")}`,
-      },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: token.refreshToken || "",
-      }),
-    });
+/**
+ * Create a new user with email/password
+ */
+export async function createUser(
+  email: string,
+  password: string,
+  name: string,
+  username: string
+): Promise<{ id: string } | null> {
+  const adminClient = createAdminClient();
 
-    const refreshedTokens = await response.json();
+  // Check if email already exists
+  const { data: existingEmail } = await adminClient
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .single();
 
-    if (!response.ok) {
-      throw refreshedTokens;
-    }
-
-    return {
-      ...token,
-      accessToken: refreshedTokens.access_token,
-      accessTokenExpires: Date.now() + refreshedTokens.expires_in * 1000,
-      refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
-    };
-  } catch (error) {
-    console.error("Error refreshing access token:", error);
-    return {
-      ...token,
-      error: "RefreshAccessTokenError",
-    };
+  if (existingEmail) {
+    throw new Error("Email already registered");
   }
+
+  // Check if username already exists
+  const { data: existingUsername } = await adminClient
+    .from("users")
+    .select("id")
+    .eq("username", username)
+    .single();
+
+  if (existingUsername) {
+    throw new Error("Username already taken");
+  }
+
+  // Hash password and create user
+  const passwordHash = await hashPassword(password);
+
+  const { data, error } = await adminClient
+    .from("users")
+    .insert({
+      email,
+      password_hash: passwordHash,
+      display_name: name,
+      username: username.toLowerCase(),
+      auth_provider: "credentials",
+      email_verified: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Error creating user:", error);
+    throw new Error("Failed to create account");
+  }
+
+  return data;
+}
+
+/**
+ * Find user by email for login
+ */
+async function findUserByEmail(email: string) {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("users")
+    .select("id, email, password_hash, display_name, username, avatar_url")
+    .eq("email", email)
+    .single();
+
+  if (error || !data) return null;
+  return data;
+}
+
+/**
+ * Find or create user from OAuth provider
+ */
+async function findOrCreateOAuthUser(
+  email: string,
+  name: string,
+  image?: string,
+  provider: string = "google"
+) {
+  const adminClient = createAdminClient();
+
+  // Check if user exists
+  const { data: existingUser } = await adminClient
+    .from("users")
+    .select("id, email, display_name, username, avatar_url")
+    .eq("email", email)
+    .single();
+
+  if (existingUser) {
+    // Update avatar if not set
+    if (!existingUser.avatar_url && image) {
+      await adminClient
+        .from("users")
+        .update({ avatar_url: image })
+        .eq("id", existingUser.id);
+    }
+    return existingUser;
+  }
+
+  // Create new user from OAuth
+  // Generate username from email
+  const baseUsername = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+  let username = baseUsername;
+  let counter = 1;
+
+  // Ensure unique username
+  while (true) {
+    const { data: existing } = await adminClient
+      .from("users")
+      .select("id")
+      .eq("username", username)
+      .single();
+
+    if (!existing) break;
+    username = `${baseUsername}${counter}`;
+    counter++;
+  }
+
+  const { data: newUser, error } = await adminClient
+    .from("users")
+    .insert({
+      email,
+      display_name: name,
+      username,
+      avatar_url: image || null,
+      auth_provider: provider,
+      email_verified: true, // OAuth emails are verified
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select("id, email, display_name, username, avatar_url")
+    .single();
+
+  if (error) {
+    console.error("Error creating OAuth user:", error);
+    return null;
+  }
+
+  return newUser;
 }
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    SpotifyProvider({
-      clientId: process.env.SPOTIFY_CLIENT_ID!,
-      clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          scope: SPOTIFY_SCOPES,
-        },
+    // Email/Password authentication
+    CredentialsProvider({
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email and password required");
+        }
+
+        const user = await findUserByEmail(credentials.email);
+
+        if (!user || !user.password_hash) {
+          throw new Error("No account found with this email");
+        }
+
+        const isValid = await verifyPassword(credentials.password, user.password_hash);
+
+        if (!isValid) {
+          throw new Error("Invalid password");
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.display_name,
+          username: user.username,
+          image: user.avatar_url,
+        };
       },
     }),
-    // Google provider for YouTube Music access
+
+    // Google OAuth (for login, not YouTube Music)
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
       ? [
           GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            authorization: {
-              params: {
-                scope: YOUTUBE_SCOPES,
-                access_type: "offline",
-                prompt: "consent",
-              },
-            },
           }),
         ]
       : []),
   ],
 
   callbacks: {
-    async jwt({ token, account, user }) {
-      // Initial sign in
-      if (account && user) {
-        const provider = account.provider;
-
-        // Store user in Supabase
-        const dbUser = await upsertUser(
-          account.providerAccountId,
-          user.email || null,
-          user.name || null
+    async signIn({ user, account }) {
+      // For OAuth providers, create/find user
+      if (account?.provider === "google" && user.email) {
+        const dbUser = await findOrCreateOAuthUser(
+          user.email,
+          user.name || "",
+          user.image || undefined,
+          "google"
         );
 
-        // Store music connection for the provider
-        if (dbUser?.id && account.access_token) {
-          const serviceType = providerToService(provider);
-          if (serviceType) {
-            await upsertMusicConnection(dbUser.id, serviceType, {
-              access_token: account.access_token,
-              refresh_token: account.refresh_token || null,
-              token_expires_at: account.expires_at
-                ? new Date(account.expires_at * 1000).toISOString()
-                : null,
-              service_user_id: account.providerAccountId,
-              service_username: user.name || null,
-            });
-          }
+        if (dbUser) {
+          // Attach the database user ID
+          user.id = dbUser.id;
+          user.username = dbUser.username;
         }
-
-        // Fetch and store music profile (async, don't block login)
-        if (account.access_token && provider === "spotify") {
-          fetchAndStoreMusicProfile(account.access_token, dbUser?.id).catch(
-            console.error
-          );
-        }
-
-        return {
-          ...token,
-          accessToken: account.access_token,
-          refreshToken: account.refresh_token,
-          accessTokenExpires: account.expires_at ? account.expires_at * 1000 : 0,
-          spotifyId: provider === "spotify" ? account.providerAccountId : token.spotifyId,
-          provider,
-          userId: dbUser?.id,
-        };
       }
 
-      // Return previous token if not expired
-      if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
-        return token;
+      return true;
+    },
+
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (user) {
+        token.userId = user.id;
+        token.username = user.username || undefined;
+        token.provider = account?.provider || "credentials";
       }
 
-      // Access token expired, refresh it
-      return refreshAccessToken(token);
+      return token;
     },
 
     async session({ session, token }) {
-      session.accessToken = token.accessToken as string;
       session.user.id = token.userId as string;
-      session.user.spotifyId = token.spotifyId as string;
+      session.user.username = token.username as string;
       session.user.provider = token.provider as string;
       return session;
     },
   },
 
   pages: {
-    signIn: "/",
-    error: "/",
+    signIn: "/login",
+    error: "/login",
+    newUser: "/onboarding",
   },
 
   session: {
@@ -196,53 +296,3 @@ export const authOptions: NextAuthOptions = {
 
   debug: process.env.NODE_ENV === "development",
 };
-
-/**
- * Map NextAuth provider name to our music service type
- */
-function providerToService(provider: string): MusicServiceType | null {
-  const mapping: Record<string, MusicServiceType> = {
-    spotify: "spotify",
-    google: "youtube_music",
-    apple: "apple_music",
-    tidal: "tidal",
-    deezer: "deezer",
-  };
-  return mapping[provider] || null;
-}
-
-/**
- * Fetch user's music profile from Spotify and store in Supabase
- */
-async function fetchAndStoreMusicProfile(
-  accessToken: string,
-  userId?: string
-): Promise<void> {
-  if (!userId) return;
-
-  try {
-    const profile = await getUserMusicProfile(accessToken);
-
-    // Transform to storage format
-    const topArtists = profile.topArtists.slice(0, 50).map((artist: SpotifyArtist) => ({
-      id: artist.id,
-      name: artist.name,
-      genres: artist.genres,
-      popularity: artist.popularity,
-      image_url: artist.images[0]?.url,
-    }));
-
-    // Save profile and related artists in parallel
-    await Promise.all([
-      saveMusicProfile(userId, topArtists, profile.topGenres),
-      // Save related artists for better matching
-      profile.relatedArtists && profile.relatedArtists.length > 0
-        ? saveRelatedArtists(userId, profile.relatedArtists)
-        : Promise.resolve(),
-    ]);
-
-    console.log(`Music profile saved for user ${userId} (${profile.relatedArtists?.length || 0} related artists)`);
-  } catch (error) {
-    console.error("Error fetching/storing music profile:", error);
-  }
-}
