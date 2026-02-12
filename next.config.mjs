@@ -24,6 +24,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.ticketmaster.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
     ],
   },
 };

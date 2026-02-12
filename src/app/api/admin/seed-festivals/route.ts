@@ -68,6 +68,37 @@ export async function POST(request: Request) {
   const adminClient = createAdminClient();
   const results: string[] = [];
   
+  // First, ensure the festival_artists table exists
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS festival_artists (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      festival_id UUID NOT NULL REFERENCES festivals(id) ON DELETE CASCADE,
+      artist_name TEXT NOT NULL,
+      normalized_name TEXT NOT NULL,
+      day TEXT,
+      stage TEXT,
+      start_time TEXT,
+      end_time TEXT,
+      set_length_minutes INTEGER,
+      headliner BOOLEAN DEFAULT false,
+      spotify_id TEXT,
+      image_url TEXT,
+      genres TEXT[] DEFAULT '{}',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_festival_artists_festival ON festival_artists(festival_id);
+    CREATE INDEX IF NOT EXISTS idx_festival_artists_normalized ON festival_artists(normalized_name);
+  `;
+  
+  const { error: tableError } = await adminClient.rpc('exec_sql', { sql: createTableSQL }).single();
+  if (tableError) {
+    // Table might already exist or RPC doesn't exist - continue anyway
+    results.push(`Note: Table creation via RPC: ${tableError.message}`);
+  } else {
+    results.push('✓ Ensured festival_artists table exists');
+  }
+  
   try {
     // Update festival images
     for (const [slug, imageUrl] of Object.entries(festivalImages)) {
