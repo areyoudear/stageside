@@ -109,16 +109,31 @@ function getUrgency(daysLeft: number): { show: boolean; label: string; color: st
   return null;
 }
 
+// Get match label based on score
+function getMatchLabel(score: number): { label: string; sublabel: string } {
+  if (score >= 90) return { label: "Perfect", sublabel: "Your artist" };
+  if (score >= 75) return { label: "Great", sublabel: "Similar taste" };
+  if (score >= 60) return { label: "Good", sublabel: "You'll like this" };
+  if (score >= 40) return { label: "Okay", sublabel: "Worth checking" };
+  return { label: "", sublabel: "Near you" };
+}
+
 // Match score component with explainer tooltip
-function MatchScoreWithTooltip({ score, isPerfect, onTooltipHover }: { score: number; isPerfect: boolean; onTooltipHover?: () => void }) {
+function MatchScoreWithTooltip({ score, isPerfect, matchType, onTooltipHover }: { 
+  score: number; 
+  isPerfect: boolean; 
+  matchType?: string;
+  onTooltipHover?: () => void 
+}) {
   const circumference = 2 * Math.PI * 18;
   const strokeDashoffset = circumference - (score / 100) * circumference;
+  const matchLabel = getMatchLabel(score);
   
   return (
     <div className="relative group">
       {/* Score Ring */}
-      <div className="relative w-12 h-12 flex items-center justify-center">
-        <svg className="w-12 h-12 -rotate-90" viewBox="0 0 44 44">
+      <div className="relative w-14 h-14 flex items-center justify-center">
+        <svg className="w-14 h-14 -rotate-90" viewBox="0 0 44 44">
           {/* Background ring */}
           <circle
             cx="22"
@@ -142,17 +157,25 @@ function MatchScoreWithTooltip({ score, isPerfect, onTooltipHover }: { score: nu
             strokeDashoffset={strokeDashoffset}
             className={cn(
               "transition-all duration-700",
-              isPerfect ? "text-green-400" : score >= 80 ? "text-emerald-400" : score >= 60 ? "text-yellow-400" : "text-orange-400"
+              isPerfect ? "text-green-400" : score >= 80 ? "text-emerald-400" : score >= 60 ? "text-yellow-400" : "text-zinc-500"
             )}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className={cn(
-            "text-xs font-bold",
-            isPerfect ? "text-green-400" : "text-white"
+            "text-sm font-bold leading-none",
+            isPerfect ? "text-green-400" : score >= 75 ? "text-emerald-300" : "text-white"
           )}>
             {score}%
           </span>
+          {matchLabel.label && (
+            <span className={cn(
+              "text-[8px] font-medium uppercase tracking-wide mt-0.5",
+              isPerfect ? "text-green-400/70" : "text-zinc-500"
+            )}>
+              {matchLabel.label}
+            </span>
+          )}
         </div>
       </div>
       
@@ -160,9 +183,22 @@ function MatchScoreWithTooltip({ score, isPerfect, onTooltipHover }: { score: nu
       <div className="absolute top-0 right-0 -mr-1 -mt-1">
         <div className="relative" onMouseEnter={onTooltipHover}>
           <HelpCircle className="w-3.5 h-3.5 text-zinc-600 cursor-help" />
-          <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-zinc-800 rounded-lg text-xs text-zinc-300 w-52 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-xl border border-zinc-700">
-            <p className="font-medium text-white mb-1">Match Score</p>
-            <p>This % is based on how closely this concert matches the artists you selected. Connect Spotify for better accuracy.</p>
+          <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-zinc-800 rounded-lg text-xs text-zinc-300 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-xl border border-zinc-700">
+            <p className="font-medium text-white mb-1">
+              {isPerfect ? "🔥 Perfect Match!" : score >= 75 ? "✨ Great Match" : "Match Score"}
+            </p>
+            <p className="mb-2">
+              {matchType === "direct-artist" 
+                ? "This is one of your favorite artists!"
+                : matchType === "related-artist"
+                ? "This artist is similar to ones you love."
+                : matchType === "recently-played"
+                ? "Based on what you've been listening to."
+                : matchType === "genre"
+                ? "Matches your music taste and genre preferences."
+                : "Based on the artists you selected and your listening history."}
+            </p>
+            <p className="text-zinc-500 text-[10px]">Connect Spotify for better accuracy</p>
           </div>
         </div>
       </div>
@@ -404,7 +440,12 @@ export function ConcertCard({
           
           {/* Match Score with Tooltip */}
           {matchScore > 0 && (
-            <MatchScoreWithTooltip score={matchScore} isPerfect={isPerfectMatch} onTooltipHover={handleTooltipHover} />
+            <MatchScoreWithTooltip 
+              score={matchScore} 
+              isPerfect={isPerfectMatch} 
+              matchType={(concert as Concert & { matchType?: string }).matchType}
+              onTooltipHover={handleTooltipHover} 
+            />
           )}
         </div>
 
@@ -425,26 +466,53 @@ export function ConcertCard({
           </div>
         </div>
 
-        {/* Why You'll Love This - HIDDEN BY DEFAULT, shows on hover */}
-        {concert.matchReasons && concert.matchReasons.length > 0 && isHovered && (
+        {/* Why You'll Love This - Always visible for good matches */}
+        {concert.matchReasons && concert.matchReasons.length > 0 && 
+         concert.matchReasons[0] !== "Happening near you" && (
           <div className={cn(
-            "p-2.5 rounded-lg overflow-hidden animate-fade-in",
+            "p-2.5 rounded-lg overflow-hidden",
             isPerfectMatch 
               ? "bg-green-500/10 border border-green-500/20" 
-              : "bg-violet-500/10 border border-violet-500/10"
+              : isGreatMatch
+              ? "bg-violet-500/10 border border-violet-500/20"
+              : "bg-zinc-800/50 border border-zinc-700/30"
           )}>
             <div className="flex items-start gap-2">
               {isPerfectMatch ? (
                 <Star className="w-3.5 h-3.5 text-green-400 mt-0.5 flex-shrink-0" />
-              ) : (
+              ) : isGreatMatch ? (
                 <Sparkles className="w-3.5 h-3.5 text-violet-400 mt-0.5 flex-shrink-0" />
+              ) : (
+                <Music2 className="w-3.5 h-3.5 text-zinc-400 mt-0.5 flex-shrink-0" />
               )}
-              <p className={cn(
-                "text-xs leading-relaxed",
-                isPerfectMatch ? "text-green-200/90" : "text-zinc-300"
-              )}>
-                {concert.matchReasons[0]}
-              </p>
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  "text-xs leading-relaxed font-medium",
+                  isPerfectMatch ? "text-green-200" : isGreatMatch ? "text-violet-200" : "text-zinc-300"
+                )}>
+                  {concert.matchReasons[0]}
+                </p>
+                {/* Show vibe tags if available */}
+                {(concert as Concert & { vibeTags?: string[] }).vibeTags && 
+                 (concert as Concert & { vibeTags?: string[] }).vibeTags!.length > 0 && (
+                  <div className="flex gap-1.5 mt-1.5">
+                    {(concert as Concert & { vibeTags?: string[] }).vibeTags!.map((tag) => (
+                      <span
+                        key={tag}
+                        className={cn(
+                          "px-2 py-0.5 text-[10px] font-semibold rounded-full uppercase tracking-wide",
+                          tag === "Must-see" ? "bg-green-500/20 text-green-300" :
+                          tag === "For you" ? "bg-violet-500/20 text-violet-300" :
+                          tag === "Fresh pick" ? "bg-blue-500/20 text-blue-300" :
+                          "bg-zinc-700/50 text-zinc-400"
+                        )}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
