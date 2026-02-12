@@ -143,11 +143,17 @@ export async function getFollowedArtists(
 export function extractTopGenres(artists: SpotifyArtist[], topN: number = 20): string[] {
   const genreCount: Record<string, number> = {};
 
+  if (!artists || !Array.isArray(artists)) {
+    return [];
+  }
+
   artists.forEach((artist, index) => {
     // Weight by artist rank (earlier = more important)
     const weight = Math.max(1, 10 - Math.floor(index / 5));
 
-    artist.genres.forEach((genre) => {
+    // Defensive check for artist.genres
+    const genres = artist?.genres || [];
+    genres.forEach((genre) => {
       genreCount[genre] = (genreCount[genre] || 0) + weight;
     });
   });
@@ -243,11 +249,17 @@ export async function getUserMusicProfile(accessToken: string) {
     // Fetch from multiple time ranges for comprehensive profile
     const [shortTermArtists, mediumTermArtists, longTermArtists, recentlyPlayed] =
       await Promise.all([
-        getTopArtists(accessToken, "short_term", 30),
-        getTopArtists(accessToken, "medium_term", 50),
-        getTopArtists(accessToken, "long_term", 30),
-        getRecentlyPlayed(accessToken, 50).catch(() => []), // This might fail for some users
+        getTopArtists(accessToken, "short_term", 30).catch(() => []),
+        getTopArtists(accessToken, "medium_term", 50).catch(() => []),
+        getTopArtists(accessToken, "long_term", 30).catch(() => []),
+        getRecentlyPlayed(accessToken, 50).catch(() => []),
       ]);
+
+    // Ensure we have at least some artists
+    const allArtists = [...(shortTermArtists || []), ...(mediumTermArtists || []), ...(longTermArtists || [])];
+    if (allArtists.length === 0) {
+      console.warn("No artists returned from Spotify API");
+    }
 
     // Combine and deduplicate artists, prioritizing recent listening
     const artistMap = new Map<string, SpotifyArtist & { score: number }>();

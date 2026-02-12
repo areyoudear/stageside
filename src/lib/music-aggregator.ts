@@ -155,10 +155,15 @@ export function aggregateArtists(
   // Map: normalized name -> aggregated artist
   const artistMap = new Map<string, AggregatedArtist>();
 
+  if (!profiles || !Array.isArray(profiles)) {
+    return [];
+  }
+
   for (const profile of profiles) {
     const serviceWeight = SERVICE_WEIGHTS[profile.service];
+    const artists = profile?.artists || [];
 
-    profile.artists.forEach((artist, index) => {
+    artists.forEach((artist, index) => {
       const normalizedName = normalizeArtistName(artist.name);
 
       // Calculate position-based score (earlier = higher)
@@ -257,10 +262,15 @@ export function aggregateGenres(
 ): string[] {
   const genreCount = new Map<string, number>();
 
+  if (!profiles || !Array.isArray(profiles)) {
+    return [];
+  }
+
   for (const profile of profiles) {
     const serviceWeight = SERVICE_WEIGHTS[profile.service];
+    const genres = profile?.genres || [];
 
-    profile.genres.forEach((genre, index) => {
+    genres.forEach((genre, index) => {
       const normalized = genre.toLowerCase();
       const positionScore = Math.max(20 - index, 1);
       const weightedScore = positionScore * serviceWeight;
