@@ -11,11 +11,11 @@ import { AgendaView } from "@/components/festivals";
 import type { FestivalWithMatch, FestivalArtistMatch } from "@/lib/festival-types";
 
 interface AgendaPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export default function AgendaPage({ params }: AgendaPageProps) {
-  const { id } = use(params);
+  const { id } = params;
   const { data: session, status } = useSession();
   const router = useRouter();
 

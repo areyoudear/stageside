@@ -96,9 +96,9 @@ interface GroupInfo {
 export default function GroupFestivalPage({
   params,
 }: {
-  params: Promise<{ groupId: string; festivalId: string }>;
+  params: { groupId: string; festivalId: string };
 }) {
-  const { groupId, festivalId } = use(params);
+  const { groupId, festivalId } = params;
   const { data: session, status } = useSession();
   const router = useRouter();
 

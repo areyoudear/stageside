@@ -79,9 +79,9 @@ interface GroupMatchData {
 export default function GroupDetailPage({
   params,
 }: {
-  params: Promise<{ groupId: string }>;
+  params: { groupId: string };
 }) {
-  const { groupId } = use(params);
+  const { groupId } = params;
   const { status } = useSession();
   const router = useRouter();
 

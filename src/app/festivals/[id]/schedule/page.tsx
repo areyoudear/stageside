@@ -73,9 +73,9 @@ interface FestivalInfo {
 export default function FestivalSchedulePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const { data: session, status } = useSession();
   const router = useRouter();
 
