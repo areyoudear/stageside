@@ -9,6 +9,7 @@ import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
 import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
 import { ArtistPicker, TrendingArtistChips } from "@/components/ArtistPicker";
 import { SpotifyUpsellCard } from "@/components/SpotifyUpsellCard";
+import { NoMatchesCard } from "@/components/NoMatchesCard";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import type { Concert } from "@/lib/ticketmaster";
@@ -44,6 +45,7 @@ export default function DiscoverPage() {
   // State
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
   const [location, setLocation] = useState<Location | null>(null);
+  const [radius, setRadius] = useState(50); // Default 50 miles
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: new Date(),
     endDate: (() => {
@@ -54,7 +56,9 @@ export default function DiscoverPage() {
     label: "Next 3 Months",
   });
   const [concerts, setConcerts] = useState<Concert[]>([]);
+  const [popularConcerts, setPopularConcerts] = useState<Concert[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPopular, setIsLoadingPopular] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [vibeFilter, setVibeFilter] = useState<VibeFilter>("all");
@@ -149,6 +153,37 @@ export default function DiscoverPage() {
     return concerts.some(c => (c.matchScore || 0) < 40);
   }, [concerts]);
 
+  // Fetch popular concerts in the area (for no-match scenario)
+  const fetchPopularConcerts = useCallback(async () => {
+    if (!location) return;
+
+    setIsLoadingPopular(true);
+    try {
+      const params = new URLSearchParams({
+        lat: location.lat.toString(),
+        lng: location.lng.toString(),
+        radius: radius.toString(),
+        startDate: dateRange.startDate.toISOString().split("T")[0],
+        endDate: dateRange.endDate.toISOString().split("T")[0],
+      });
+
+      const response = await fetch(`/api/demo-concerts?${params.toString()}`);
+      const data = await response.json();
+
+      if (data.concerts) {
+        // Get top concerts by match score or just first 8
+        const topConcerts = data.concerts
+          .filter((c: Concert) => (c.matchScore || 0) >= 30)
+          .slice(0, 8);
+        setPopularConcerts(topConcerts);
+      }
+    } catch (err) {
+      console.error("Error fetching popular concerts:", err);
+    } finally {
+      setIsLoadingPopular(false);
+    }
+  }, [location, radius, dateRange]);
+
   // Fetch concerts matched to user's selected artists
   const fetchConcerts = useCallback(async () => {
     if (!location || selectedArtists.length < 3) return;
@@ -158,11 +193,13 @@ export default function DiscoverPage() {
       artist_count: selectedArtists.length,
       location: location.name,
       date_range: dateRange.label || 'custom',
+      radius,
     });
 
     setIsLoading(true);
     setHasSearched(true);
     setError(null);
+    setPopularConcerts([]); // Clear previous popular concerts
 
     const startTime = Date.now();
 
@@ -170,6 +207,7 @@ export default function DiscoverPage() {
       const params = new URLSearchParams({
         lat: location.lat.toString(),
         lng: location.lng.toString(),
+        radius: radius.toString(),
         startDate: dateRange.startDate.toISOString().split("T")[0],
         endDate: dateRange.endDate.toISOString().split("T")[0],
         artists: selectedArtists.map((a) => a.name).join(","),
@@ -190,6 +228,8 @@ export default function DiscoverPage() {
       if (data.error) {
         setError(data.error);
         setConcerts([]);
+        // Fetch popular concerts as fallback
+        fetchPopularConcerts();
       } else {
         const loadedConcerts = data.concerts || [];
         setConcerts(loadedConcerts);
@@ -203,7 +243,13 @@ export default function DiscoverPage() {
           perfect_matches: perfectMatches,
           high_matches: highMatches,
           location: location.name,
+          radius,
         });
+
+        // If no matches found, fetch popular concerts
+        if (loadedConcerts.length === 0) {
+          fetchPopularConcerts();
+        }
       }
     } catch (err) {
       console.error("Error fetching concerts:", err);
@@ -215,10 +261,12 @@ export default function DiscoverPage() {
       });
       setError("Failed to load concerts. Please try again.");
       setConcerts([]);
+      // Fetch popular concerts as fallback
+      fetchPopularConcerts();
     } finally {
       setIsLoading(false);
     }
-  }, [location, dateRange, selectedArtists]);
+  }, [location, dateRange, selectedArtists, radius, fetchPopularConcerts]);
 
   // Save handler (local only for now)
   const handleSaveConcert = async (concertId: string) => {
@@ -380,17 +428,23 @@ export default function DiscoverPage() {
         {/* Location & Date Controls */}
         <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6 mb-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Location */}
-            <div className="sm:col-span-2 lg:col-span-1">
+            {/* Location with Radius */}
+            <div className="sm:col-span-2 lg:col-span-2">
               <label className="block text-sm font-medium text-zinc-400 mb-2">
                 <MapPin className="w-4 h-4 inline mr-1" />
-                Location
+                Location & Radius
               </label>
-              <LocationSearch value={location} onChange={handleLocationChange} />
+              <LocationSearch 
+                value={location} 
+                onChange={handleLocationChange}
+                radius={radius}
+                onRadiusChange={setRadius}
+                showRadius={true}
+              />
             </div>
 
             {/* Date Range */}
-            <div className="sm:col-span-2 lg:col-span-2">
+            <div className="sm:col-span-2 lg:col-span-1">
               <label className="block text-sm font-medium text-zinc-400 mb-2">
                 Date Range
               </label>
@@ -464,18 +518,16 @@ export default function DiscoverPage() {
             </Button>
           </div>
         ) : concerts.length === 0 ? (
-          // No Results with helpful nudges
-          <div className="text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-6">
-              <span className="text-4xl">🎵</span>
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-2">
-              No matches found
-            </h2>
-            <p className="text-zinc-500 max-w-md mx-auto">
-              Try adding more artists or expanding your date range.
-            </p>
-          </div>
+          // No Results - Show email signup CTA and popular concerts
+          <NoMatchesCard
+            selectedArtists={selectedArtists}
+            location={location}
+            dateRange={dateRange}
+            popularConcerts={popularConcerts}
+            isLoadingPopular={isLoadingPopular}
+            onConcertSave={handleSaveConcert}
+            onConcertUnsave={handleUnsaveConcert}
+          />
         ) : (
           <>
             {/* Results Header with Stats, Sort, and Filters */}

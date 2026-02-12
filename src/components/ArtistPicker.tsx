@@ -9,6 +9,16 @@ interface Artist {
   name: string;
   imageUrl: string | null;
   genres: string[];
+  followers?: number;
+  popularity?: number;
+}
+
+// Format follower count for display
+function formatFollowers(count: number | undefined): string {
+  if (!count) return "";
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M followers`;
+  if (count >= 1000) return `${(count / 1000).toFixed(0)}K followers`;
+  return `${count} followers`;
 }
 
 interface ArtistPickerProps {
@@ -219,11 +229,18 @@ export function ArtistPicker({
                             <p className="text-white font-medium truncate">
                               {artist.name}
                             </p>
-                            {artist.genres.length > 0 && (
-                              <p className="text-sm text-zinc-500 truncate">
-                                {artist.genres.slice(0, 2).join(", ")}
-                              </p>
-                            )}
+                            <p className="text-sm text-zinc-500 truncate">
+                              {artist.followers ? (
+                                <span className="text-green-400/80">{formatFollowers(artist.followers)}</span>
+                              ) : artist.genres.length > 0 ? (
+                                artist.genres.slice(0, 2).join(", ")
+                              ) : (
+                                <span className="text-zinc-600">Artist</span>
+                              )}
+                              {artist.followers && artist.genres.length > 0 && (
+                                <span className="text-zinc-600"> · {artist.genres[0]}</span>
+                              )}
+                            </p>
                           </div>
                           <Plus className="w-5 h-5 text-zinc-500" />
                         </button>

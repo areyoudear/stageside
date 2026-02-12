@@ -6,6 +6,7 @@ import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
 import { ExpandableServices } from "@/components/ExpandableServices";
 import { EmailSignupForm } from "@/components/EmailSignupForm";
 import { TrackedLink, TrackedSection } from "@/components/LandingAnalytics";
+import { MusicVisualizer } from "@/components/MusicVisualizer";
 import { Music, MapPin, Calendar, Sparkles, ArrowRight, Zap, Shield, Plane, Music2, Heart, TrendingUp, Clock, Star, ChevronDown, Bookmark } from "lucide-react";
 
 export default async function LandingPage() {
@@ -49,6 +50,9 @@ export default async function LandingPage() {
           <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-violet-600/30 rounded-full blur-[120px] animate-pulse-slow" />
           <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-fuchsia-600/20 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: '1s' }} />
           <div className="absolute top-1/3 right-1/3 w-[400px] h-[400px] bg-purple-600/20 rounded-full blur-[80px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
+          
+          {/* Music Visualizer - adds life and movement */}
+          <MusicVisualizer variant="bars" color="mixed" intensity="low" />
           
           {/* Subtle grid overlay */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
