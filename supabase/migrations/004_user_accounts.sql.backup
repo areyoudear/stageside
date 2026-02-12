@@ -1,0 +1,269 @@
+-- ============================================
+-- Migration 004: User Accounts & Concert Buddy
+-- Adds email/password auth, groups, and social features
+-- ============================================
+
+-- ============================================
+-- 1. Modify Users Table for Email/Password Auth
+-- ============================================
+
+-- Make spotify_id nullable (users can sign up without Spotify)
+ALTER TABLE users ALTER COLUMN spotify_id DROP NOT NULL;
+
+-- Drop the unique constraint on spotify_id (will recreate as partial)
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_spotify_id_key;
+
+-- Add new columns for user accounts
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'spotify'; -- spotify, email, google
+
+-- Recreate unique constraint on spotify_id (only for non-null values)
+CREATE UNIQUE INDEX IF NOT EXISTS users_spotify_id_unique ON users(spotify_id) WHERE spotify_id IS NOT NULL;
+
+-- Index for username lookups
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- ============================================
+-- 2. Saved Searches Table
+-- ============================================
+CREATE TABLE IF NOT EXISTS saved_searches (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  location JSONB NOT NULL, -- {lat, lng, city, country}
+  radius_miles INTEGER DEFAULT 50,
+  date_range JSONB, -- {start, end}
+  genres JSONB DEFAULT '[]'::jsonb,
+  price_max DECIMAL(10,2),
+  notify_new_matches BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_saved_searches_user_id ON saved_searches(user_id);
+
+-- ============================================
+-- 3. User Preferences Table
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_preferences (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+  price_range JSONB DEFAULT '{"min": 0, "max": 500}'::jsonb,
+  preferred_venue_types JSONB DEFAULT '[]'::jsonb, -- ["arena", "club", "outdoor", "theater"]
+  max_distance_miles INTEGER DEFAULT 50,
+  preferred_days JSONB DEFAULT '["friday", "saturday"]'::jsonb,
+  avoid_genres JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================
+-- 4. User Interactions Table (for learning)
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_interactions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  concert_id VARCHAR(255) NOT NULL,
+  interaction_type VARCHAR(50) NOT NULL, -- 'view', 'save', 'unsave', 'click_tickets', 'dismiss'
+  match_score DECIMAL(3,2), -- Score at time of interaction
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_interactions_user_id ON user_interactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_interactions_concert_id ON user_interactions(concert_id);
+CREATE INDEX IF NOT EXISTS idx_user_interactions_type ON user_interactions(interaction_type);
+
+-- ============================================
+-- 5. Concert Groups (Concert Buddy)
+-- ============================================
+CREATE TABLE IF NOT EXISTS concert_groups (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  invite_code VARCHAR(20) UNIQUE NOT NULL,
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  avatar_url VARCHAR(500),
+  is_public BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_concert_groups_invite_code ON concert_groups(invite_code);
+CREATE INDEX IF NOT EXISTS idx_concert_groups_created_by ON concert_groups(created_by);
+
+-- ============================================
+-- 6. Concert Group Members
+-- ============================================
+CREATE TABLE IF NOT EXISTS concert_group_members (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  group_id UUID NOT NULL REFERENCES concert_groups(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR(20) DEFAULT 'member', -- 'owner', 'admin', 'member'
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(group_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_concert_group_members_group_id ON concert_group_members(group_id);
+CREATE INDEX IF NOT EXISTS idx_concert_group_members_user_id ON concert_group_members(user_id);
+
+-- ============================================
+-- 7. Concert Lists (Shareable)
+-- ============================================
+CREATE TABLE IF NOT EXISTS concert_lists (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  is_public BOOLEAN DEFAULT false,
+  share_code VARCHAR(20) UNIQUE,
+  concert_ids JSONB DEFAULT '[]'::jsonb, -- Array of concert IDs
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_concert_lists_user_id ON concert_lists(user_id);
+CREATE INDEX IF NOT EXISTS idx_concert_lists_share_code ON concert_lists(share_code);
+
+-- ============================================
+-- 8. Friendships
+-- ============================================
+CREATE TABLE IF NOT EXISTS friendships (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  friend_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'accepted', 'blocked'
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, friend_id),
+  CHECK (user_id != friend_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_friendships_user_id ON friendships(user_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_friend_id ON friendships(friend_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
+
+-- ============================================
+-- Row Level Security Policies
+-- ============================================
+
+-- Enable RLS on new tables
+ALTER TABLE saved_searches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_interactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE concert_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE concert_group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE concert_lists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE friendships ENABLE ROW LEVEL SECURITY;
+
+-- Saved searches: users manage their own
+CREATE POLICY "Users manage own saved searches" ON saved_searches
+  FOR ALL USING (user_id = auth.uid()::uuid);
+
+-- User preferences: users manage their own
+CREATE POLICY "Users manage own preferences" ON user_preferences
+  FOR ALL USING (user_id = auth.uid()::uuid);
+
+-- User interactions: users manage their own
+CREATE POLICY "Users manage own interactions" ON user_interactions
+  FOR ALL USING (user_id = auth.uid()::uuid);
+
+-- Concert groups: members can view, owners can modify
+CREATE POLICY "Group members can view groups" ON concert_groups
+  FOR SELECT USING (
+    is_public = true OR
+    id IN (SELECT group_id FROM concert_group_members WHERE user_id = auth.uid()::uuid)
+  );
+
+CREATE POLICY "Group owners can modify groups" ON concert_groups
+  FOR ALL USING (created_by = auth.uid()::uuid);
+
+-- Group members: can view own memberships
+CREATE POLICY "Users can view group memberships" ON concert_group_members
+  FOR SELECT USING (
+    user_id = auth.uid()::uuid OR
+    group_id IN (SELECT group_id FROM concert_group_members WHERE user_id = auth.uid()::uuid)
+  );
+
+CREATE POLICY "Users can manage own group membership" ON concert_group_members
+  FOR ALL USING (user_id = auth.uid()::uuid);
+
+-- Concert lists: owners manage, public lists are viewable
+CREATE POLICY "Users manage own concert lists" ON concert_lists
+  FOR ALL USING (user_id = auth.uid()::uuid);
+
+CREATE POLICY "Public lists are viewable" ON concert_lists
+  FOR SELECT USING (is_public = true);
+
+-- Friendships: users manage their own
+CREATE POLICY "Users manage own friendships" ON friendships
+  FOR ALL USING (user_id = auth.uid()::uuid OR friend_id = auth.uid()::uuid);
+
+-- ============================================
+-- Helper Functions
+-- ============================================
+
+-- Function to generate invite codes
+CREATE OR REPLACE FUNCTION generate_invite_code()
+RETURNS VARCHAR(20) AS $$
+DECLARE
+  chars TEXT := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  result VARCHAR(20) := '';
+  i INTEGER;
+BEGIN
+  FOR i IN 1..8 LOOP
+    result := result || substr(chars, floor(random() * length(chars) + 1)::integer, 1);
+  END LOOP;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to auto-generate invite codes for groups
+CREATE OR REPLACE FUNCTION set_group_invite_code()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.invite_code IS NULL THEN
+    NEW.invite_code := generate_invite_code();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_set_group_invite_code
+  BEFORE INSERT ON concert_groups
+  FOR EACH ROW
+  EXECUTE FUNCTION set_group_invite_code();
+
+-- Trigger for updated_at on new tables
+CREATE TRIGGER update_saved_searches_updated_at
+  BEFORE UPDATE ON saved_searches
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_user_preferences_updated_at
+  BEFORE UPDATE ON user_preferences
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_concert_groups_updated_at
+  BEFORE UPDATE ON concert_groups
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_concert_lists_updated_at
+  BEFORE UPDATE ON concert_lists
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_friendships_updated_at
+  BEFORE UPDATE ON friendships
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- Done!
+-- ============================================

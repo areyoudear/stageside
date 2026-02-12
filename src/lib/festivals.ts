@@ -1245,8 +1245,3 @@ export function generateGroupFestivalItinerary(
     highlights,
   };
 }
-
-function getDayDate(dayName: string, festivalStart: string): string {
-  const date = getDateFromDayName(dayName, festivalStart);
-  return date?.toISOString().split('T')[0] || '';
-}
