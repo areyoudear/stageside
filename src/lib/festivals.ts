@@ -616,3 +616,284 @@ function getDateFromDayName(dayName: string, festivalStart: string): Date | null
 function formatICSDate(date: Date): string {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
+
+// ============================================
+// SMART ITINERARY GENERATOR
+// ============================================
+
+export interface ItinerarySlot {
+  artist: FestivalArtistMatch;
+  priority: 'must-see' | 'recommended' | 'discovery' | 'filler';
+  reason: string;
+  alternatives?: FestivalArtistMatch[];
+}
+
+export interface GeneratedItinerary {
+  days: Array<{
+    dayName: string;
+    date: string;
+    slots: ItinerarySlot[];
+    totalScore: number;
+    mustSeeCount: number;
+  }>;
+  totalScore: number;
+  coverage: number; // % of time with recommended acts
+  conflicts: ScheduleConflict[];
+  highlights: string[];
+}
+
+/**
+ * Generate a smart itinerary based on user's music taste
+ * Optimizes for:
+ * 1. Must-see artists (perfect matches)
+ * 2. Avoiding conflicts between top matches
+ * 3. Including discovery artists during gaps
+ * 4. Rest breaks (don't schedule back-to-back all day)
+ */
+export function generateSmartItinerary(
+  lineup: FestivalArtistMatch[],
+  festival: Festival,
+  options?: {
+    maxPerDay?: number;
+    includeDiscoveries?: boolean;
+    restBreakMinutes?: number;
+  }
+): GeneratedItinerary {
+  const maxPerDay = options?.maxPerDay ?? 8;
+  const includeDiscoveries = options?.includeDiscoveries ?? true;
+  const restBreakMinutes = options?.restBreakMinutes ?? 90;
+
+  // Group artists by day
+  const artistsByDay = new Map<string, FestivalArtistMatch[]>();
+  lineup.forEach(artist => {
+    const day = artist.day || 'Day 1';
+    if (!artistsByDay.has(day)) {
+      artistsByDay.set(day, []);
+    }
+    artistsByDay.get(day)!.push(artist);
+  });
+
+  // Sort days chronologically
+  const dayNames = Array.from(artistsByDay.keys()).sort();
+
+  const generatedDays: GeneratedItinerary['days'] = [];
+  const allConflicts: ScheduleConflict[] = [];
+  let totalScore = 0;
+  let totalSlots = 0;
+  let scheduledSlots = 0;
+
+  for (const dayName of dayNames) {
+    const dayArtists = artistsByDay.get(dayName)!;
+    
+    // Categorize artists
+    const mustSee = dayArtists
+      .filter(a => a.matchType === 'perfect')
+      .sort((a, b) => b.matchScore - a.matchScore);
+    
+    const recommended = dayArtists
+      .filter(a => a.matchType === 'genre' && a.matchScore >= 50)
+      .sort((a, b) => b.matchScore - a.matchScore);
+    
+    const discoveries = dayArtists
+      .filter(a => a.matchType === 'discovery' || (a.matchType === 'genre' && a.matchScore < 50))
+      .sort((a, b) => b.matchScore - a.matchScore);
+    
+    const filler = dayArtists
+      .filter(a => a.matchType === 'none')
+      .sort((a, b) => (b.headliner ? 1 : 0) - (a.headliner ? 1 : 0));
+
+    // Build schedule for the day
+    const daySlots: ItinerarySlot[] = [];
+    const scheduledTimes = new Set<string>();
+    
+    // Helper to check if time slot is available (with rest buffer)
+    const isTimeAvailable = (artist: FestivalArtistMatch): boolean => {
+      if (!artist.start_time) return true;
+      
+      const startMins = timeToMinutes(artist.start_time);
+      
+      for (const scheduled of daySlots) {
+        if (!scheduled.artist.start_time || !scheduled.artist.end_time) continue;
+        
+        const schedStart = timeToMinutes(scheduled.artist.start_time);
+        const schedEnd = timeToMinutes(scheduled.artist.end_time);
+        
+        // Check for overlap including rest break
+        if (startMins >= schedStart - restBreakMinutes && startMins < schedEnd + restBreakMinutes) {
+          return false;
+        }
+      }
+      
+      return true;
+    };
+
+    // 1. Schedule all must-see artists first
+    for (const artist of mustSee) {
+      if (daySlots.length >= maxPerDay) break;
+      
+      if (isTimeAvailable(artist)) {
+        daySlots.push({
+          artist,
+          priority: 'must-see',
+          reason: artist.matchReason || 'In your top artists',
+        });
+        if (artist.start_time) scheduledTimes.add(artist.start_time);
+      } else {
+        // Find conflicting artist and note as alternative
+        const conflicting = daySlots.find(s => {
+          if (!s.artist.start_time || !artist.start_time) return false;
+          const sStart = timeToMinutes(s.artist.start_time);
+          const sEnd = timeToMinutes(s.artist.end_time || s.artist.start_time) + 60;
+          const aStart = timeToMinutes(artist.start_time);
+          return aStart >= sStart && aStart < sEnd;
+        });
+        
+        if (conflicting) {
+          if (!conflicting.alternatives) conflicting.alternatives = [];
+          conflicting.alternatives.push(artist);
+          
+          allConflicts.push({
+            artist1: conflicting.artist,
+            artist2: artist,
+            day: dayName,
+            overlapMinutes: 60, // Approximate
+          });
+        }
+      }
+    }
+
+    // 2. Add recommended artists in gaps
+    for (const artist of recommended) {
+      if (daySlots.length >= maxPerDay) break;
+      
+      if (isTimeAvailable(artist)) {
+        daySlots.push({
+          artist,
+          priority: 'recommended',
+          reason: artist.matchReason || 'Matches your taste',
+        });
+        if (artist.start_time) scheduledTimes.add(artist.start_time);
+      }
+    }
+
+    // 3. Add discoveries if enabled and space available
+    if (includeDiscoveries) {
+      for (const artist of discoveries) {
+        if (daySlots.length >= maxPerDay) break;
+        
+        if (isTimeAvailable(artist)) {
+          daySlots.push({
+            artist,
+            priority: 'discovery',
+            reason: 'Discover something new',
+          });
+          if (artist.start_time) scheduledTimes.add(artist.start_time);
+        }
+      }
+    }
+
+    // 4. Add notable headliners as filler if very sparse
+    if (daySlots.length < 3) {
+      for (const artist of filler) {
+        if (daySlots.length >= 4) break;
+        if (!artist.headliner) continue;
+        
+        if (isTimeAvailable(artist)) {
+          daySlots.push({
+            artist,
+            priority: 'filler',
+            reason: 'Popular headliner',
+          });
+          if (artist.start_time) scheduledTimes.add(artist.start_time);
+        }
+      }
+    }
+
+    // Sort by time
+    daySlots.sort((a, b) => {
+      if (!a.artist.start_time) return 1;
+      if (!b.artist.start_time) return -1;
+      return timeToMinutes(a.artist.start_time) - timeToMinutes(b.artist.start_time);
+    });
+
+    // Calculate day stats
+    const dayScore = daySlots.reduce((sum, s) => sum + s.artist.matchScore, 0);
+    const mustSeeCount = daySlots.filter(s => s.priority === 'must-see').length;
+    
+    totalScore += dayScore;
+    totalSlots += dayArtists.filter(a => a.start_time).length;
+    scheduledSlots += daySlots.length;
+
+    generatedDays.push({
+      dayName,
+      date: getDayDate(dayName, festival.dates.start),
+      slots: daySlots,
+      totalScore: dayScore,
+      mustSeeCount,
+    });
+  }
+
+  // Generate highlights
+  const highlights: string[] = [];
+  const allMustSee = generatedDays.flatMap(d => d.slots.filter(s => s.priority === 'must-see'));
+  
+  if (allMustSee.length > 0) {
+    highlights.push(`${allMustSee.length} must-see artists scheduled`);
+  }
+  
+  if (allConflicts.length > 0) {
+    highlights.push(`${allConflicts.length} schedule conflicts to consider`);
+  }
+
+  const discoveryCount = generatedDays.flatMap(d => d.slots.filter(s => s.priority === 'discovery')).length;
+  if (discoveryCount > 0) {
+    highlights.push(`${discoveryCount} new artists to discover`);
+  }
+
+  return {
+    days: generatedDays,
+    totalScore,
+    coverage: totalSlots > 0 ? Math.round((scheduledSlots / totalSlots) * 100) : 0,
+    conflicts: allConflicts,
+    highlights,
+  };
+}
+
+function getDayDate(dayName: string, festivalStart: string): string {
+  const date = getDateFromDayName(dayName, festivalStart);
+  return date?.toISOString().split('T')[0] || '';
+}
+
+/**
+ * Regenerate itinerary with a swap - user wants to see artist2 instead of artist1
+ */
+export function swapItineraryArtist(
+  itinerary: GeneratedItinerary,
+  dayIndex: number,
+  slotIndex: number,
+  newArtist: FestivalArtistMatch
+): GeneratedItinerary {
+  const newItinerary = JSON.parse(JSON.stringify(itinerary)) as GeneratedItinerary;
+  
+  const day = newItinerary.days[dayIndex];
+  if (!day || !day.slots[slotIndex]) return itinerary;
+
+  const oldSlot = day.slots[slotIndex];
+  
+  // Move old artist to alternatives of new slot
+  day.slots[slotIndex] = {
+    artist: newArtist,
+    priority: newArtist.matchType === 'perfect' ? 'must-see' : 'recommended',
+    reason: newArtist.matchReason || 'Your choice',
+    alternatives: [oldSlot.artist, ...(oldSlot.alternatives || [])],
+  };
+
+  // Recalculate day score
+  day.totalScore = day.slots.reduce((sum, s) => sum + s.artist.matchScore, 0);
+  day.mustSeeCount = day.slots.filter(s => s.priority === 'must-see').length;
+
+  // Recalculate total
+  newItinerary.totalScore = newItinerary.days.reduce((sum, d) => sum + d.totalScore, 0);
+
+  return newItinerary;
+}
