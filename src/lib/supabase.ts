@@ -589,6 +589,7 @@ export async function getUnifiedMusicProfile(userId: string): Promise<{
   }>;
   topGenres: string[];
   connectedServices: MusicServiceType[];
+  recentArtists: string[];
 } | null> {
   // Get all active connections
   const connections = await getMusicConnections(userId);
@@ -607,6 +608,7 @@ export async function getUnifiedMusicProfile(userId: string): Promise<{
         })),
         topGenres: legacyProfile.top_genres,
         connectedServices: ["spotify" as MusicServiceType],
+        recentArtists: [],
       };
     }
     return null;
@@ -642,5 +644,71 @@ export async function getUnifiedMusicProfile(userId: string): Promise<{
     })),
     topGenres,
     connectedServices: activeConnections.map((c) => c.service),
+    recentArtists: [], // TODO: Add recent artists tracking
   };
+}
+
+// ============================================
+// RELATED ARTISTS (for improved matching)
+// ============================================
+
+export interface RelatedArtistData {
+  artist_name: string;
+  related_to: string;
+  popularity: number;
+}
+
+/**
+ * Save related artists for a user (from Spotify's related artists API)
+ */
+export async function saveRelatedArtists(
+  userId: string,
+  relatedArtists: Array<{ name: string; relatedTo: string; popularity: number }>
+): Promise<boolean> {
+  const adminClient = createAdminClient();
+
+  // Delete existing related artists for user
+  await adminClient.from("user_related_artists").delete().eq("user_id", userId);
+
+  if (relatedArtists.length === 0) return true;
+
+  // Insert new related artists
+  const rows = relatedArtists.map((r) => ({
+    user_id: userId,
+    artist_name: r.name,
+    related_to: r.relatedTo,
+    popularity: r.popularity,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error } = await adminClient.from("user_related_artists").insert(rows);
+
+  if (error) {
+    // Table might not exist yet, log and continue
+    console.error("Error saving related artists:", error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get related artists for a user
+ */
+export async function getRelatedArtists(userId: string): Promise<RelatedArtistData[]> {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("user_related_artists")
+    .select("artist_name, related_to, popularity")
+    .eq("user_id", userId)
+    .order("popularity", { ascending: false });
+
+  if (error) {
+    // Table might not exist yet
+    console.error("Error fetching related artists:", error);
+    return [];
+  }
+
+  return data as RelatedArtistData[];
 }

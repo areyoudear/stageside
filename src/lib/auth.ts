@@ -2,7 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import { JWT } from "next-auth/jwt";
 import SpotifyProvider from "next-auth/providers/spotify";
 import GoogleProvider from "next-auth/providers/google";
-import { upsertUser, saveMusicProfile, upsertMusicConnection } from "./supabase";
+import { upsertUser, saveMusicProfile, upsertMusicConnection, saveRelatedArtists } from "./supabase";
 import { getUserMusicProfile, SpotifyArtist } from "./spotify";
 import { MusicServiceType } from "./music-types";
 
@@ -232,9 +232,16 @@ async function fetchAndStoreMusicProfile(
       image_url: artist.images[0]?.url,
     }));
 
-    await saveMusicProfile(userId, topArtists, profile.topGenres);
+    // Save profile and related artists in parallel
+    await Promise.all([
+      saveMusicProfile(userId, topArtists, profile.topGenres),
+      // Save related artists for better matching
+      profile.relatedArtists && profile.relatedArtists.length > 0
+        ? saveRelatedArtists(userId, profile.relatedArtists)
+        : Promise.resolve(),
+    ]);
 
-    console.log(`Music profile saved for user ${userId}`);
+    console.log(`Music profile saved for user ${userId} (${profile.relatedArtists?.length || 0} related artists)`);
   } catch (error) {
     console.error("Error fetching/storing music profile:", error);
   }

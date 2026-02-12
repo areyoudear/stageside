@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { searchConcerts, Concert } from "@/lib/ticketmaster";
-import { getMusicProfile, getSavedConcerts, getUnifiedMusicProfile } from "@/lib/supabase";
-import { calculateMatchScore } from "@/lib/utils";
+import { getMusicProfile, getSavedConcerts, getUnifiedMusicProfile, getRelatedArtists } from "@/lib/supabase";
+import { calculateMatchScore, formatMatchScore, generateVibeTags, UserProfile } from "@/lib/matching";
 
 /**
  * GET /api/matches
@@ -64,10 +64,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch user's music profile and saved concerts in parallel
-    const [unifiedProfile, legacyProfile, savedConcertIds, concertsResult] = await Promise.all([
+    // Fetch user's music profile, related artists, and saved concerts in parallel
+    const [unifiedProfile, legacyProfile, relatedArtistsData, savedConcertIds, concertsResult] = await Promise.all([
       getUnifiedMusicProfile(session.user.id),
       getMusicProfile(session.user.id),
+      getRelatedArtists(session.user.id).catch(() => []),
       getSavedConcerts(session.user.id),
       searchConcerts({
         city,
@@ -90,6 +91,7 @@ export async function GET(request: NextRequest) {
       })),
       topGenres: legacyProfile.top_genres,
       connectedServices: ["spotify" as const],
+      recentArtists: [],
     } : null);
 
     // If no music profile, return concerts without matching
@@ -100,6 +102,7 @@ export async function GET(request: NextRequest) {
           matchScore: 0,
           matchReasons: ["Connect a music service to see personalized matches"],
           isSaved: savedConcertIds.includes(c.id),
+          vibeTags: [],
         })),
         totalElements: concertsResult.totalElements,
         totalPages: concertsResult.totalPages,
@@ -108,47 +111,74 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Extract artist names and genres from profile
-    const userArtistNames = musicProfile.topArtists.map((a) => a.name);
-    const userGenres = musicProfile.topGenres;
+    // Build user profile for matching algorithm
+    const userProfile: UserProfile = {
+      topArtists: musicProfile.topArtists.map((a, index) => ({
+        name: a.name,
+        rank: index + 1,
+      })),
+      relatedArtists: relatedArtistsData.map((r) => ({
+        name: r.artist_name,
+        relatedTo: r.related_to,
+      })),
+      recentlyPlayed: musicProfile.recentArtists || [],
+      topGenres: musicProfile.topGenres,
+    };
 
-    // Calculate match scores for each concert
-    const matchedConcerts: Concert[] = concertsResult.concerts.map((concert) => {
-      const { score, reasons } = calculateMatchScore(
+    // Calculate match scores for each concert using new algorithm
+    const matchedConcerts = concertsResult.concerts.map((concert) => {
+      const matchResult = calculateMatchScore(
         concert.artists,
         concert.genres,
-        userArtistNames,
-        userGenres
+        userProfile
       );
+
+      // Format score for display (0-100 scale)
+      const displayScore = formatMatchScore(matchResult.score);
+      
+      // Generate vibe tags
+      const vibeTags = generateVibeTags(matchResult.matchType, concert.genres);
 
       return {
         ...concert,
-        matchScore: score,
-        matchReasons: reasons.length > 0 ? reasons : ["Happening near you"],
+        matchScore: displayScore,
+        rawScore: matchResult.score,
+        matchReasons: matchResult.reasons,
+        matchType: matchResult.matchType,
+        matchConfidence: matchResult.confidence,
+        vibeTags,
         isSaved: savedConcertIds.includes(concert.id),
       };
     });
 
-    // Sort by match score (highest first), then by date
+    // Sort by raw score (highest first), then by date for ties
     matchedConcerts.sort((a, b) => {
-      if ((b.matchScore || 0) !== (a.matchScore || 0)) {
-        return (b.matchScore || 0) - (a.matchScore || 0);
+      if (b.rawScore !== a.rawScore) {
+        return b.rawScore - a.rawScore;
       }
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
 
-    // Separate high-match concerts
-    const highMatches = matchedConcerts.filter((c) => (c.matchScore || 0) >= 50);
+    // Categorize matches
+    const mustSee = matchedConcerts.filter((c) => c.matchType === "direct-artist");
+    const forYou = matchedConcerts.filter((c) => 
+      c.matchType === "related-artist" || c.matchType === "recently-played"
+    );
+    const vibeMatch = matchedConcerts.filter((c) => c.matchType === "genre");
 
     return NextResponse.json({
       concerts: matchedConcerts,
-      highMatches: highMatches.length,
+      categories: {
+        mustSee: mustSee.length,
+        forYou: forYou.length,
+        vibeMatch: vibeMatch.length,
+      },
       totalElements: concertsResult.totalElements,
       totalPages: concertsResult.totalPages,
       page: concertsResult.page,
       hasProfile: true,
-      userTopArtists: userArtistNames.slice(0, 10),
-      userTopGenres: userGenres.slice(0, 5),
+      userTopArtists: userProfile.topArtists.slice(0, 10).map(a => a.name),
+      userTopGenres: musicProfile.topGenres.slice(0, 5),
       connectedServices: musicProfile.connectedServices || ["spotify"],
     });
   } catch (error) {

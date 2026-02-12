@@ -160,6 +160,81 @@ export function extractTopGenres(artists: SpotifyArtist[], topN: number = 20): s
 }
 
 /**
+ * Fetch related artists for a given artist ID
+ */
+export async function getRelatedArtists(
+  accessToken: string,
+  artistId: string
+): Promise<SpotifyArtist[]> {
+  const response = await fetch(
+    `${SPOTIFY_API_BASE}/artists/${artistId}/related-artists`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    console.error(`Failed to fetch related artists for ${artistId}`);
+    return [];
+  }
+
+  const data = await response.json();
+  return data.artists || [];
+}
+
+/**
+ * Fetch related artists for multiple artists in parallel
+ * Returns a map of related artist names to their source artist
+ */
+export async function getRelatedArtistsForProfile(
+  accessToken: string,
+  topArtists: SpotifyArtist[],
+  maxArtistsToCheck: number = 15
+): Promise<Array<{ name: string; relatedTo: string; popularity: number }>> {
+  // Only check top N artists to avoid rate limiting
+  const artistsToCheck = topArtists.slice(0, maxArtistsToCheck);
+  
+  const relatedMap = new Map<string, { relatedTo: string; popularity: number }>();
+  const topArtistIds = new Set(topArtists.map(a => a.id));
+  
+  // Fetch in batches of 5 to avoid rate limits
+  const batchSize = 5;
+  for (let i = 0; i < artistsToCheck.length; i += batchSize) {
+    const batch = artistsToCheck.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async (artist) => {
+        const related = await getRelatedArtists(accessToken, artist.id);
+        return { sourceArtist: artist.name, relatedArtists: related };
+      })
+    );
+    
+    for (const { sourceArtist, relatedArtists } of results) {
+      for (const related of relatedArtists.slice(0, 10)) { // Top 10 related per artist
+        // Skip if already in user's top artists
+        if (topArtistIds.has(related.id)) continue;
+        
+        // Skip if already added with higher popularity
+        const existing = relatedMap.get(related.name);
+        if (existing && existing.popularity >= related.popularity) continue;
+        
+        relatedMap.set(related.name, {
+          relatedTo: sourceArtist,
+          popularity: related.popularity,
+        });
+      }
+    }
+  }
+  
+  // Return sorted by popularity (most popular first)
+  return Array.from(relatedMap.entries())
+    .map(([name, { relatedTo, popularity }]) => ({ name, relatedTo, popularity }))
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, 200); // Cap at 200 related artists
+}
+
+/**
  * Get comprehensive user music profile
  * Combines data from multiple time ranges for better matching
  */
@@ -210,6 +285,13 @@ export async function getUserMusicProfile(accessToken: string) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       .map(({ score, ...artist }) => artist);
 
+    // Fetch related artists for better matching
+    const relatedArtists = await getRelatedArtistsForProfile(
+      accessToken,
+      topArtists,
+      15 // Check top 15 artists
+    ).catch(() => []); // Don't fail if related artists fetch fails
+
     // Extract unique artist names from recently played
     const recentArtistNames = Array.from(
       new Set(recentlyPlayed.flatMap((item) => item.track.artists.map((a) => a.name)))
@@ -223,6 +305,7 @@ export async function getUserMusicProfile(accessToken: string) {
       topGenres,
       recentArtistNames,
       artistNames: topArtists.map((a) => a.name),
+      relatedArtists, // NEW: Include related artists
     };
   } catch (error) {
     console.error("Error fetching user music profile:", error);
