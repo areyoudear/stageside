@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -30,11 +30,11 @@ import {
 import type { FestivalWithMatch, FestivalArtistMatch, ScheduleDay } from "@/lib/festival-types";
 
 interface FestivalDetailPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export default function FestivalDetailPage({ params }: FestivalDetailPageProps) {
-  const { id } = use(params);
+  const { id } = params;
   const { data: session } = useSession();
   const router = useRouter();
 
