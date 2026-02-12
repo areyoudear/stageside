@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
@@ -17,6 +16,7 @@ import {
   Star,
   Play,
 } from "lucide-react";
+import { MusicVisualizer } from "@/components/MusicVisualizer";
 
 export default async function LandingPage() {
   try {
@@ -35,7 +35,7 @@ export default async function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                 <Music className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold text-white">Stageside</span>
@@ -55,7 +55,7 @@ export default async function LandingPage() {
               </Link>
               <Link
                 href="/signup"
-                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
               >
                 Get Started
               </Link>
@@ -68,14 +68,20 @@ export default async function LandingPage() {
       <section className="relative pt-32 pb-20 overflow-hidden">
         {/* Background effects */}
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-1/4 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px]" />
-          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-pink-600/15 rounded-full blur-[100px]" />
+          <div className="absolute top-20 left-1/4 w-[500px] h-[500px] bg-cyan-600/20 rounded-full blur-[120px]" />
+          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-blue-600/15 rounded-full blur-[100px]" />
+          
+          {/* Music Visualizer - adds life and movement */}
+          <MusicVisualizer variant="bars" color="cyan" intensity="low" />
+          
+          {/* Subtle grid overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
         </div>
 
         <div className="relative max-w-6xl mx-auto px-4 text-center">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2 mb-8">
-            <Sparkles className="w-4 h-4 text-yellow-400" />
+            <Sparkles className="w-4 h-4 text-amber-400" />
             <span className="text-gray-300 text-sm">Powered by your music taste</span>
           </div>
 
@@ -83,7 +89,7 @@ export default async function LandingPage() {
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
             Stop scrolling.
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
               Start discovering.
             </span>
           </h1>
@@ -99,7 +105,7 @@ export default async function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
             <Link
               href="/signup"
-              className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
             >
               Get Started Free
               <ArrowRight className="w-5 h-5" />
@@ -114,17 +120,17 @@ export default async function LandingPage() {
           </div>
 
           {/* Social Proof */}
-          <div className="flex items-center justify-center gap-8 text-gray-500">
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-gray-500 text-sm">
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
               <span>Free to use</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
               <span>Works with 5 music services</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
               <span>No credit card required</span>
             </div>
           </div>
@@ -146,11 +152,11 @@ export default async function LandingPage() {
           <div className="grid md:grid-cols-3 gap-8">
             {/* Step 1 */}
             <div className="relative">
-              <div className="absolute -top-4 -left-4 w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+              <div className="absolute -top-4 -left-4 w-12 h-12 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
                 1
               </div>
               <div className="bg-white/5 rounded-2xl p-8 border border-white/10 h-full">
-                <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-6">
+                <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center mb-6">
                   <Music className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">
@@ -165,11 +171,11 @@ export default async function LandingPage() {
 
             {/* Step 2 */}
             <div className="relative">
-              <div className="absolute -top-4 -left-4 w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+              <div className="absolute -top-4 -left-4 w-12 h-12 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
                 2
               </div>
               <div className="bg-white/5 rounded-2xl p-8 border border-white/10 h-full">
-                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mb-6">
+                <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center mb-6">
                   <MapPin className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">
@@ -184,11 +190,11 @@ export default async function LandingPage() {
 
             {/* Step 3 */}
             <div className="relative">
-              <div className="absolute -top-4 -left-4 w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+              <div className="absolute -top-4 -left-4 w-12 h-12 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
                 3
               </div>
               <div className="bg-white/5 rounded-2xl p-8 border border-white/10 h-full">
-                <div className="w-14 h-14 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center mb-6">
+                <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center mb-6">
                   <Target className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">
@@ -209,13 +215,13 @@ export default async function LandingPage() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 bg-purple-500/20 text-purple-300 rounded-full px-4 py-2 mb-6">
+              <div className="inline-flex items-center gap-2 bg-cyan-500/20 text-cyan-300 rounded-full px-4 py-2 mb-6">
                 <Target className="w-4 h-4" />
                 <span className="text-sm font-medium">Personalized Matching</span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
                 Every concert scored for{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
                   your taste
                 </span>
               </h2>
@@ -226,27 +232,27 @@ export default async function LandingPage() {
               </p>
               <ul className="space-y-4">
                 <li className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  <div className="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
                   </div>
                   <span className="text-gray-300">&quot;You love The Weeknd&quot; — direct artist matches</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  <div className="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
                   </div>
                   <span className="text-gray-300">&quot;Similar to Tame Impala&quot; — related artist discovery</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  <div className="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
                   </div>
                   <span className="text-gray-300">&quot;Matches your indie rock taste&quot; — genre matching</span>
                 </li>
               </ul>
             </div>
             <div className="relative">
-              <div className="bg-gradient-to-br from-purple-900/50 to-pink-900/50 rounded-2xl p-6 border border-white/10">
+              <div className="bg-gradient-to-br from-cyan-900/50 to-blue-900/50 rounded-2xl p-6 border border-white/10">
                 {/* Mock concert card */}
                 <div className="bg-gray-900/80 rounded-xl p-4 mb-4">
                   <div className="flex items-start justify-between mb-3">
@@ -255,12 +261,12 @@ export default async function LandingPage() {
                       <p className="text-gray-400 text-sm">Chase Center • Mar 15</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-green-400">98%</div>
+                      <div className="text-2xl font-bold text-emerald-400">98%</div>
                       <div className="text-xs text-gray-500">Perfect</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Star className="w-4 h-4 text-yellow-400" />
+                    <Star className="w-4 h-4 text-amber-400" />
                     <span className="text-sm text-gray-300">In your top 5 artists</span>
                   </div>
                 </div>
@@ -271,12 +277,12 @@ export default async function LandingPage() {
                       <p className="text-gray-400 text-sm">Bill Graham • Apr 2</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-green-400">87%</div>
+                      <div className="text-2xl font-bold text-emerald-400">87%</div>
                       <div className="text-xs text-gray-500">Great</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-purple-400" />
+                    <Zap className="w-4 h-4 text-cyan-400" />
                     <span className="text-sm text-gray-300">Similar to MGMT you listen to</span>
                   </div>
                 </div>
@@ -287,12 +293,12 @@ export default async function LandingPage() {
                       <p className="text-gray-400 text-sm">The Warfield • Apr 18</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-yellow-400">72%</div>
+                      <div className="text-2xl font-bold text-amber-400">72%</div>
                       <div className="text-xs text-gray-500">Good</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-pink-400" />
+                    <Heart className="w-4 h-4 text-rose-400" />
                     <span className="text-sm text-gray-300">Matches your indie taste</span>
                   </div>
                 </div>
@@ -307,7 +313,7 @@ export default async function LandingPage() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="order-2 lg:order-1">
-              <div className="bg-gradient-to-br from-green-900/50 to-teal-900/50 rounded-2xl p-6 border border-white/10">
+              <div className="bg-gradient-to-br from-emerald-900/50 to-teal-900/50 rounded-2xl p-6 border border-white/10">
                 {/* Mock itinerary */}
                 <div className="text-center mb-6">
                   <h4 className="text-white font-semibold text-lg">Your Coachella Schedule</h4>
@@ -321,12 +327,12 @@ export default async function LandingPage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="bg-yellow-500/20 text-yellow-300 text-xs px-2 py-0.5 rounded-full">Must-See</span>
+                        <span className="bg-amber-500/20 text-amber-300 text-xs px-2 py-0.5 rounded-full">Must-See</span>
                       </div>
                       <div className="text-white font-medium">Daft Punk</div>
                       <div className="text-gray-400 text-sm">Main Stage</div>
                     </div>
-                    <div className="text-green-400 font-bold">98%</div>
+                    <div className="text-emerald-400 font-bold">98%</div>
                   </div>
                   <div className="bg-gray-900/80 rounded-lg p-3 flex items-center gap-4 opacity-80">
                     <div className="text-center w-16">
@@ -335,12 +341,12 @@ export default async function LandingPage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="bg-purple-500/20 text-purple-300 text-xs px-2 py-0.5 rounded-full">Recommended</span>
+                        <span className="bg-cyan-500/20 text-cyan-300 text-xs px-2 py-0.5 rounded-full">Recommended</span>
                       </div>
                       <div className="text-white font-medium">Khruangbin</div>
                       <div className="text-gray-400 text-sm">Outdoor Stage</div>
                     </div>
-                    <div className="text-green-400 font-bold">85%</div>
+                    <div className="text-emerald-400 font-bold">85%</div>
                   </div>
                   <div className="bg-gray-900/80 rounded-lg p-3 flex items-center gap-4 opacity-60">
                     <div className="text-center w-16">
@@ -349,24 +355,24 @@ export default async function LandingPage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="bg-green-500/20 text-green-300 text-xs px-2 py-0.5 rounded-full">Discovery</span>
+                        <span className="bg-emerald-500/20 text-emerald-300 text-xs px-2 py-0.5 rounded-full">Discovery</span>
                       </div>
                       <div className="text-white font-medium">Remi Wolf</div>
                       <div className="text-gray-400 text-sm">Gobi Tent</div>
                     </div>
-                    <div className="text-yellow-400 font-bold">72%</div>
+                    <div className="text-amber-400 font-bold">72%</div>
                   </div>
                 </div>
               </div>
             </div>
             <div className="order-1 lg:order-2">
-              <div className="inline-flex items-center gap-2 bg-green-500/20 text-green-300 rounded-full px-4 py-2 mb-6">
+              <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 rounded-full px-4 py-2 mb-6">
                 <Calendar className="w-4 h-4" />
                 <span className="text-sm font-medium">Festival Planner</span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
                 Auto-generated{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-teal-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
                   festival itineraries
                 </span>
               </h2>
@@ -377,20 +383,20 @@ export default async function LandingPage() {
               </p>
               <ul className="space-y-4">
                 <li className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  <div className="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
                   </div>
                   <span className="text-gray-300">Optimized for your favorites + new discoveries</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  <div className="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
                   </div>
                   <span className="text-gray-300">Conflict detection between overlapping sets</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  <div className="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
                   </div>
                   <span className="text-gray-300">Export to your calendar app</span>
                 </li>
@@ -405,13 +411,13 @@ export default async function LandingPage() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 bg-pink-500/20 text-pink-300 rounded-full px-4 py-2 mb-6">
+              <div className="inline-flex items-center gap-2 bg-orange-500/20 text-orange-300 rounded-full px-4 py-2 mb-6">
                 <Users className="w-4 h-4" />
                 <span className="text-sm font-medium">Concert Buddy</span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
                 Find concerts{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-400">
                   everyone loves
                 </span>
               </h2>
@@ -422,49 +428,49 @@ export default async function LandingPage() {
               </p>
               <ul className="space-y-4">
                 <li className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-pink-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-pink-400" />
+                  <div className="w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-orange-400" />
                   </div>
                   <span className="text-gray-300">Works across different music services</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-pink-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-pink-400" />
+                  <div className="w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-orange-400" />
                   </div>
                   <span className="text-gray-300">Shows shared artists and genres</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-pink-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-pink-400" />
+                  <div className="w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-orange-400" />
                   </div>
                   <span className="text-gray-300">&quot;Universal&quot; matches = everyone will love it</span>
                 </li>
               </ul>
               <Link
                 href="/groups"
-                className="inline-flex items-center gap-2 mt-8 text-pink-400 hover:text-pink-300 font-medium"
+                className="inline-flex items-center gap-2 mt-8 text-orange-400 hover:text-orange-300 font-medium"
               >
                 Try Concert Buddy
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
             <div className="relative">
-              <div className="bg-gradient-to-br from-pink-900/50 to-purple-900/50 rounded-2xl p-6 border border-white/10">
+              <div className="bg-gradient-to-br from-orange-900/50 to-amber-900/50 rounded-2xl p-6 border border-white/10">
                 {/* Mock group */}
                 <div className="text-center mb-6">
                   <h4 className="text-white font-semibold text-lg">SF Concert Crew</h4>
                   <div className="flex justify-center -space-x-2 mt-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-gray-900 flex items-center justify-center text-white font-medium">R</div>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 border-2 border-gray-900 flex items-center justify-center text-white font-medium">S</div>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 border-2 border-gray-900 flex items-center justify-center text-white font-medium">M</div>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-500 border-2 border-gray-900 flex items-center justify-center text-white font-medium">J</div>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 border-2 border-gray-900 flex items-center justify-center text-white font-medium">R</div>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 border-2 border-gray-900 flex items-center justify-center text-white font-medium">S</div>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 border-2 border-gray-900 flex items-center justify-center text-white font-medium">M</div>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-red-500 border-2 border-gray-900 flex items-center justify-center text-white font-medium">J</div>
                   </div>
                   <p className="text-gray-400 text-sm mt-2">4 members</p>
                 </div>
                 <div className="bg-gray-900/80 rounded-xl p-4 mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="text-white font-semibold">LCD Soundsystem</h5>
-                    <span className="bg-green-500/20 text-green-300 text-xs px-2 py-1 rounded-full">Everyone!</span>
+                    <span className="bg-emerald-500/20 text-emerald-300 text-xs px-2 py-1 rounded-full">Everyone!</span>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <span className="bg-white/10 text-gray-300 px-2 py-1 rounded">@rudr: Loves them</span>
@@ -476,7 +482,7 @@ export default async function LandingPage() {
                 <div className="bg-gray-900/80 rounded-xl p-4 opacity-70">
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="text-white font-semibold">Jungle</h5>
-                    <span className="bg-yellow-500/20 text-yellow-300 text-xs px-2 py-1 rounded-full">Most of you</span>
+                    <span className="bg-amber-500/20 text-amber-300 text-xs px-2 py-1 rounded-full">Most of you</span>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <span className="bg-white/10 text-gray-300 px-2 py-1 rounded">@rudr: Similar artist</span>
@@ -491,7 +497,7 @@ export default async function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-b from-purple-900/20 to-transparent">
+      <section className="py-20 bg-gradient-to-b from-cyan-900/20 to-transparent">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
             Your next favorite concert is waiting
@@ -501,7 +507,7 @@ export default async function LandingPage() {
           </p>
           <Link
             href="/signup"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity"
           >
             Get Started Free
             <ArrowRight className="w-5 h-5" />
@@ -514,7 +520,7 @@ export default async function LandingPage() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                 <Music className="w-4 h-4 text-white" />
               </div>
               <span className="text-white font-semibold">Stageside</span>
