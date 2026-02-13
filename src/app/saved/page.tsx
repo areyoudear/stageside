@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Music, Bookmark, ArrowRight, Heart } from "lucide-react";
+import { Music, ArrowRight, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function SavedConcertsPage() {
@@ -28,7 +28,7 @@ export default function SavedConcertsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                 <Music className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold text-white">Stageside</span>
@@ -48,8 +48,8 @@ export default function SavedConcertsPage() {
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div>
-            <div className="flex items-center gap-2 text-red-400 mb-2">
-              <Bookmark className="w-5 h-5" />
+            <div className="flex items-center gap-2 text-rose-400 mb-2">
+              <Heart className="w-5 h-5" />
               <span className="text-sm font-medium">Saved Concerts</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
@@ -76,7 +76,7 @@ export default function SavedConcertsPage() {
         {/* Content */}
         {isLoading ? (
           <div className="text-center py-16">
-            <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto" />
           </div>
         ) : savedIds.length === 0 ? (
           // Empty State

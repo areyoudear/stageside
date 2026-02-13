@@ -113,7 +113,7 @@ export function AgendaView({
               <Button
                 size="sm"
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="bg-purple-600 hover:bg-purple-700"
+                className="bg-cyan-600 hover:bg-cyan-700"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export
@@ -234,7 +234,7 @@ function AgendaItem({ artist, hasConflict, onRemove }: AgendaItemProps) {
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+          <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-pink-500 flex items-center justify-center">
             <Music className="w-6 h-6 text-white/50" />
           </div>
         )}

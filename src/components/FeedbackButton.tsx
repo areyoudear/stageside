@@ -60,7 +60,7 @@ export function FeedbackButton({ userEmail }: FeedbackButtonProps) {
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-full shadow-lg transition-all hover:scale-105 group"
         aria-label="Send feedback"
       >
-        <MessageSquare className="w-5 h-5 text-purple-400" />
+        <MessageSquare className="w-5 h-5 text-cyan-400" />
         <span className="text-sm font-medium text-zinc-300 hidden sm:inline group-hover:text-white transition-colors">
           Feedback
         </span>
@@ -114,7 +114,7 @@ export function FeedbackButton({ userEmail }: FeedbackButtonProps) {
                       onClick={() => setFeedbackType(type.value as typeof feedbackType)}
                       className={`flex-1 p-3 rounded-xl border text-left transition-all ${
                         feedbackType === type.value
-                          ? "border-purple-500 bg-purple-500/10"
+                          ? "border-cyan-500 bg-cyan-500/10"
                           : "border-zinc-700 hover:border-zinc-600 bg-zinc-800/50"
                       }`}
                     >
@@ -136,7 +136,7 @@ export function FeedbackButton({ userEmail }: FeedbackButtonProps) {
                         ? "What would make Stageside better for you?"
                         : "What's on your mind?"
                     }
-                    className="w-full h-32 px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 resize-none focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full h-32 px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 resize-none focus:outline-none focus:border-cyan-500 transition-colors"
                     required
                   />
                 </div>
@@ -148,7 +148,7 @@ export function FeedbackButton({ userEmail }: FeedbackButtonProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Email (optional, for follow-up)"
-                    className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500 transition-colors"
                   />
                 </div>
 

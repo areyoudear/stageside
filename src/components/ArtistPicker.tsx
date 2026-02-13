@@ -153,7 +153,7 @@ export function ArtistPicker({
           {selectedArtists.map((artist) => (
             <div
               key={artist.id}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-200"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-cyan-500/30 text-purple-200"
             >
               {artist.imageUrl ? (
                 <img
@@ -191,7 +191,7 @@ export function ArtistPicker({
               }}
               onFocus={() => setShowResults(true)}
               placeholder="Search for artists..."
-              className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+              className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
             />
             {isSearching && (
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 animate-spin" />

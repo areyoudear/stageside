@@ -268,6 +268,9 @@ export function ConcertCard({
       });
       onUnsave?.(concert.id);
       setIsSaved(false);
+      // Remove from localStorage
+      const saved = JSON.parse(localStorage.getItem('savedConcerts') || '[]');
+      localStorage.setItem('savedConcerts', JSON.stringify(saved.filter((id: string) => id !== concert.id)));
     } else {
       track('concert_saved', {
         concert_id: concert.id,
@@ -278,6 +281,12 @@ export function ConcertCard({
       setIsSaved(true);
       setShowSavedFeedback(true);
       setTimeout(() => setShowSavedFeedback(false), 2000);
+      // Save to localStorage
+      const saved = JSON.parse(localStorage.getItem('savedConcerts') || '[]');
+      if (!saved.includes(concert.id)) {
+        saved.push(concert.id);
+        localStorage.setItem('savedConcerts', JSON.stringify(saved));
+      }
     }
   };
 
@@ -433,7 +442,7 @@ export function ConcertCard({
         {/* Header with match score */}
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-base text-white line-clamp-2 group-hover:text-purple-200 transition-colors leading-tight">
+            <h3 className="font-bold text-base text-white line-clamp-2 group-hover:text-cyan-200 transition-colors leading-tight">
               {concert.artists.join(", ")}
             </h3>
           </div>
@@ -452,7 +461,7 @@ export function ConcertCard({
         {/* Event Details - Compact */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-purple-400 flex-shrink-0" />
+            <Calendar className="w-4 h-4 text-cyan-400 flex-shrink-0" />
             <span className="font-medium text-white">{formatDate(concert.date)}</span>
             {concert.time && (
               <span className="text-zinc-500 text-xs">
@@ -544,7 +553,7 @@ export function ConcertCard({
                 <span className="text-sm text-zinc-500">Price TBA</span>
                 <button 
                   onClick={handleSetAlert}
-                  className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
                 >
                   <Bell className="w-3 h-3" />
                   Set alert

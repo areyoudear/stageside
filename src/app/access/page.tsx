@@ -45,7 +45,7 @@ function AccessForm() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
             <Music className="w-7 h-7 text-white" />
           </div>
           <span className="text-2xl font-bold text-white">Stageside</span>
@@ -54,7 +54,7 @@ function AccessForm() {
         {/* Card */}
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
           <div className="text-center mb-6">
-            <div className="w-14 h-14 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 rounded-full bg-purple-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto mb-4">
               <Lock className="w-7 h-7 text-purple-400" />
             </div>
             <h1 className="text-xl font-semibold text-white mb-2">
@@ -72,7 +72,7 @@ function AccessForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter access code"
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
                 autoFocus
               />
               {error && (
@@ -83,7 +83,7 @@ function AccessForm() {
             <Button
               type="submit"
               disabled={!password || isLoading}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 h-12"
+              className="w-full bg-gradient-to-r from-cyan-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 h-12"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

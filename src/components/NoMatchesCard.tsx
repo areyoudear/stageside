@@ -93,7 +93,7 @@ export function NoMatchesCard({
   return (
     <div className="space-y-8">
       {/* Email Signup Card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/10 via-zinc-900 to-zinc-900 border border-purple-500/20 p-8">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/10 via-zinc-900 to-zinc-900 border border-cyan-500/20 p-8">
         {/* Background decoration */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
         
@@ -169,7 +169,7 @@ export function NoMatchesCard({
                   <Button
                     type="submit"
                     disabled={status === "loading" || !email}
-                    className="bg-purple-600 hover:bg-purple-500 text-white font-medium"
+                    className="bg-cyan-600 hover:bg-purple-500 text-white font-medium"
                   >
                     {status === "loading" ? (
                       <>

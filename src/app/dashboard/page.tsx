@@ -120,7 +120,7 @@ export default function DashboardPage() {
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
       </div>
     );
   }
@@ -137,7 +137,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                 <Music className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold text-white">Stageside</span>
@@ -145,7 +145,7 @@ export default function DashboardPage() {
 
             {/* Mode tabs */}
             <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
-              <span className="px-4 py-1.5 rounded-md text-sm bg-purple-600 text-white">
+              <span className="px-4 py-1.5 rounded-md text-sm bg-cyan-600 text-white">
                 Concerts
               </span>
               <Link
@@ -221,7 +221,7 @@ export default function DashboardPage() {
               <Button
                 onClick={fetchConcerts}
                 disabled={!location || isLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 h-10"
+                className="w-full bg-gradient-to-r from-cyan-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 h-10"
               >
                 {isLoading ? (
                   <>

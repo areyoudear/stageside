@@ -101,7 +101,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                   className={cn(
                     "px-3 py-1.5 rounded-full text-sm transition-colors",
                     value.label === preset.label
-                      ? "bg-purple-600 text-white"
+                      ? "bg-cyan-600 text-white"
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                   )}
                 >
@@ -124,7 +124,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                   value={value.startDate.toISOString().split("T")[0]}
                   onChange={(e) => handleCustomDateChange("start", e.target.value)}
                   min={new Date().toISOString().split("T")[0]}
-                  className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
               <div>
@@ -134,7 +134,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                   value={value.endDate.toISOString().split("T")[0]}
                   onChange={(e) => handleCustomDateChange("end", e.target.value)}
                   min={value.startDate.toISOString().split("T")[0]}
-                  className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
             </div>
@@ -145,7 +145,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
             <Button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="w-full bg-purple-600 hover:bg-purple-700"
+              className="w-full bg-cyan-600 hover:bg-cyan-700"
             >
               Apply
             </Button>

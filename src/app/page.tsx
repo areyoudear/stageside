@@ -329,7 +329,7 @@ export default async function LandingPage() {
                       <div className="flex items-center gap-2">
                         <span className="bg-amber-500/20 text-amber-300 text-xs px-2 py-0.5 rounded-full">Must-See</span>
                       </div>
-                      <div className="text-white font-medium">Daft Punk</div>
+                      <div className="text-white font-medium">Fred again..</div>
                       <div className="text-gray-400 text-sm">Main Stage</div>
                     </div>
                     <div className="text-emerald-400 font-bold">98%</div>

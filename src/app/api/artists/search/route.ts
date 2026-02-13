@@ -91,7 +91,7 @@ async function searchSpotify(query: string): Promise<ArtistSearchResult[]> {
     const url = new URL(`${SPOTIFY_API_BASE}/search`);
     url.searchParams.set("q", query);
     url.searchParams.set("type", "artist"); // Only artists, not albums or tracks
-    url.searchParams.set("limit", "15");
+    url.searchParams.set("limit", "10");
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -132,7 +132,7 @@ async function searchMusicBrainz(query: string): Promise<ArtistSearchResult[]> {
   try {
     const url = new URL(`${MUSICBRAINZ_API_BASE}/artist`);
     url.searchParams.set("query", query);
-    url.searchParams.set("limit", "15");
+    url.searchParams.set("limit", "10");
     url.searchParams.set("fmt", "json");
 
     const response = await fetch(url.toString(), {

@@ -73,7 +73,7 @@ export function ArtistCard({
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-pink-500 flex items-center justify-center">
               <Music className="w-4 h-4 text-white/50" />
             </div>
           )}
@@ -125,7 +125,7 @@ export function ArtistCard({
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-600 to-pink-500 flex items-center justify-center">
             <Music className="w-12 h-12 text-white/30" />
           </div>
         )}

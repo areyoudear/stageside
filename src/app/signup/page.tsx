@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import Image from "next/image";
 import { Music, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 
 export default function SignupPage() {
@@ -94,15 +93,23 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 flex flex-col items-center justify-center p-4">
+      {/* Background effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-1/4 w-[400px] h-[400px] bg-cyan-600/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-20 right-1/4 w-[300px] h-[300px] bg-blue-600/10 rounded-full blur-[100px]" />
+      </div>
+      
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2 mb-8">
-        <Image src="/logo.svg" alt="Stageside" width={40} height={40} />
+      <Link href="/" className="relative flex items-center gap-2 mb-8">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+          <Music className="w-5 h-5 text-white" />
+        </div>
         <span className="text-2xl font-bold text-white">Stageside</span>
       </Link>
 
       {/* Signup Card */}
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+      <div className="relative w-full max-w-md bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
         <h1 className="text-2xl font-bold text-white text-center mb-2">Create your account</h1>
         <p className="text-gray-400 text-center mb-8">
           Find concerts you&apos;ll actually love
@@ -151,7 +158,7 @@ export default function SignupPage() {
           <div>
             <label className="block text-sm text-gray-300 mb-2">Full Name</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
               <input
                 type="text"
                 name="name"
@@ -159,7 +166,7 @@ export default function SignupPage() {
                 onChange={handleChange}
                 placeholder="John Doe"
                 required
-                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -177,7 +184,7 @@ export default function SignupPage() {
                 required
                 pattern="[a-zA-Z0-9_]+"
                 title="Letters, numbers, and underscores only"
-                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-9 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-9 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
             <p className="text-xs text-gray-500 mt-1">This is how friends will find you</p>
@@ -186,7 +193,7 @@ export default function SignupPage() {
           <div>
             <label className="block text-sm text-gray-300 mb-2">Email</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
               <input
                 type="email"
                 name="email"
@@ -194,7 +201,7 @@ export default function SignupPage() {
                 onChange={handleChange}
                 placeholder="you@example.com"
                 required
-                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -202,7 +209,7 @@ export default function SignupPage() {
           <div>
             <label className="block text-sm text-gray-300 mb-2">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
               <input
                 type="password"
                 name="password"
@@ -211,7 +218,7 @@ export default function SignupPage() {
                 placeholder="••••••••"
                 required
                 minLength={8}
-                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -219,7 +226,7 @@ export default function SignupPage() {
           <div>
             <label className="block text-sm text-gray-300 mb-2">Confirm Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
               <input
                 type="password"
                 name="confirmPassword"
@@ -227,7 +234,7 @@ export default function SignupPage() {
                 onChange={handleChange}
                 placeholder="••••••••"
                 required
-                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -235,7 +242,7 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -249,9 +256,9 @@ export default function SignupPage() {
         </form>
 
         {/* Music Service Note */}
-        <div className="mt-6 p-4 bg-purple-500/20 rounded-xl">
+        <div className="mt-6 p-4 bg-cyan-500/20 rounded-xl">
           <div className="flex items-center gap-3">
-            <Music className="w-5 h-5 text-purple-400" />
+            <Music className="w-5 h-5 text-cyan-400" />
             <div>
               <p className="text-sm text-white font-medium">Connect your music later</p>
               <p className="text-xs text-gray-400">
@@ -264,7 +271,7 @@ export default function SignupPage() {
         {/* Login Link */}
         <p className="text-center text-gray-400 mt-6">
           Already have an account?{" "}
-          <Link href="/login" className="text-purple-400 hover:text-purple-300">
+          <Link href="/login" className="text-cyan-400 hover:text-cyan-300">
             Sign in
           </Link>
         </p>

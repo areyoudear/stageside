@@ -242,7 +242,7 @@ export default function GroupDetailPage({
                 {group.members.map((member, i) => (
                   <div
                     key={member.userId}
-                    className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-gray-900 flex items-center justify-center text-white text-sm font-medium"
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 border-2 border-gray-900 flex items-center justify-center text-white text-sm font-medium"
                     style={{ zIndex: 10 - i }}
                     title={member.displayName}
                   >
@@ -346,7 +346,7 @@ export default function GroupDetailPage({
                 value={location}
                 onChange={(e) => handleLocationSearch(e.target.value)}
                 placeholder="Enter a city..."
-                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
 
               {locationResults.length > 0 && (
@@ -368,7 +368,7 @@ export default function GroupDetailPage({
             <button
               onClick={searchConcerts}
               disabled={!selectedLocation || isSearching}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+              className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
             >
               {isSearching ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

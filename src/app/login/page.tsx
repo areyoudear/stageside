@@ -4,8 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import Image from "next/image";
-import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, Music } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -60,15 +59,23 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 flex flex-col items-center justify-center p-4">
+      {/* Background effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-1/4 w-[400px] h-[400px] bg-cyan-600/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-20 right-1/4 w-[300px] h-[300px] bg-blue-600/10 rounded-full blur-[100px]" />
+      </div>
+      
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2 mb-8">
-        <Image src="/logo.svg" alt="Stageside" width={40} height={40} />
+      <Link href="/" className="relative flex items-center gap-2 mb-8">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+          <Music className="w-5 h-5 text-white" />
+        </div>
         <span className="text-2xl font-bold text-white">Stageside</span>
       </Link>
 
       {/* Login Card */}
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+      <div className="relative w-full max-w-md bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
         <h1 className="text-2xl font-bold text-white text-center mb-2">Welcome back</h1>
         <p className="text-gray-400 text-center mb-8">Sign in to find your next concert</p>
 
@@ -115,7 +122,7 @@ export default function LoginPage() {
           <div>
             <label className="block text-sm text-gray-300 mb-2">Email</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
               <input
                 type="email"
                 name="email"
@@ -123,7 +130,7 @@ export default function LoginPage() {
                 onChange={handleChange}
                 placeholder="you@example.com"
                 required
-                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -131,7 +138,7 @@ export default function LoginPage() {
           <div>
             <label className="block text-sm text-gray-300 mb-2">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
               <input
                 type="password"
                 name="password"
@@ -139,7 +146,7 @@ export default function LoginPage() {
                 onChange={handleChange}
                 placeholder="••••••••"
                 required
-                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -148,19 +155,20 @@ export default function LoginPage() {
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                className="w-4 h-4 rounded border-gray-600 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
+                className="w-4 h-4 rounded border-gray-600 text-cyan-600 focus:ring-cyan-500 focus:ring-offset-0"
               />
               <span className="text-sm text-gray-400">Remember me</span>
             </label>
-            <Link href="/forgot-password" className="text-sm text-purple-400 hover:text-purple-300">
+            {/* TODO: Implement forgot password flow */}
+            <span className="text-sm text-gray-500 cursor-not-allowed">
               Forgot password?
-            </Link>
+            </span>
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -176,7 +184,7 @@ export default function LoginPage() {
         {/* Signup Link */}
         <p className="text-center text-gray-400 mt-6">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-purple-400 hover:text-purple-300">
+          <Link href="/signup" className="text-cyan-400 hover:text-cyan-300">
             Create one
           </Link>
         </p>

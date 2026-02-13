@@ -196,7 +196,7 @@ export default function FestivalSchedulePage({
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Hero */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-full px-4 py-2 mb-4">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-cyan-500/30 rounded-full px-4 py-2 mb-4">
             <Sparkles className="w-5 h-5 text-yellow-400" />
             <span className="text-white font-medium">Your Personalized Schedule</span>
           </div>
@@ -209,7 +209,7 @@ export default function FestivalSchedulePage({
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-xl p-4 border border-purple-500/20">
+          <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-xl p-4 border border-cyan-500/20">
             <div className="flex items-center gap-2 text-purple-400 mb-1">
               <Star className="w-4 h-4" />
               <span className="text-sm">Must-See</span>
@@ -295,7 +295,7 @@ export default function FestivalSchedulePage({
               onClick={() => setActiveDay(i)}
               className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
                 activeDay === i
-                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white"
                   : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -360,7 +360,7 @@ export default function FestivalSchedulePage({
                 onClick={() => setIncludeDiscoveries(!includeDiscoveries)}
                 className={`w-full px-4 py-2 rounded-lg border transition-colors ${
                   includeDiscoveries
-                    ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                    ? "bg-purple-500/20 border-cyan-500/50 text-purple-300"
                     : "bg-white/10 border-white/20 text-gray-400"
                 }`}
               >
@@ -371,7 +371,7 @@ export default function FestivalSchedulePage({
           <button
             onClick={regenerate}
             disabled={isRegenerating}
-            className="mt-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="mt-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {isRegenerating ? "Regenerating..." : "Apply Changes"}
           </button>
@@ -386,7 +386,7 @@ function ScheduleCard({ slot, index }: { slot: ItinerarySlot; index: number }) {
 
   const priorityColors = {
     "must-see": "from-yellow-500 to-orange-500",
-    recommended: "from-purple-500 to-pink-500",
+    recommended: "from-cyan-500 to-blue-600",
     discovery: "from-green-500 to-teal-500",
     filler: "from-gray-500 to-gray-600",
   };

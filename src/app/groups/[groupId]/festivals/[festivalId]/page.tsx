@@ -232,7 +232,7 @@ export default function GroupFestivalPage({
             </div>
             <div className="text-yellow-300/70 text-sm">Acts Scheduled</div>
           </div>
-          <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-xl p-4 border border-purple-500/20 text-center">
+          <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-xl p-4 border border-cyan-500/20 text-center">
             <Sparkles className="w-6 h-6 text-purple-400 mx-auto mb-2" />
             <div className="text-2xl font-bold text-white">
               {Math.round(itinerary.totalGroupScore)}
@@ -257,7 +257,7 @@ export default function GroupFestivalPage({
               {itinerary.memberSatisfaction.map((member) => (
                 <div key={member.userId} className="bg-white/5 rounded-lg p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-medium">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-medium">
                       {member.username[0].toUpperCase()}
                     </div>
                     <div>
@@ -295,7 +295,7 @@ export default function GroupFestivalPage({
               onClick={() => setActiveDay(i)}
               className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
                 activeDay === i
-                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white"
                   : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
               }`}
             >

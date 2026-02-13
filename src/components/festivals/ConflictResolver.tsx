@@ -85,7 +85,7 @@ function ConflictArtistOption({ artist, onSelect }: ConflictArtistOptionProps) {
   return (
     <button
       onClick={onSelect}
-      className="flex flex-col items-center text-center p-4 rounded-xl border border-zinc-700 hover:border-purple-500 hover:bg-purple-500/10 transition-all group"
+      className="flex flex-col items-center text-center p-4 rounded-xl border border-zinc-700 hover:border-cyan-500 hover:bg-purple-500/10 transition-all group"
     >
       {/* Image */}
       <div className="relative w-20 h-20 rounded-full overflow-hidden mb-3">
@@ -98,7 +98,7 @@ function ConflictArtistOption({ artist, onSelect }: ConflictArtistOptionProps) {
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+          <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-pink-500 flex items-center justify-center">
             <Music className="w-8 h-8 text-white/50" />
           </div>
         )}
@@ -146,7 +146,7 @@ function ConflictArtistOption({ artist, onSelect }: ConflictArtistOptionProps) {
       </div>
 
       {/* Select button */}
-      <div className="mt-3 px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-400 text-xs group-hover:bg-purple-600 group-hover:text-white transition-all">
+      <div className="mt-3 px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-400 text-xs group-hover:bg-cyan-600 group-hover:text-white transition-all">
         Keep this one
       </div>
     </button>

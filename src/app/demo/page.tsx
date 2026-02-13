@@ -91,7 +91,7 @@ export default function DemoPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                 <Music className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold text-white">Stageside</span>
@@ -104,7 +104,7 @@ export default function DemoPage() {
             </div>
 
             <Link href="/">
-              <Button className="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600">
+              <Button className="bg-gradient-to-r from-cyan-600 to-pink-500 hover:from-purple-700 hover:to-pink-600">
                 Connect Spotify
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -114,7 +114,7 @@ export default function DemoPage() {
       </nav>
 
       {/* Demo Banner */}
-      <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border-b border-purple-500/20">
+      <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border-b border-cyan-500/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 text-sm">
@@ -186,7 +186,7 @@ export default function DemoPage() {
                 {DEMO_TOP_GENRES.map((genre) => (
                   <span
                     key={genre}
-                    className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-300 text-sm border border-purple-500/20"
+                    className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-300 text-sm border border-cyan-500/20"
                   >
                     {genre}
                   </span>
@@ -220,7 +220,7 @@ export default function DemoPage() {
               <Button
                 onClick={() => fetchConcerts()}
                 disabled={!location || isLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 h-10"
+                className="w-full bg-gradient-to-r from-cyan-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 h-10"
               >
                 {isLoading ? (
                   <>
@@ -354,7 +354,7 @@ export default function DemoPage() {
             </div>
 
             {/* CTA at bottom */}
-            <div className="mt-16 py-12 px-8 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-2xl border border-purple-500/20">
+            <div className="mt-16 py-12 px-8 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-2xl border border-cyan-500/20">
               <div className="max-w-xl mx-auto text-center">
                 <Sparkles className="w-10 h-10 text-purple-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-white mb-2">
@@ -367,7 +367,7 @@ export default function DemoPage() {
                 <Link href="/">
                   <Button
                     size="lg"
-                    className="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
+                    className="bg-gradient-to-r from-cyan-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
                   >
                     Connect Spotify
                     <ArrowRight className="w-4 h-4 ml-2" />

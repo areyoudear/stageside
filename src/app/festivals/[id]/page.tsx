@@ -172,7 +172,7 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/30 to-pink-500/30" />
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/30 to-pink-500/30" />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/80 to-zinc-950" />
         </div>
@@ -214,7 +214,7 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
               {/* Action buttons */}
               <div className="flex flex-wrap gap-3">
                 <Link href={`/festivals/${id}/schedule`}>
-                  <Button className="bg-purple-600 hover:bg-purple-700">
+                  <Button className="bg-cyan-600 hover:bg-cyan-700">
                     <Grid className="w-4 h-4 mr-2" />
                     Build My Schedule
                   </Button>

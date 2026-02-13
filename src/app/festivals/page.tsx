@@ -85,7 +85,7 @@ export default function FestivalsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                 <Music className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold text-white">Stageside</span>
@@ -99,7 +99,7 @@ export default function FestivalsPage() {
               >
                 Concerts
               </Link>
-              <span className="px-4 py-1.5 rounded-md text-sm bg-purple-600 text-white">
+              <span className="px-4 py-1.5 rounded-md text-sm bg-cyan-600 text-white">
                 Festivals
               </span>
             </div>
@@ -122,7 +122,7 @@ export default function FestivalsPage() {
 
         {/* Connect prompt if not logged in */}
         {status === "unauthenticated" && (
-          <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+          <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-cyan-500/20">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-white mb-1">
@@ -160,7 +160,7 @@ export default function FestivalsPage() {
                   onClick={() => setSelectedGenre(genre)}
                   className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
                     selectedGenre === genre
-                      ? "bg-purple-600 text-white"
+                      ? "bg-cyan-600 text-white"
                       : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
                   }`}
                 >

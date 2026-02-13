@@ -43,7 +43,7 @@ export function FestivalCard({ festival, showMatchDetails = false }: FestivalCar
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-600 to-pink-500 flex items-center justify-center">
               <Music className="w-12 h-12 text-white/50" />
             </div>
           )}

@@ -66,7 +66,7 @@ export default function GroupsPage() {
   if (status === "loading" || isLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
       </div>
     );
   }
@@ -77,7 +77,9 @@ export default function GroupsPage() {
       <nav className="border-b border-white/10 bg-gray-950/80 backdrop-blur-lg sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <Image src="/logo.svg" alt="Stageside" width={32} height={32} />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <Music className="w-4 h-4 text-white" />
+            </div>
             <span className="text-xl font-bold text-white">Stageside</span>
           </Link>
           <div className="flex items-center gap-4">
@@ -101,7 +103,7 @@ export default function GroupsPage() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Hero */}
         <div className="text-center mb-12">
-          <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-cyan-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <Users className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-4">Concert Buddy</h1>
@@ -115,7 +117,7 @@ export default function GroupsPage() {
         <div className="flex gap-4 justify-center mb-12">
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity"
           >
             <Plus className="w-5 h-5" />
             Create Group
@@ -141,7 +143,7 @@ export default function GroupsPage() {
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-purple-700 transition-colors"
+              className="inline-flex items-center gap-2 bg-cyan-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-cyan-700 transition-colors"
             >
               <Plus className="w-5 h-5" />
               Create Your First Group
@@ -208,7 +210,7 @@ function GroupCard({ group }: { group: ConcertGroup }) {
                 {group.members.slice(0, 4).map((member, i) => (
                   <div
                     key={member.userId}
-                    className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-gray-900 flex items-center justify-center text-white text-xs font-medium"
+                    className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 border-2 border-gray-900 flex items-center justify-center text-white text-xs font-medium"
                     style={{ zIndex: 10 - i }}
                   >
                     {member.avatarUrl ? (
@@ -322,7 +324,7 @@ function CreateGroupModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., SF Concert Crew"
-              className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
           </div>
 
@@ -335,7 +337,7 @@ function CreateGroupModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g., Finding shows for summer 2026"
-              className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
           </div>
         </div>
@@ -350,7 +352,7 @@ function CreateGroupModal({
           <button
             onClick={handleCreate}
             disabled={isLoading}
-            className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -429,7 +431,7 @@ function JoinGroupModal({
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
             placeholder="e.g., XK7N2M9P"
             maxLength={8}
-            className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-center text-2xl tracking-widest"
+            className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-center text-2xl tracking-widest"
           />
           <p className="text-xs text-gray-500 mt-2">
             Ask your friend for their group&apos;s invite code
@@ -446,7 +448,7 @@ function JoinGroupModal({
           <button
             onClick={handleJoin}
             disabled={isLoading}
-            className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
