@@ -11,7 +11,6 @@ import { LocationSearch, Location } from "@/components/LocationSearch";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
 import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
 import { EmailSignupForm } from "@/components/EmailSignupForm";
-import { ConnectedServicesPanel } from "@/components/ConnectedServicesPanel";
 import type { Concert } from "@/lib/ticketmaster";
 import type { MusicServiceType } from "@/lib/music-types";
 
@@ -41,7 +40,6 @@ export default function DashboardPage() {
     userTopGenres: string[];
     connectedServices: MusicServiceType[];
   } | null>(null);
-  const [showServicesPanel, setShowServicesPanel] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -157,15 +155,16 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowServicesPanel(!showServicesPanel)}
-                className="text-zinc-400 hover:text-white"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="ml-2 hidden sm:inline">Services</span>
-              </Button>
+              <Link href="/settings">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-zinc-400 hover:text-white"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="ml-2 hidden sm:inline">Settings</span>
+                </Button>
+              </Link>
               <SpotifyConnectButton size="sm" />
             </div>
           </div>
@@ -183,19 +182,6 @@ export default function DashboardPage() {
             Find concerts from artists you love. Set your location and dates to get started.
           </p>
         </div>
-
-        {/* Connected Services Panel */}
-        {showServicesPanel && (
-          <ConnectedServicesPanel
-            className="mb-8"
-            onConnectionsChange={() => {
-              // Refetch concerts when connections change
-              if (location) {
-                fetchConcerts();
-              }
-            }}
-          />
-        )}
 
         {/* Search Controls */}
         <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6 mb-8">

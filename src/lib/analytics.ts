@@ -74,6 +74,10 @@ export interface AnalyticsEvents {
   // Feedback
   feedback_opened: { page: string };
   feedback_submitted: { page: string; rating?: number };
+
+  // Settings
+  settings_saved: { artist_count: number; genre_count: number };
+  user_signed_out: Record<string, never>;
 }
 
 // ============================================

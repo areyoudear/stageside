@@ -12,7 +12,7 @@ interface Artist {
 
 /**
  * GET /api/user/artists
- * Get user's favorite artists
+ * Get user's favorite artists and genres
  */
 export async function GET() {
   try {
@@ -24,7 +24,7 @@ export async function GET() {
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
       .from("music_profiles")
-      .select("top_artists")
+      .select("top_artists, top_genres")
       .eq("user_id", session.user.id)
       .single();
 
@@ -33,7 +33,10 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to fetch artists" }, { status: 500 });
     }
 
-    return NextResponse.json({ artists: data?.top_artists || [] });
+    return NextResponse.json({ 
+      artists: data?.top_artists || [],
+      genres: data?.top_genres || [],
+    });
   } catch (error) {
     console.error("Error in GET /api/user/artists:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -42,7 +45,7 @@ export async function GET() {
 
 /**
  * POST /api/user/artists
- * Save user's favorite artists (manual entry)
+ * Save user's favorite artists and genres (manual entry)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -51,9 +54,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { artists } = await request.json() as { artists: Artist[] };
+    const body = await request.json() as { 
+      artists?: Artist[]; 
+      genres?: string[];
+    };
+    
+    const artists = body.artists || [];
+    const explicitGenres = body.genres || [];
 
-    if (!artists || !Array.isArray(artists)) {
+    if (!Array.isArray(artists)) {
       return NextResponse.json({ error: "Invalid artists data" }, { status: 400 });
     }
 
@@ -66,8 +75,9 @@ export async function POST(request: NextRequest) {
       source: "manual",
     }));
 
-    // Extract genres from all artists
-    const allGenres = [...new Set(artists.flatMap((a) => a.genres || []))];
+    // Combine genres from artists + explicit selections
+    const artistGenres = artists.flatMap((a) => a.genres || []);
+    const allGenres = Array.from(new Set([...artistGenres, ...explicitGenres]));
 
     // Upsert into music_profiles
     const adminClient = createAdminClient();
@@ -87,7 +97,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to save artists" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, count: artists.length });
+    return NextResponse.json({ 
+      success: true, 
+      artistCount: artists.length,
+      genreCount: allGenres.length,
+    });
   } catch (error) {
     console.error("Error in POST /api/user/artists:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
