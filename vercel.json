@@ -1,0 +1,10 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "getstageside.com" }],
+      "destination": "https://www.getstageside.com/:path*",
+      "permanent": true
+    }
+  ]
+}
