@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    rememberMe: true, // Default to true for better UX
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,6 +36,9 @@ export default function LoginPage() {
     setLoginError(null);
 
     try {
+      // Store remember me preference in cookie before signing in
+      document.cookie = `remember_me=${formData.rememberMe}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+      
       const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
@@ -55,6 +59,8 @@ export default function LoginPage() {
   };
 
   const handleGoogleSignIn = () => {
+    // Store remember me preference (default true for OAuth)
+    document.cookie = `remember_me=true; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
     signIn("google", { callbackUrl });
   };
 
@@ -152,10 +158,12 @@ export default function LoginPage() {
           </div>
 
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="w-4 h-4 rounded border-gray-600 text-cyan-600 focus:ring-cyan-500 focus:ring-offset-0"
+                checked={formData.rememberMe}
+                onChange={(e) => setFormData(prev => ({ ...prev, rememberMe: e.target.checked }))}
+                className="w-4 h-4 rounded border-gray-600 bg-white/10 text-cyan-600 focus:ring-cyan-500 focus:ring-offset-0"
               />
               <span className="text-sm text-gray-400">Remember me</span>
             </label>

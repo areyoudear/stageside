@@ -119,10 +119,10 @@ function getMatchLabel(score: number): { label: string; sublabel: string } {
 }
 
 // Match score badge component - always visible, more prominent
-function MatchScoreBadge({ score, isPerfect, matchType, onTooltipHover, hasProfile = true }: { 
+function MatchScoreBadge({ score, isPerfect, matchReasons, onTooltipHover, hasProfile = true }: { 
   score: number; 
   isPerfect: boolean; 
-  matchType?: string;
+  matchReasons?: string[];
   onTooltipHover?: () => void;
   hasProfile?: boolean;
 }) {
@@ -140,6 +140,10 @@ function MatchScoreBadge({ score, isPerfect, matchType, onTooltipHover, hasProfi
       </a>
     );
   }
+
+  // Get the specific reason for this match
+  const primaryReason = matchReasons?.[0];
+  const hasSpecificReason = primaryReason && primaryReason !== "Happening near you";
   
   return (
     <div className="relative group" onMouseEnter={onTooltipHover}>
@@ -166,21 +170,15 @@ function MatchScoreBadge({ score, isPerfect, matchType, onTooltipHover, hasProfi
         )}
       </div>
       
-      {/* Explainer tooltip */}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-zinc-800 rounded-lg text-xs text-zinc-300 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-xl border border-zinc-700 pointer-events-none">
+      {/* Explainer tooltip - anchored to right edge to prevent cutoff */}
+      <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-zinc-800 rounded-lg text-xs text-zinc-300 w-52 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-xl border border-zinc-700 pointer-events-none">
         <p className="font-medium text-white mb-1">
           {isPerfect ? "🔥 Perfect Match!" : score >= 75 ? "✨ Great Match" : "Match Score"}
         </p>
-        <p>
-          {matchType === "direct-artist" 
-            ? "This is one of your favorite artists!"
-            : matchType === "related-artist"
-            ? "This artist is similar to ones you love."
-            : matchType === "recently-played"
-            ? "Based on what you've been listening to."
-            : matchType === "genre"
-            ? "Matches your music taste and genre preferences."
-            : "Based on the artists you selected and your listening history."}
+        <p className="leading-relaxed">
+          {hasSpecificReason 
+            ? primaryReason
+            : "Based on your music preferences."}
         </p>
       </div>
     </div>
@@ -416,7 +414,7 @@ export function ConcertCard({
           <MatchScoreBadge 
             score={matchScore} 
             isPerfect={isPerfectMatch} 
-            matchType={(concert as Concert & { matchType?: string }).matchType}
+            matchReasons={concert.matchReasons}
             onTooltipHover={handleTooltipHover}
             hasProfile={hasProfile}
           />

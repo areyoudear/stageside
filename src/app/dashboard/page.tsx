@@ -50,6 +50,30 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
+  // Load saved location from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedLocation = localStorage.getItem("stageside_location");
+      if (savedLocation) {
+        const parsed = JSON.parse(savedLocation);
+        setLocation(parsed);
+      }
+    } catch (e) {
+      console.error("Error loading saved location:", e);
+    }
+  }, []);
+
+  // Save location to localStorage when it changes
+  useEffect(() => {
+    if (location) {
+      try {
+        localStorage.setItem("stageside_location", JSON.stringify(location));
+      } catch (e) {
+        console.error("Error saving location:", e);
+      }
+    }
+  }, [location]);
+
   // Fetch concerts
   const fetchConcerts = useCallback(async () => {
     if (!location) return;
@@ -91,6 +115,15 @@ export default function DashboardPage() {
       setIsLoading(false);
     }
   }, [location, dateRange, session]);
+
+  // Auto-fetch concerts when location is loaded from storage (on initial mount)
+  const [hasAutoFetched, setHasAutoFetched] = useState(false);
+  useEffect(() => {
+    if (location && !hasAutoFetched && !hasSearched && status === "authenticated") {
+      setHasAutoFetched(true);
+      fetchConcerts();
+    }
+  }, [location, hasAutoFetched, hasSearched, status, fetchConcerts]);
 
   // Save/unsave concert handlers
   const handleSaveConcert = async (concertId: string) => {

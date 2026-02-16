@@ -19,13 +19,17 @@ import {
 import { MusicVisualizer } from "@/components/MusicVisualizer";
 
 export default async function LandingPage() {
+  // Check for session and redirect to dashboard if logged in
+  let session = null;
   try {
-    const session = await getServerSession(authOptions);
-    if (session) {
-      redirect("/dashboard");
-    }
+    session = await getServerSession(authOptions);
   } catch {
-    // During build, session check will fail
+    // During build, session check will fail - that's ok
+  }
+  
+  // Redirect must be outside try/catch because it throws a special error
+  if (session) {
+    redirect("/dashboard");
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Music, Filter, Sparkles, ArrowRight, Info, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import type { Concert } from "@/lib/ticketmaster";
 export default function DemoPage() {
   // State
   const [location, setLocation] = useState<Location | null>(null);
+  const [hasAutoFetched, setHasAutoFetched] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: new Date(),
     endDate: (() => {
@@ -27,6 +28,29 @@ export default function DemoPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [minMatchScore, setMinMatchScore] = useState(0);
+
+  // Load saved location from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedLocation = localStorage.getItem("stageside_location");
+      if (savedLocation) {
+        setLocation(JSON.parse(savedLocation));
+      }
+    } catch (e) {
+      console.error("Error loading saved location:", e);
+    }
+  }, []);
+
+  // Save location to localStorage when it changes
+  useEffect(() => {
+    if (location) {
+      try {
+        localStorage.setItem("stageside_location", JSON.stringify(location));
+      } catch (e) {
+        console.error("Error saving location:", e);
+      }
+    }
+  }, [location]);
 
   // Fetch REAL concerts from API, matched against demo profile
   const fetchConcerts = useCallback(async (overrideLocation?: Location) => {
@@ -62,6 +86,14 @@ export default function DemoPage() {
       setIsLoading(false);
     }
   }, [location, dateRange]);
+
+  // Auto-fetch concerts when location is loaded from storage
+  useEffect(() => {
+    if (location && !hasAutoFetched && !hasSearched) {
+      setHasAutoFetched(true);
+      fetchConcerts();
+    }
+  }, [location, hasAutoFetched, hasSearched, fetchConcerts]);
 
   // Quick select a city and immediately search
   const selectCityAndSearch = (city: { name: string; lat: number; lng: number }) => {
