@@ -21,11 +21,16 @@ export interface TicketComparison {
   eventName: string;
 }
 
-// Generate SeatGeek search URL
+// Generate SeatGeek URL (uses slug-based URLs like /artist-name-tickets)
 export function getSeatGeekUrl(artistName: string, venueName: string, date: string): string {
-  const query = encodeURIComponent(`${artistName} ${venueName}`);
-  const formattedDate = date.replace(/-/g, '');
-  return `https://seatgeek.com/search?q=${query}&date=${formattedDate}`;
+  // Convert artist name to URL slug: lowercase, replace spaces/special chars with hyphens
+  const slug = artistName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .trim();
+  return `https://seatgeek.com/${slug}-tickets`;
 }
 
 // Generate StubHub search URL
