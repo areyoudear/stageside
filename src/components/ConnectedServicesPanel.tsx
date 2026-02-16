@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   MusicServiceButton,
@@ -63,22 +62,14 @@ export function ConnectedServicesPanel({
   }, []);
 
   const handleConnect = async (service: MusicServiceType) => {
-    // Map service to NextAuth provider
-    const providerMap: Record<MusicServiceType, string> = {
-      spotify: "spotify",
-      apple_music: "apple", // Would need custom implementation
-      youtube_music: "google",
-      tidal: "tidal", // Would need custom implementation
-      deezer: "deezer", // Would need custom implementation
-    };
+    // Services that have custom OAuth connect endpoints
+    const supportedServices = ["spotify", "youtube_music"];
 
-    const provider = providerMap[service];
-
-    // For services with NextAuth providers, use signIn
-    if (provider === "spotify" || provider === "google") {
-      signIn(provider, { callbackUrl: "/dashboard" });
+    if (supportedServices.includes(service)) {
+      // Redirect to our OAuth connect endpoint (doesn't require re-login)
+      window.location.href = `/api/music/connect/${service}?callbackUrl=/settings`;
     } else {
-      // For other services, show a message or redirect to custom OAuth flow
+      // For other services, show a message
       alert(
         `${service} integration coming soon! For now, connect with Spotify or YouTube Music.`
       );
