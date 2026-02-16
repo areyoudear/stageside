@@ -13,6 +13,7 @@ interface ArtistCardProps {
   isInAgenda?: boolean;
   onToggleAgenda?: (artistId: string) => void;
   showScheduleInfo?: boolean;
+  showMatchScore?: boolean;
   compact?: boolean;
 }
 
@@ -21,6 +22,7 @@ export function ArtistCard({
   isInAgenda = false,
   onToggleAgenda,
   showScheduleInfo = false,
+  showMatchScore = true,
   compact = false,
 }: ArtistCardProps) {
   const [imageError, setImageError] = useState(false);
@@ -48,6 +50,20 @@ export function ArtistCard({
       default:
         return null;
     }
+  };
+
+  const getMatchScoreColor = (score: number) => {
+    if (score >= 80) return "from-green-500 to-emerald-400 text-green-400";
+    if (score >= 50) return "from-yellow-500 to-orange-400 text-yellow-400";
+    if (score >= 30) return "from-orange-500 to-red-400 text-orange-400";
+    return "from-zinc-500 to-zinc-400 text-zinc-400";
+  };
+
+  const getMatchScoreBg = (score: number) => {
+    if (score >= 80) return "bg-green-500/20 border-green-500/40";
+    if (score >= 50) return "bg-yellow-500/20 border-yellow-500/40";
+    if (score >= 30) return "bg-orange-500/20 border-orange-500/40";
+    return "bg-zinc-500/20 border-zinc-500/40";
   };
 
   if (compact) {
@@ -92,6 +108,20 @@ export function ArtistCard({
           )}
         </div>
 
+        {/* Match Score */}
+        {showMatchScore && artist.matchScore > 0 && (
+          <div
+            className={cn(
+              "flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-bold border",
+              getMatchScoreBg(artist.matchScore)
+            )}
+          >
+            <span className={cn("bg-gradient-to-r bg-clip-text text-transparent", getMatchScoreColor(artist.matchScore))}>
+              {artist.matchScore}%
+            </span>
+          </div>
+        )}
+
         {/* Action */}
         <div className="flex-shrink-0">
           {isInAgenda ? (
@@ -130,8 +160,25 @@ export function ArtistCard({
           </div>
         )}
 
-        {/* Match indicator overlay */}
-        {artist.matchType !== "none" && (
+        {/* Match score badge */}
+        {showMatchScore && artist.matchScore > 0 && (
+          <div className="absolute top-2 left-2">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-bold border backdrop-blur-sm",
+                getMatchScoreBg(artist.matchScore)
+              )}
+            >
+              {getMatchIcon()}
+              <span className={cn("bg-gradient-to-r bg-clip-text text-transparent", getMatchScoreColor(artist.matchScore))}>
+                {artist.matchScore}%
+              </span>
+            </span>
+          </div>
+        )}
+
+        {/* Match type indicator (shown when no score or as secondary) */}
+        {artist.matchType !== "none" && (!showMatchScore || artist.matchScore === 0) && (
           <div className="absolute top-2 left-2">
             <span
               className={cn(
@@ -182,11 +229,11 @@ export function ArtistCard({
       <CardContent className="p-3">
         <h4 className="font-semibold text-white truncate">{artist.artist_name}</h4>
 
-        {/* Match reason */}
+        {/* Match reason with score context */}
         {artist.matchReason && (
           <p className="text-xs text-zinc-400 mt-1 flex items-center gap-1">
             {getMatchIcon()}
-            {artist.matchReason}
+            <span className="truncate">{artist.matchReason}</span>
           </p>
         )}
 
