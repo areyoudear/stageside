@@ -39,6 +39,7 @@ export default function DashboardPage() {
     userTopArtists: string[];
     userTopGenres: string[];
     connectedServices: MusicServiceType[];
+    hasProfile: boolean;
   } | null>(null);
 
   // Redirect if not authenticated
@@ -75,11 +76,12 @@ export default function DashboardPage() {
       const data = await response.json();
       setConcerts(data.concerts || []);
       setStats({
-        highMatches: data.highMatches || 0,
+        highMatches: data.highMatches || data.categories?.mustSee || 0,
         totalElements: data.totalElements || 0,
         userTopArtists: data.userTopArtists || [],
         userTopGenres: data.userTopGenres || [],
         connectedServices: data.connectedServices || [],
+        hasProfile: data.hasProfile ?? true,
       });
     } catch (err) {
       console.error("Error fetching concerts:", err);
@@ -341,6 +343,7 @@ export default function DashboardPage() {
                   onSave={handleSaveConcert}
                   onUnsave={handleUnsaveConcert}
                   isAuthenticated={!!session}
+                  hasProfile={stats?.hasProfile ?? true}
                 />
               ))}
             </div>

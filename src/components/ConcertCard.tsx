@@ -37,6 +37,7 @@ interface ConcertCardProps {
   onUnsave?: (concertId: string) => void;
   isAuthenticated?: boolean;
   isDemo?: boolean;
+  hasProfile?: boolean;
 }
 
 // Map genres to vibes with colors
@@ -118,89 +119,70 @@ function getMatchLabel(score: number): { label: string; sublabel: string } {
   return { label: "", sublabel: "Near you" };
 }
 
-// Match score component with explainer tooltip
-function MatchScoreWithTooltip({ score, isPerfect, matchType, onTooltipHover }: { 
+// Match score badge component - always visible, more prominent
+function MatchScoreBadge({ score, isPerfect, matchType, onTooltipHover, hasProfile = true }: { 
   score: number; 
   isPerfect: boolean; 
   matchType?: string;
-  onTooltipHover?: () => void 
+  onTooltipHover?: () => void;
+  hasProfile?: boolean;
 }) {
-  const circumference = 2 * Math.PI * 18;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
   const matchLabel = getMatchLabel(score);
   
+  // No profile - show CTA
+  if (!hasProfile || score === 0) {
+    return (
+      <a 
+        href="/settings" 
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800/80 border border-zinc-700 hover:border-cyan-500/50 hover:bg-zinc-700/80 transition-all group"
+      >
+        <Sparkles className="w-3.5 h-3.5 text-zinc-500 group-hover:text-cyan-400" />
+        <span className="text-xs font-medium text-zinc-400 group-hover:text-cyan-300">Get match %</span>
+      </a>
+    );
+  }
+  
   return (
-    <div className="relative group">
-      {/* Score Ring */}
-      <div className="relative w-14 h-14 flex items-center justify-center">
-        <svg className="w-14 h-14 -rotate-90" viewBox="0 0 44 44">
-          {/* Background ring */}
-          <circle
-            cx="22"
-            cy="22"
-            r="18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            className="text-zinc-800"
-          />
-          {/* Progress ring */}
-          <circle
-            cx="22"
-            cy="22"
-            r="18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            className={cn(
-              "transition-all duration-700",
-              isPerfect ? "text-green-400" : score >= 80 ? "text-emerald-400" : score >= 60 ? "text-yellow-400" : "text-zinc-500"
-            )}
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+    <div className="relative group" onMouseEnter={onTooltipHover}>
+      {/* Main badge */}
+      <div className={cn(
+        "flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-sm transition-all",
+        isPerfect 
+          ? "bg-green-500/20 border-2 border-green-500/60 text-green-400" 
+          : score >= 80 
+          ? "bg-emerald-500/20 border border-emerald-500/50 text-emerald-400"
+          : score >= 60
+          ? "bg-yellow-500/15 border border-yellow-500/40 text-yellow-400"
+          : "bg-zinc-800 border border-zinc-700 text-zinc-400"
+      )}>
+        {isPerfect && <Star className="w-3.5 h-3.5 fill-green-400" />}
+        <span>{score}%</span>
+        {matchLabel.label && (
           <span className={cn(
-            "text-sm font-bold leading-none",
-            isPerfect ? "text-green-400" : score >= 75 ? "text-emerald-300" : "text-white"
+            "text-[10px] font-semibold uppercase tracking-wide",
+            isPerfect ? "text-green-300" : score >= 80 ? "text-emerald-300" : "text-zinc-500"
           )}>
-            {score}%
+            {matchLabel.label}
           </span>
-          {matchLabel.label && (
-            <span className={cn(
-              "text-[8px] font-medium uppercase tracking-wide mt-0.5",
-              isPerfect ? "text-green-400/70" : "text-zinc-500"
-            )}>
-              {matchLabel.label}
-            </span>
-          )}
-        </div>
+        )}
       </div>
       
       {/* Explainer tooltip */}
-      <div className="absolute top-0 right-0 -mr-1 -mt-1">
-        <div className="relative" onMouseEnter={onTooltipHover}>
-          <HelpCircle className="w-3.5 h-3.5 text-zinc-600 cursor-help" />
-          <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-zinc-800 rounded-lg text-xs text-zinc-300 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-xl border border-zinc-700">
-            <p className="font-medium text-white mb-1">
-              {isPerfect ? "🔥 Perfect Match!" : score >= 75 ? "✨ Great Match" : "Match Score"}
-            </p>
-            <p className="mb-2">
-              {matchType === "direct-artist" 
-                ? "This is one of your favorite artists!"
-                : matchType === "related-artist"
-                ? "This artist is similar to ones you love."
-                : matchType === "recently-played"
-                ? "Based on what you've been listening to."
-                : matchType === "genre"
-                ? "Matches your music taste and genre preferences."
-                : "Based on the artists you selected and your listening history."}
-            </p>
-            <p className="text-zinc-500 text-[10px]">Connect Spotify for better accuracy</p>
-          </div>
-        </div>
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-zinc-800 rounded-lg text-xs text-zinc-300 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-xl border border-zinc-700 pointer-events-none">
+        <p className="font-medium text-white mb-1">
+          {isPerfect ? "🔥 Perfect Match!" : score >= 75 ? "✨ Great Match" : "Match Score"}
+        </p>
+        <p>
+          {matchType === "direct-artist" 
+            ? "This is one of your favorite artists!"
+            : matchType === "related-artist"
+            ? "This artist is similar to ones you love."
+            : matchType === "recently-played"
+            ? "Based on what you've been listening to."
+            : matchType === "genre"
+            ? "Matches your music taste and genre preferences."
+            : "Based on the artists you selected and your listening history."}
+        </p>
       </div>
     </div>
   );
@@ -212,6 +194,7 @@ export function ConcertCard({
   onUnsave,
   isAuthenticated = false,
   isDemo = false,
+  hasProfile = true,
 }: ConcertCardProps) {
   const [isSaved, setIsSaved] = useState(concert.isSaved || false);
   const [imageError, setImageError] = useState(false);
@@ -435,27 +418,26 @@ export function ConcertCard({
             <span>{vibe.label}</span>
           </div>
         </div>
+
+        {/* Match Score Badge - Always visible on image */}
+        <div className="absolute bottom-3 right-3">
+          <MatchScoreBadge 
+            score={matchScore} 
+            isPerfect={isPerfectMatch} 
+            matchType={(concert as Concert & { matchType?: string }).matchType}
+            onTooltipHover={handleTooltipHover}
+            hasProfile={hasProfile}
+          />
+        </div>
       </div>
 
       {/* Content Section - Reduced density */}
       <CardContent className="p-4 space-y-3">
-        {/* Header with match score */}
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-base text-white line-clamp-2 group-hover:text-cyan-200 transition-colors leading-tight">
-              {concert.artists.join(", ")}
-            </h3>
-          </div>
-          
-          {/* Match Score with Tooltip */}
-          {matchScore > 0 && (
-            <MatchScoreWithTooltip 
-              score={matchScore} 
-              isPerfect={isPerfectMatch} 
-              matchType={(concert as Concert & { matchType?: string }).matchType}
-              onTooltipHover={handleTooltipHover} 
-            />
-          )}
+        {/* Header */}
+        <div>
+          <h3 className="font-bold text-base text-white line-clamp-2 group-hover:text-cyan-200 transition-colors leading-tight">
+            {concert.artists.join(", ")}
+          </h3>
         </div>
 
         {/* Event Details - Compact */}
