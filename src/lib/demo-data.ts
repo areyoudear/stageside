@@ -1,36 +1,45 @@
 /**
  * Demo Mode Data
- * Realistic mock data for users to experience the app without connecting Spotify
+ * Uses recognizable indie/alternative artists that the target audience would know
+ * Focus: Artists that have dedicated fanbases who would "get" the recommendations
  */
 
 import type { Concert } from "./ticketmaster";
 
-// Popular artists that most people would recognize
+// Indie/Alternative focused - these are artists people KNOW and have opinions about
+// If you listen to these artists, you'd immediately understand the matching
 export const DEMO_TOP_ARTISTS = [
-  { name: "Taylor Swift", genres: ["pop", "country pop", "synth-pop"] },
-  { name: "The Weeknd", genres: ["r&b", "pop", "synth-pop"] },
-  { name: "Kendrick Lamar", genres: ["hip hop", "rap", "conscious hip hop"] },
-  { name: "Billie Eilish", genres: ["pop", "electropop", "indie pop"] },
-  { name: "Harry Styles", genres: ["pop", "rock", "brit pop"] },
-  { name: "Doja Cat", genres: ["pop", "r&b", "hip hop"] },
-  { name: "Bad Bunny", genres: ["reggaeton", "latin trap", "urbano latino"] },
-  { name: "Dua Lipa", genres: ["pop", "dance pop", "disco"] },
-  { name: "SZA", genres: ["r&b", "neo soul", "alternative r&b"] },
-  { name: "Post Malone", genres: ["hip hop", "pop", "rock"] },
-  { name: "Olivia Rodrigo", genres: ["pop", "pop rock", "indie pop"] },
-  { name: "Drake", genres: ["hip hop", "r&b", "pop rap"] },
+  { name: "Phoebe Bridgers", genres: ["indie folk", "indie rock", "sad girl music"] },
+  { name: "Boygenius", genres: ["indie rock", "folk rock", "supergroup"] },
+  { name: "Japanese Breakfast", genres: ["indie pop", "dream pop", "shoegaze"] },
+  { name: "Mitski", genres: ["indie rock", "art pop", "emotional"] },
+  { name: "The 1975", genres: ["indie pop", "synth-pop", "alternative rock"] },
+  { name: "Turnstile", genres: ["hardcore punk", "post-hardcore", "crossover"] },
+  { name: "Wet Leg", genres: ["indie rock", "post-punk", "brit rock"] },
+  { name: "beabadoobee", genres: ["indie pop", "bedroom pop", "shoegaze"] },
+  { name: "Clairo", genres: ["indie pop", "bedroom pop", "lo-fi"] },
+  { name: "Mac DeMarco", genres: ["indie rock", "jangle pop", "slacker rock"] },
+  { name: "Khruangbin", genres: ["psychedelic", "funk", "world music"] },
+  { name: "King Gizzard", genres: ["psychedelic rock", "garage rock", "experimental"] },
 ];
 
 export const DEMO_TOP_GENRES = [
-  "pop",
-  "hip hop",
-  "r&b",
-  "rock",
-  "indie",
-  "electronic",
+  "indie rock",
+  "indie pop",
   "alternative",
-  "latin",
+  "dream pop",
+  "shoegaze",
+  "post-punk",
+  "folk rock",
+  "psychedelic",
 ];
+
+// Default demo location - Los Angeles has tons of shows
+export const DEMO_DEFAULT_LOCATION = {
+  name: "Los Angeles, CA",
+  lat: 34.0522,
+  lng: -118.2437,
+};
 
 // Function to generate realistic demo concerts based on location
 export function generateDemoConcerts(
@@ -41,34 +50,42 @@ export function generateDemoConcerts(
   const concerts: Concert[] = [];
   const venues = getDemoVenues(cityName);
 
-  // Mix of matched artists and discovery artists
-  const matchedArtists = [
-    { name: "Taylor Swift", genres: ["pop"], matchScore: 100, matchReasons: ["Your #1 artist!"] },
-    { name: "The Weeknd", genres: ["r&b", "pop"], matchScore: 95, matchReasons: ["In your top artists"] },
-    { name: "SZA", genres: ["r&b"], matchScore: 88, matchReasons: ["In your top artists"] },
-    { name: "Post Malone", genres: ["hip hop", "pop"], matchScore: 82, matchReasons: ["In your top artists"] },
-    { name: "Doja Cat", genres: ["pop", "hip hop"], matchScore: 78, matchReasons: ["In your top artists", "Genre match: pop"] },
+  // Artists that would OBVIOUSLY match this profile - the "duh" recommendations
+  const perfectMatches = [
+    { name: "Phoebe Bridgers", genres: ["indie folk"], matchScore: 100, matchReasons: ["Your #1 artist!"] },
+    { name: "Boygenius", genres: ["indie rock"], matchScore: 98, matchReasons: ["Your #2 artist", "Members include Phoebe Bridgers"] },
+    { name: "Japanese Breakfast", genres: ["indie pop", "dream pop"], matchScore: 95, matchReasons: ["In your top artists"] },
+    { name: "Mitski", genres: ["indie rock", "art pop"], matchScore: 92, matchReasons: ["In your top artists"] },
   ];
 
-  const genreMatchArtists = [
-    { name: "Sabrina Carpenter", genres: ["pop"], matchScore: 65, matchReasons: ["Genre match: pop"] },
-    { name: "Chappell Roan", genres: ["pop", "indie pop"], matchScore: 62, matchReasons: ["Genre match: pop", "Similar to Olivia Rodrigo"] },
-    { name: "Charli XCX", genres: ["pop", "hyperpop"], matchScore: 58, matchReasons: ["Genre match: pop"] },
-    { name: "21 Savage", genres: ["hip hop", "trap"], matchScore: 55, matchReasons: ["Genre match: hip hop"] },
-    { name: "Laufey", genres: ["jazz pop", "indie"], matchScore: 52, matchReasons: ["Genre match: indie"] },
-    { name: "Hozier", genres: ["indie folk", "rock"], matchScore: 48, matchReasons: ["Genre match: rock"] },
+  // Good matches - related artists that make sense
+  const greatMatches = [
+    { name: "Lucy Dacus", genres: ["indie folk"], matchScore: 88, matchReasons: ["Member of Boygenius", "Similar to Phoebe Bridgers"] },
+    { name: "Julien Baker", genres: ["indie folk"], matchScore: 86, matchReasons: ["Member of Boygenius"] },
+    { name: "Snail Mail", genres: ["indie rock"], matchScore: 82, matchReasons: ["Similar to Mitski", "Genre match: indie rock"] },
+    { name: "Soccer Mommy", genres: ["indie rock"], matchScore: 78, matchReasons: ["Similar to Phoebe Bridgers", "Genre match"] },
+    { name: "Alex G", genres: ["indie rock", "lo-fi"], matchScore: 75, matchReasons: ["Genre match: indie rock", "Similar vibe"] },
   ];
 
-  const discoveryArtists = [
-    { name: "Japanese Breakfast", genres: ["indie rock"], matchScore: 35, matchReasons: ["Fans also like: Billie Eilish"] },
-    { name: "Boygenius", genres: ["indie rock"], matchScore: 32, matchReasons: ["Popular in your area"] },
-    { name: "Turnstile", genres: ["hardcore punk", "rock"], matchScore: 28, matchReasons: ["Genre match: rock"] },
-    { name: "Khruangbin", genres: ["psychedelic", "funk"], matchScore: 22, matchReasons: ["Trending in " + cityName] },
-    { name: "Raye", genres: ["r&b", "pop"], matchScore: 18, matchReasons: ["Rising artist"] },
-    { name: "Clairo", genres: ["indie pop"], matchScore: 15, matchReasons: ["Happening near you"] },
+  // Discovery - artists they'd probably like based on taste
+  const discoveries = [
+    { name: "Wednesday", genres: ["shoegaze", "country"], matchScore: 68, matchReasons: ["Fans of Phoebe Bridgers also like", "Shoegaze match"] },
+    { name: "Bartees Strange", genres: ["indie rock"], matchScore: 62, matchReasons: ["Genre match: indie rock", "Rising artist"] },
+    { name: "Arlo Parks", genres: ["indie pop", "bedroom pop"], matchScore: 58, matchReasons: ["Similar to Clairo", "Genre match"] },
+    { name: "Alvvays", genres: ["dream pop", "shoegaze"], matchScore: 55, matchReasons: ["Genre match: dream pop", "Similar to Japanese Breakfast"] },
+    { name: "Men I Trust", genres: ["dream pop", "indie"], matchScore: 52, matchReasons: ["Genre match: dream pop"] },
+    { name: "Indigo De Souza", genres: ["indie rock"], matchScore: 48, matchReasons: ["Rising in indie scene"] },
   ];
 
-  const allArtists = [...matchedArtists, ...genreMatchArtists, ...discoveryArtists];
+  // Lower matches for comparison
+  const lowerMatches = [
+    { name: "The Smile", genres: ["alternative rock"], matchScore: 42, matchReasons: ["Alternative rock match"] },
+    { name: "Father John Misty", genres: ["folk rock", "baroque pop"], matchScore: 38, matchReasons: ["Folk rock elements"] },
+    { name: "Sharon Van Etten", genres: ["indie rock", "folk"], matchScore: 35, matchReasons: ["Indie folk crossover"] },
+    { name: "Big Thief", genres: ["indie folk"], matchScore: 32, matchReasons: ["Folk rock influence"] },
+  ];
+
+  const allArtists = [...perfectMatches, ...greatMatches, ...discoveries, ...lowerMatches];
 
   // Generate concerts spread across the date range
   const dateSpread = endDate.getTime() - startDate.getTime();
@@ -76,7 +93,7 @@ export function generateDemoConcerts(
   allArtists.forEach((artist, index) => {
     // Stagger dates
     const concertDate = new Date(
-      startDate.getTime() + (dateSpread * (index * 0.06 + Math.random() * 0.1))
+      startDate.getTime() + (dateSpread * (index * 0.05 + Math.random() * 0.08))
     );
 
     // Don't go past end date
@@ -86,14 +103,14 @@ export function generateDemoConcerts(
 
     concerts.push({
       id: `demo-${index}-${artist.name.toLowerCase().replace(/\s/g, "-")}`,
-      name: `${artist.name} Live`,
+      name: `${artist.name}`,
       artists: [artist.name],
       genres: artist.genres,
       date: concertDate.toISOString().split("T")[0],
       time: "20:00:00",
       venue: {
         name: venue.name,
-        city: cityName,
+        city: cityName.split(",")[0],
         state: venue.state || undefined,
         country: "US",
       },
@@ -112,33 +129,35 @@ export function generateDemoConcerts(
 
 function getDemoVenues(city: string): { name: string; state: string }[] {
   const venuesByCity: Record<string, { name: string; state: string }[]> = {
-    "San Francisco": [
-      { name: "Chase Center", state: "CA" },
-      { name: "The Fillmore", state: "CA" },
-      { name: "Bill Graham Civic Auditorium", state: "CA" },
-      { name: "The Warfield", state: "CA" },
-      { name: "Outside Lands", state: "CA" },
-    ],
     "Los Angeles": [
-      { name: "SoFi Stadium", state: "CA" },
+      { name: "The Greek Theatre", state: "CA" },
       { name: "Hollywood Bowl", state: "CA" },
-      { name: "The Forum", state: "CA" },
-      { name: "Greek Theatre", state: "CA" },
       { name: "The Wiltern", state: "CA" },
+      { name: "The Fonda Theatre", state: "CA" },
+      { name: "The Troubadour", state: "CA" },
+      { name: "The Roxy Theatre", state: "CA" },
+      { name: "The Echo", state: "CA" },
+      { name: "Shrine Auditorium", state: "CA" },
+    ],
+    "San Francisco": [
+      { name: "The Fillmore", state: "CA" },
+      { name: "The Warfield", state: "CA" },
+      { name: "The Independent", state: "CA" },
+      { name: "Great American Music Hall", state: "CA" },
+      { name: "The Chapel", state: "CA" },
     ],
     "New York": [
-      { name: "Madison Square Garden", state: "NY" },
-      { name: "Barclays Center", state: "NY" },
-      { name: "Radio City Music Hall", state: "NY" },
-      { name: "Terminal 5", state: "NY" },
       { name: "Brooklyn Steel", state: "NY" },
+      { name: "Webster Hall", state: "NY" },
+      { name: "Bowery Ballroom", state: "NY" },
+      { name: "Music Hall of Williamsburg", state: "NY" },
+      { name: "Terminal 5", state: "NY" },
     ],
     default: [
-      { name: "City Arena", state: "" },
-      { name: "Downtown Theater", state: "" },
-      { name: "Music Hall", state: "" },
-      { name: "The Amphitheater", state: "" },
-      { name: "Convention Center", state: "" },
+      { name: "The Music Hall", state: "" },
+      { name: "Downtown Theatre", state: "" },
+      { name: "The Venue", state: "" },
+      { name: "Civic Auditorium", state: "" },
     ],
   };
 
@@ -154,41 +173,44 @@ function getDemoVenues(city: string): { name: string; state: string }[] {
 function getArtistImage(artistName: string): string {
   // Use placeholder images with artist-specific colors
   const colors: Record<string, string> = {
-    "Taylor Swift": "8B5CF6",
-    "The Weeknd": "EF4444",
-    "SZA": "EC4899",
-    "Post Malone": "F59E0B",
-    "Doja Cat": "10B981",
-    "Sabrina Carpenter": "6366F1",
-    "Chappell Roan": "F43F5E",
-    "Charli XCX": "22D3EE",
-    "21 Savage": "1F2937",
-    "Laufey": "A78BFA",
-    "Hozier": "65A30D",
-    "Japanese Breakfast": "FB923C",
-    "Boygenius": "A855F7",
-    "Turnstile": "DC2626",
-    "Khruangbin": "14B8A6",
-    "Raye": "D946EF",
-    "Clairo": "FCD34D",
+    "Phoebe Bridgers": "A78BFA",
+    "Boygenius": "8B5CF6",
+    "Japanese Breakfast": "F472B6",
+    "Mitski": "EF4444",
+    "Lucy Dacus": "F59E0B",
+    "Julien Baker": "6366F1",
+    "Snail Mail": "22D3EE",
+    "Soccer Mommy": "10B981",
+    "Alex G": "84CC16",
+    "Wednesday": "F43F5E",
+    "Bartees Strange": "EC4899",
+    "Arlo Parks": "A855F7",
+    "Alvvays": "06B6D4",
+    "Men I Trust": "14B8A6",
+    "Indigo De Souza": "F97316",
+    "The Smile": "6B7280",
+    "Father John Misty": "B45309",
+    "Sharon Van Etten": "DB2777",
+    "Big Thief": "65A30D",
   };
 
   const color = colors[artistName] || "6366F1";
-  return `https://placehold.co/400x400/${color}/FFFFFF?text=${encodeURIComponent(artistName.split(" ")[0])}`;
+  const encodedName = encodeURIComponent(artistName.split(" ").slice(0, 2).join(" "));
+  return `https://placehold.co/400x400/${color}/FFFFFF?text=${encodedName}`;
 }
 
 function getPriceRange(matchScore: number): { min: number; max: number; currency: string } | undefined {
-  // Higher match = likely bigger artist = higher prices
-  if (matchScore > 80) return { min: 89, max: 350, currency: "USD" };
-  if (matchScore > 60) return { min: 55, max: 150, currency: "USD" };
-  if (matchScore > 40) return { min: 35, max: 95, currency: "USD" };
-  return { min: 25, max: 65, currency: "USD" };
+  // Indie shows tend to be more affordable
+  if (matchScore > 90) return { min: 45, max: 85, currency: "USD" };
+  if (matchScore > 70) return { min: 35, max: 65, currency: "USD" };
+  if (matchScore > 50) return { min: 28, max: 55, currency: "USD" };
+  return { min: 22, max: 45, currency: "USD" };
 }
 
 // Demo stats for display
 export const DEMO_STATS = {
-  highMatches: 5,
-  totalElements: 17,
+  highMatches: 4,
+  totalElements: 19,
   userTopArtists: DEMO_TOP_ARTISTS.map((a) => a.name),
   userTopGenres: DEMO_TOP_GENRES,
   connectedServices: ["demo"] as const,

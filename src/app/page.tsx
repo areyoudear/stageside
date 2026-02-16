@@ -16,7 +16,8 @@ import {
   Star,
   Play,
 } from "lucide-react";
-import { MusicVisualizer } from "@/components/MusicVisualizer";
+import { ConcertCrowdBackground } from "@/components/ConcertCrowdBackground";
+import { MusicServiceLogos, MusicServiceLogosInline } from "@/components/MusicServiceLogos";
 
 export default async function LandingPage() {
   // Check for session and redirect to dashboard if logged in
@@ -69,18 +70,12 @@ export default async function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0">
-          <div className="absolute top-20 left-1/4 w-[500px] h-[500px] bg-cyan-600/20 rounded-full blur-[120px]" />
-          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-blue-600/15 rounded-full blur-[100px]" />
-          
-          {/* Music Visualizer - adds life and movement */}
-          <MusicVisualizer variant="bars" color="cyan" intensity="low" />
-          
-          {/* Subtle grid overlay */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
-        </div>
+      <section className="relative pt-32 pb-20 overflow-hidden min-h-[90vh] flex items-center">
+        {/* Concert Crowd Background - like you're in the audience */}
+        <ConcertCrowdBackground />
+        
+        {/* Subtle grid overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
         <div className="relative max-w-6xl mx-auto px-4 text-center">
           {/* Badge */}
@@ -89,12 +84,12 @@ export default async function LandingPage() {
             <span className="text-gray-300 text-sm">Powered by your music taste</span>
           </div>
 
-          {/* Headline */}
+          {/* Headline - Updated tagline */}
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-            Stop scrolling.
+            Your taste.
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-              Start discovering.
+              Your concerts.
             </span>
           </h1>
 
@@ -123,7 +118,7 @@ export default async function LandingPage() {
             </Link>
           </div>
 
-          {/* Social Proof */}
+          {/* Social Proof with Music Service Logos */}
           <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-gray-500 text-sm">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-emerald-500" />
@@ -131,7 +126,9 @@ export default async function LandingPage() {
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-emerald-500" />
-              <span>Works with 5 music services</span>
+              <span className="flex items-center gap-2">
+                Works with <MusicServiceLogosInline />
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-emerald-500" />
@@ -154,14 +151,14 @@ export default async function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {/* Step 1 */}
+            {/* Step 1 - Now with music service logos */}
             <div className="relative">
               <div className="absolute -top-4 -left-4 w-12 h-12 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
                 1
               </div>
               <div className="bg-white/5 rounded-2xl p-8 border border-white/10 h-full">
-                <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center mb-6">
-                  <Music className="w-7 h-7 text-white" />
+                <div className="flex justify-center gap-3 mb-6">
+                  <MusicServiceLogos size="lg" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">
                   Connect your music
@@ -179,7 +176,7 @@ export default async function LandingPage() {
                 2
               </div>
               <div className="bg-white/5 rounded-2xl p-8 border border-white/10 h-full">
-                <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center mb-6">
+                <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center mb-6 mx-auto">
                   <MapPin className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">
@@ -198,7 +195,7 @@ export default async function LandingPage() {
                 3
               </div>
               <div className="bg-white/5 rounded-2xl p-8 border border-white/10 h-full">
-                <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center mb-6">
+                <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center mb-6 mx-auto">
                   <Target className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">
