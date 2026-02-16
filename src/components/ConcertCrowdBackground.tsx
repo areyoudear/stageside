@@ -7,202 +7,232 @@
 export function ConcertCrowdBackground({ className = "" }: { className?: string }) {
   return (
     <div className={`absolute inset-0 overflow-hidden ${className}`} aria-hidden="true">
-      {/* Deep dark base */}
-      <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-900 to-gray-800" />
+      {/* Deep dark base - gradient from stage to crowd */}
+      <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-gray-950 to-black" />
       
-      {/* Stage area at the top - bright lights */}
-      <div className="absolute top-0 left-0 right-0 h-[40%]">
-        {/* Stage platform glow */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[80%] h-20 bg-gradient-to-t from-cyan-500/20 to-transparent blur-xl" />
+      {/* Stage glow at top */}
+      <div className="absolute top-0 left-0 right-0 h-[35%]">
+        {/* Bright stage wash */}
+        <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-cyan-500/30 via-purple-500/20 to-transparent" />
         
-        {/* Main stage lights - animated beams */}
-        <div className="absolute top-0 left-[20%] w-4 h-[300px] bg-gradient-to-b from-cyan-400/60 via-cyan-500/30 to-transparent blur-sm animate-light-sweep origin-top" />
-        <div className="absolute top-0 left-[35%] w-3 h-[280px] bg-gradient-to-b from-purple-400/50 via-purple-500/20 to-transparent blur-sm animate-light-sweep-reverse origin-top" style={{ animationDelay: "-1s" }} />
-        <div className="absolute top-0 left-[50%] w-5 h-[320px] bg-gradient-to-b from-white/40 via-cyan-300/20 to-transparent blur-sm animate-light-pulse origin-top" />
-        <div className="absolute top-0 left-[65%] w-3 h-[280px] bg-gradient-to-b from-pink-400/50 via-pink-500/20 to-transparent blur-sm animate-light-sweep origin-top" style={{ animationDelay: "-2s" }} />
-        <div className="absolute top-0 left-[80%] w-4 h-[300px] bg-gradient-to-b from-cyan-400/60 via-cyan-500/30 to-transparent blur-sm animate-light-sweep-reverse origin-top" style={{ animationDelay: "-0.5s" }} />
+        {/* Stage light beams */}
+        <div 
+          className="absolute top-0 left-[15%] w-[100px] h-[400px] opacity-40 animate-light-sweep origin-top"
+          style={{
+            background: "linear-gradient(180deg, rgba(6, 182, 212, 0.8) 0%, rgba(6, 182, 212, 0.3) 30%, transparent 100%)",
+            clipPath: "polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%)",
+          }}
+        />
+        <div 
+          className="absolute top-0 left-[30%] w-[80px] h-[350px] opacity-35 animate-light-sweep-reverse origin-top"
+          style={{
+            background: "linear-gradient(180deg, rgba(168, 85, 247, 0.7) 0%, rgba(168, 85, 247, 0.2) 30%, transparent 100%)",
+            clipPath: "polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%)",
+            animationDelay: "-1.5s",
+          }}
+        />
+        <div 
+          className="absolute top-0 left-[50%] -translate-x-1/2 w-[120px] h-[380px] opacity-50 animate-light-pulse origin-top"
+          style={{
+            background: "linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 20%, transparent 100%)",
+            clipPath: "polygon(40% 0%, 60% 0%, 100% 100%, 0% 100%)",
+          }}
+        />
+        <div 
+          className="absolute top-0 right-[30%] w-[80px] h-[350px] opacity-35 animate-light-sweep origin-top"
+          style={{
+            background: "linear-gradient(180deg, rgba(236, 72, 153, 0.7) 0%, rgba(236, 72, 153, 0.2) 30%, transparent 100%)",
+            clipPath: "polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%)",
+            animationDelay: "-2.5s",
+          }}
+        />
+        <div 
+          className="absolute top-0 right-[15%] w-[100px] h-[400px] opacity-40 animate-light-sweep-reverse origin-top"
+          style={{
+            background: "linear-gradient(180deg, rgba(6, 182, 212, 0.8) 0%, rgba(6, 182, 212, 0.3) 30%, transparent 100%)",
+            clipPath: "polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%)",
+            animationDelay: "-0.8s",
+          }}
+        />
         
-        {/* Laser effects */}
-        <div className="absolute top-10 left-[25%] w-[1px] h-[200px] bg-gradient-to-b from-cyan-400/80 to-transparent animate-laser-left origin-top" />
-        <div className="absolute top-10 right-[25%] w-[1px] h-[200px] bg-gradient-to-b from-pink-400/80 to-transparent animate-laser-right origin-top" />
-        
-        {/* Stage haze/fog effect */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-transparent via-cyan-500/10 to-transparent animate-haze" />
+        {/* Haze/smoke effect */}
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-transparent via-white/5 to-transparent animate-haze" />
       </div>
       
-      {/* Atmospheric fog/haze in middle */}
-      <div className="absolute top-[30%] left-0 right-0 h-[30%]">
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 via-transparent to-transparent" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[200px] bg-cyan-500/10 rounded-full blur-[80px] animate-float-slow" />
-        <div className="absolute top-10 right-1/4 w-[400px] h-[150px] bg-purple-500/10 rounded-full blur-[60px] animate-float-slow" style={{ animationDelay: "-3s" }} />
-      </div>
+      {/* Atmospheric glow orbs */}
+      <div className="absolute top-[20%] left-1/4 w-[400px] h-[200px] bg-cyan-500/20 rounded-full blur-[100px] animate-float-slow" />
+      <div className="absolute top-[25%] right-1/4 w-[300px] h-[150px] bg-purple-500/15 rounded-full blur-[80px] animate-float-slow" style={{ animationDelay: "-4s" }} />
       
-      {/* Crowd silhouettes - layered for depth */}
-      <svg 
-        className="absolute bottom-0 left-0 right-0 h-[45%]"
-        viewBox="0 0 1440 400"
-        preserveAspectRatio="xMidYMax slice"
-      >
-        <defs>
-          {/* Gradient for depth */}
-          <linearGradient id="crowdGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#000" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#000" stopOpacity="0.95" />
-          </linearGradient>
-        </defs>
-        
-        {/* Far back row - smallest, most transparent */}
-        <g fill="#000" opacity="0.4">
-          {Array.from({ length: 80 }).map((_, i) => {
-            const x = (i * 18) + Math.sin(i * 0.7) * 5;
-            const height = 35 + Math.sin(i * 0.5) * 8 + Math.random() * 10;
-            const width = 12 + Math.random() * 4;
-            return (
-              <ellipse
-                key={`far-${i}`}
-                cx={x}
-                cy={180}
-                rx={width}
-                ry={height}
-                className={i % 7 === 0 ? "animate-crowd-sway" : i % 5 === 0 ? "animate-crowd-sway-alt" : ""}
-                style={{ animationDelay: `${i * 0.1}s` }}
-              />
-            );
-          })}
-        </g>
-        
-        {/* Middle back row */}
-        <g fill="#000" opacity="0.55">
-          {Array.from({ length: 60 }).map((_, i) => {
-            const x = (i * 24) + 6 + Math.sin(i * 0.8) * 8;
-            const height = 45 + Math.sin(i * 0.6) * 10 + Math.random() * 12;
-            const width = 14 + Math.random() * 5;
-            return (
-              <ellipse
-                key={`midback-${i}`}
-                cx={x}
-                cy={220}
-                rx={width}
-                ry={height}
-                className={i % 6 === 0 ? "animate-crowd-sway" : i % 4 === 0 ? "animate-crowd-sway-alt" : ""}
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-            );
-          })}
-        </g>
-        
-        {/* Middle row */}
-        <g fill="#000" opacity="0.7">
-          {Array.from({ length: 45 }).map((_, i) => {
-            const x = (i * 32) + 10 + Math.sin(i * 0.9) * 10;
-            const height = 55 + Math.sin(i * 0.7) * 12 + Math.random() * 15;
-            const width = 16 + Math.random() * 6;
-            return (
-              <ellipse
-                key={`mid-${i}`}
-                cx={x}
-                cy={270}
-                rx={width}
-                ry={height}
-                className={i % 5 === 0 ? "animate-crowd-sway" : i % 3 === 0 ? "animate-crowd-sway-alt" : ""}
-                style={{ animationDelay: `${i * 0.2}s` }}
-              />
-            );
-          })}
-        </g>
-        
-        {/* Front-middle row */}
-        <g fill="#000" opacity="0.85">
-          {Array.from({ length: 35 }).map((_, i) => {
-            const x = (i * 42) + 15 + Math.sin(i * 1.1) * 12;
-            const height = 70 + Math.sin(i * 0.5) * 15 + Math.random() * 18;
-            const width = 18 + Math.random() * 7;
-            return (
-              <ellipse
-                key={`frontmid-${i}`}
-                cx={x}
-                cy={330}
-                rx={width}
-                ry={height}
-                className={i % 4 === 0 ? "animate-crowd-sway" : i % 3 === 0 ? "animate-crowd-sway-alt" : ""}
-                style={{ animationDelay: `${i * 0.25}s` }}
-              />
-            );
-          })}
-        </g>
-        
-        {/* Front row - largest, darkest */}
-        <g fill="#0a0a0a" opacity="0.95">
-          {Array.from({ length: 25 }).map((_, i) => {
-            const x = (i * 60) + 20 + Math.sin(i * 0.8) * 15;
-            const height = 90 + Math.sin(i * 0.4) * 20 + Math.random() * 25;
-            const width = 22 + Math.random() * 10;
-            return (
-              <ellipse
-                key={`front-${i}`}
-                cx={x}
-                cy={380}
-                rx={width}
-                ry={height}
-                className={i % 3 === 0 ? "animate-crowd-sway" : i % 2 === 0 ? "animate-crowd-sway-alt" : ""}
-                style={{ animationDelay: `${i * 0.3}s` }}
-              />
-            );
-          })}
-        </g>
-        
-        {/* Raised hands/arms - animated */}
-        <g fill="#000" opacity="0.8">
-          {[80, 180, 320, 480, 620, 780, 920, 1080, 1200, 1350].map((x, i) => (
-            <g key={`hand-${i}`}>
-              {/* Arm */}
+      {/* CROWD SILHOUETTES - More prominent */}
+      <div className="absolute bottom-0 left-0 right-0 h-[50%] pointer-events-none">
+        <svg 
+          className="absolute bottom-0 left-0 right-0 h-full w-full"
+          viewBox="0 0 1440 500"
+          preserveAspectRatio="xMidYMax slice"
+        >
+          {/* Back row - smallest silhouettes */}
+          <g fill="#000" opacity="0.5">
+            {Array.from({ length: 70 }).map((_, i) => {
+              const x = (i * 21) + Math.sin(i * 0.7) * 8;
+              const height = 50 + Math.sin(i * 0.5) * 15;
+              const width = 15 + Math.random() * 6;
+              const shouldAnimate = i % 5 === 0;
+              return (
+                <ellipse
+                  key={`back-${i}`}
+                  cx={x}
+                  cy={250}
+                  rx={width}
+                  ry={height}
+                  className={shouldAnimate ? "animate-crowd-sway" : ""}
+                  style={shouldAnimate ? { animationDelay: `${i * 0.1}s` } : undefined}
+                />
+              );
+            })}
+          </g>
+          
+          {/* Middle-back row */}
+          <g fill="#050505" opacity="0.65">
+            {Array.from({ length: 55 }).map((_, i) => {
+              const x = (i * 27) + 10 + Math.sin(i * 0.8) * 10;
+              const height = 65 + Math.sin(i * 0.6) * 18;
+              const width = 18 + Math.random() * 7;
+              const shouldAnimate = i % 4 === 0;
+              return (
+                <ellipse
+                  key={`midback-${i}`}
+                  cx={x}
+                  cy={300}
+                  rx={width}
+                  ry={height}
+                  className={shouldAnimate ? "animate-crowd-sway-alt" : ""}
+                  style={shouldAnimate ? { animationDelay: `${i * 0.15}s` } : undefined}
+                />
+              );
+            })}
+          </g>
+          
+          {/* Middle row */}
+          <g fill="#080808" opacity="0.8">
+            {Array.from({ length: 40 }).map((_, i) => {
+              const x = (i * 36) + 15 + Math.sin(i * 0.9) * 12;
+              const height = 80 + Math.sin(i * 0.7) * 20;
+              const width = 22 + Math.random() * 8;
+              const shouldAnimate = i % 3 === 0;
+              return (
+                <ellipse
+                  key={`mid-${i}`}
+                  cx={x}
+                  cy={360}
+                  rx={width}
+                  ry={height}
+                  className={shouldAnimate ? "animate-crowd-sway" : ""}
+                  style={shouldAnimate ? { animationDelay: `${i * 0.2}s` } : undefined}
+                />
+              );
+            })}
+          </g>
+          
+          {/* Front-middle row */}
+          <g fill="#0a0a0a" opacity="0.9">
+            {Array.from({ length: 30 }).map((_, i) => {
+              const x = (i * 50) + 20 + Math.sin(i * 1.1) * 15;
+              const height = 100 + Math.sin(i * 0.5) * 25;
+              const width = 26 + Math.random() * 10;
+              const shouldAnimate = i % 3 === 0;
+              return (
+                <ellipse
+                  key={`frontmid-${i}`}
+                  cx={x}
+                  cy={420}
+                  rx={width}
+                  ry={height}
+                  className={shouldAnimate ? "animate-crowd-sway-alt" : ""}
+                  style={shouldAnimate ? { animationDelay: `${i * 0.25}s` } : undefined}
+                />
+              );
+            })}
+          </g>
+          
+          {/* Front row - largest, clearest silhouettes */}
+          <g fill="#030303">
+            {Array.from({ length: 20 }).map((_, i) => {
+              const x = (i * 75) + 30 + Math.sin(i * 0.8) * 20;
+              const height = 130 + Math.sin(i * 0.4) * 30;
+              const width = 32 + Math.random() * 12;
+              const shouldAnimate = i % 2 === 0;
+              return (
+                <ellipse
+                  key={`front-${i}`}
+                  cx={x}
+                  cy={480}
+                  rx={width}
+                  ry={height}
+                  className={shouldAnimate ? "animate-crowd-sway" : ""}
+                  style={shouldAnimate ? { animationDelay: `${i * 0.3}s` } : undefined}
+                />
+              );
+            })}
+          </g>
+          
+          {/* Raised hands/arms */}
+          <g fill="#000">
+            {[100, 250, 400, 580, 720, 900, 1050, 1200, 1350].map((x, i) => {
+              const armHeight = 70 + (i % 3) * 15;
+              const baseY = 280 + (i % 4) * 30;
+              return (
+                <g key={`arm-${i}`} className={i % 2 === 0 ? "animate-arm-pump" : "animate-arm-wave"} style={{ animationDelay: `${i * 0.15}s` }}>
+                  {/* Arm */}
+                  <rect
+                    x={x - 4}
+                    y={baseY - armHeight}
+                    width={8}
+                    height={armHeight}
+                    rx={4}
+                    opacity={0.7 + (i % 3) * 0.1}
+                  />
+                  {/* Hand */}
+                  <ellipse
+                    cx={x}
+                    cy={baseY - armHeight - 8}
+                    rx={10}
+                    ry={12}
+                    opacity={0.7 + (i % 3) * 0.1}
+                  />
+                </g>
+              );
+            })}
+          </g>
+          
+          {/* Phone lights in crowd */}
+          {[180, 380, 620, 850, 1100, 1280].map((x, i) => (
+            <g key={`phone-${i}`} className="animate-phone-glow" style={{ animationDelay: `${i * 0.7}s` }}>
               <rect
-                x={x - 3}
-                y={200 + (i % 3) * 20}
-                width={6}
-                height={80 - (i % 3) * 10}
-                rx={3}
-                className={i % 2 === 0 ? "animate-arm-pump" : "animate-arm-wave"}
-                style={{ 
-                  transformOrigin: `${x}px ${280 + (i % 3) * 20}px`,
-                  animationDelay: `${i * 0.2}s` 
-                }}
+                x={x}
+                y={320 + (i % 3) * 40}
+                width={8}
+                height={14}
+                rx={2}
+                fill="#fff"
+                opacity={0.8}
               />
-              {/* Hand */}
+              {/* Phone glow */}
               <ellipse
-                cx={x}
-                cy={195 + (i % 3) * 20}
-                rx={8}
-                ry={10}
-                className={i % 2 === 0 ? "animate-arm-pump" : "animate-arm-wave"}
-                style={{ 
-                  transformOrigin: `${x}px ${280 + (i % 3) * 20}px`,
-                  animationDelay: `${i * 0.2}s` 
-                }}
+                cx={x + 4}
+                cy={320 + (i % 3) * 40 + 7}
+                rx={20}
+                ry={25}
+                fill="#fff"
+                opacity={0.15}
+                className="blur-sm"
               />
             </g>
           ))}
-        </g>
-        
-        {/* Phone lights in crowd */}
-        {[150, 350, 550, 750, 950, 1150, 1300].map((x, i) => (
-          <rect
-            key={`phone-${i}`}
-            x={x}
-            y={250 + (i % 4) * 30}
-            width={6}
-            height={10}
-            rx={1}
-            fill="#fff"
-            opacity={0.6}
-            className="animate-phone-glow"
-            style={{ animationDelay: `${i * 0.5}s` }}
-          />
-        ))}
-      </svg>
+        </svg>
+      </div>
       
-      {/* Bottom fade to ensure text readability */}
-      <div className="absolute bottom-0 left-0 right-0 h-[30%] bg-gradient-to-t from-gray-950 via-gray-950/80 to-transparent" />
+      {/* Bottom gradient to blend into content */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-gray-950 to-transparent" />
     </div>
   );
 }
