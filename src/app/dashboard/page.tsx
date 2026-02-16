@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Music, Loader2, RefreshCw, Filter, Settings } from "lucide-react";
+import { Music, Loader2, RefreshCw, Filter, Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
 import { LocationSearch, Location } from "@/components/LocationSearch";
@@ -41,6 +41,7 @@ export default function DashboardPage() {
     connectedServices: MusicServiceType[];
     hasProfile: boolean;
   } | null>(null);
+  const [minMatchScore, setMinMatchScore] = useState(0);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -115,6 +116,12 @@ export default function DashboardPage() {
       console.error("Error unsaving concert:", err);
     }
   };
+
+  // Filter concerts by minimum match score
+  const filteredConcerts = useMemo(() => {
+    if (minMatchScore === 0) return concerts;
+    return concerts.filter((c) => (c.matchScore || 0) >= minMatchScore);
+  }, [concerts, minMatchScore]);
 
   // Show loading while checking auth
   if (status === "loading") {
@@ -226,6 +233,66 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Match Score Filter - Only show after search with profile */}
+          {hasSearched && stats?.hasProfile && (
+            <div className="mt-4 pt-4 border-t border-zinc-800">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-cyan-400" />
+                  <label className="text-sm font-medium text-zinc-300">
+                    Min Match
+                  </label>
+                </div>
+                <div className="flex-1 flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={minMatchScore}
+                    onChange={(e) => setMinMatchScore(parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500
+                      [&::-webkit-slider-thumb]:appearance-none
+                      [&::-webkit-slider-thumb]:w-4
+                      [&::-webkit-slider-thumb]:h-4
+                      [&::-webkit-slider-thumb]:rounded-full
+                      [&::-webkit-slider-thumb]:bg-cyan-500
+                      [&::-webkit-slider-thumb]:shadow-lg
+                      [&::-webkit-slider-thumb]:cursor-pointer
+                      [&::-moz-range-thumb]:w-4
+                      [&::-moz-range-thumb]:h-4
+                      [&::-moz-range-thumb]:rounded-full
+                      [&::-moz-range-thumb]:bg-cyan-500
+                      [&::-moz-range-thumb]:border-0
+                      [&::-moz-range-thumb]:cursor-pointer"
+                  />
+                  <div className="flex items-center gap-2 min-w-[80px]">
+                    <span className={`text-lg font-bold ${
+                      minMatchScore >= 80 ? "text-green-400" : 
+                      minMatchScore >= 50 ? "text-yellow-400" : 
+                      "text-zinc-400"
+                    }`}>
+                      {minMatchScore}%
+                    </span>
+                    {minMatchScore > 0 && (
+                      <button
+                        onClick={() => setMinMatchScore(0)}
+                        className="text-xs text-zinc-500 hover:text-zinc-300"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {minMatchScore > 0 && (
+                <p className="text-xs text-zinc-500 mt-2">
+                  Showing {filteredConcerts.length} of {concerts.length} concerts with {minMatchScore}%+ match
+                </p>
+              )}
+            </div>
+          )}
+
           {/* User's Top Tastes Preview */}
           {stats && stats.userTopArtists.length > 0 && (
             <div className="mt-4 pt-4 border-t border-zinc-800">
@@ -302,13 +369,34 @@ export default function DashboardPage() {
               your date range or search area.
             </p>
           </div>
+        ) : filteredConcerts.length === 0 ? (
+          // Filter removed all results
+          <div className="text-center py-16">
+            <div className="w-20 h-20 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-6">
+              <Sparkles className="w-10 h-10 text-yellow-500" />
+            </div>
+            <h2 className="text-xl font-semibold text-white mb-2">
+              No concerts match your filter
+            </h2>
+            <p className="text-zinc-500 max-w-md mx-auto mb-4">
+              No concerts have a {minMatchScore}%+ match. Try lowering the minimum match score.
+            </p>
+            <Button onClick={() => setMinMatchScore(0)} variant="outline">
+              Reset Filter
+            </Button>
+          </div>
         ) : (
           <>
             {/* Results Stats */}
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-lg font-semibold text-white">
-                  {stats?.highMatches && stats.highMatches > 0 ? (
+                  {minMatchScore > 0 ? (
+                    <>
+                      <span className="text-cyan-400">{filteredConcerts.length}</span> concerts
+                      {" "}with {minMatchScore}%+ match
+                    </>
+                  ) : stats?.highMatches && stats.highMatches > 0 ? (
                     <>
                       <span className="text-green-400">{stats.highMatches}</span> perfect
                       matches found
@@ -336,7 +424,7 @@ export default function DashboardPage() {
 
             {/* Concert Grid */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {concerts.map((concert) => (
+              {filteredConcerts.map((concert) => (
                 <ConcertCard
                   key={concert.id}
                   concert={concert}
