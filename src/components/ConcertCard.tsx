@@ -18,7 +18,6 @@ import {
   HelpCircle,
   Share2,
   Check,
-  Bell,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -304,13 +303,6 @@ export function ConcertCard({
     }
   };
 
-  const handleSetAlert = () => {
-    track('set_alert_clicked', {
-      concert_id: concert.id,
-      artist: concert.artists.join(", "),
-    });
-  };
-
   // Determine match quality
   const matchScore = concert.matchScore || 0;
   const isPerfectMatch = matchScore >= 95;
@@ -531,16 +523,7 @@ export function ConcertCard({
                 From ${concert.priceRange.min}
               </span>
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-zinc-500">Price TBA</span>
-                <button 
-                  onClick={handleSetAlert}
-                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-                >
-                  <Bell className="w-3 h-3" />
-                  Set alert
-                </button>
-              </div>
+              <span className="text-sm text-zinc-500">Price TBA</span>
             )}
             <TicketSourcesInline concert={concert} />
           </div>

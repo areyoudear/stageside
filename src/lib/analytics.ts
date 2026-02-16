@@ -55,7 +55,6 @@ export interface AnalyticsEvents {
     is_cheapest?: boolean;
   };
   price_compared: { concert_id: string; time_spent_ms: number; sources_viewed: number };
-  set_alert_clicked: { concert_id: string; artist: string };
 
   // Conversion Funnel
   spotify_connect_started: { location: string };
