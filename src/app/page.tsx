@@ -126,9 +126,7 @@ export default async function LandingPage() {
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-emerald-500" />
-              <span className="flex items-center gap-2">
-                Works with <MusicServiceLogosInline />
-              </span>
+              <MusicServiceLogosInline />
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-emerald-500" />
