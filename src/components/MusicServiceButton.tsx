@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Check, AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -122,8 +121,13 @@ export function MusicServiceButton({
       if (onConnect) {
         onConnect();
       } else {
-        // Default: use NextAuth sign in
-        signIn(config.provider, { callbackUrl: "/dashboard" });
+        // Default: redirect to music service OAuth flow
+        const implementedServices = ["spotify", "youtube_music"];
+        if (implementedServices.includes(service)) {
+          window.location.href = `/api/music/connect/${service}?callbackUrl=/dashboard`;
+        } else {
+          alert(`${config.name} integration coming soon!`);
+        }
       }
     }
   };

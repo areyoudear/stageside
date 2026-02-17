@@ -1,6 +1,7 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2, LogOut, Music2 } from "lucide-react";
 import Image from "next/image";
@@ -19,6 +20,7 @@ export function SpotifyConnectButton({
   className,
 }: SpotifyConnectButtonProps) {
   const { data: session, status } = useSession();
+  const router = useRouter();
 
   // Size-specific styles
   const sizeStyles = {
@@ -87,13 +89,23 @@ export function SpotifyConnectButton({
     );
   }
 
+  const handleConnectSpotify = () => {
+    track('spotify_connect_started', { location: window.location.pathname });
+    track('cta_click', { cta: 'connect_spotify', location: window.location.pathname });
+    
+    // If not logged in, redirect to login first
+    if (!session) {
+      router.push("/login?callbackUrl=/api/music/connect/spotify?callbackUrl=/dashboard");
+      return;
+    }
+    
+    // Start Spotify OAuth flow for music service connection
+    window.location.href = `/api/music/connect/spotify?callbackUrl=/dashboard`;
+  };
+
   return (
     <Button
-      onClick={() => {
-        track('spotify_connect_started', { location: window.location.pathname });
-        track('cta_click', { cta: 'connect_spotify', location: window.location.pathname });
-        signIn("spotify", { callbackUrl: "/dashboard" });
-      }}
+      onClick={handleConnectSpotify}
       className={cn(
         "bg-[#1DB954] hover:bg-[#1ed760] text-white font-semibold shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all",
         sizeStyles[size],

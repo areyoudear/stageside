@@ -11,8 +11,8 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <SessionProvider 
-      refetchOnWindowFocus={true}
-      refetchInterval={5 * 60} // Refetch session every 5 minutes
+      refetchOnWindowFocus={false} // Disable aggressive refetch - causes multiple calls
+      refetchInterval={0} // Disable interval refetch - session is persisted via JWT
     >
       <Suspense fallback={null}>
         <AnalyticsProvider>{children}</AnalyticsProvider>

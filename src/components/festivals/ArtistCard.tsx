@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Plus, Check, Music, Star, Sparkles, Play } from "lucide-react";
+import { Plus, Check, Music, Star, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -194,7 +194,7 @@ export function ArtistCard({
           </div>
         )}
 
-        {/* Add to agenda button */}
+        {/* Add to agenda button - always visible on hover */}
         {onToggleAgenda && (
           <button
             onClick={(e) => {
@@ -205,23 +205,15 @@ export function ArtistCard({
               "absolute bottom-2 right-2 p-2 rounded-full transition-all",
               isInAgenda
                 ? "bg-green-500 text-white"
-                : "bg-black/60 backdrop-blur-sm text-white hover:bg-black/80"
+                : "bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 hover:bg-cyan-600"
             )}
+            title={isInAgenda ? "Remove from schedule" : "Add to my schedule"}
           >
             {isInAgenda ? (
               <Check className="w-4 h-4" />
             ) : (
               <Plus className="w-4 h-4" />
             )}
-          </button>
-        )}
-
-        {/* Play preview button (placeholder) */}
-        {isHovered && !isInAgenda && (
-          <button className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
-              <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
-            </div>
           </button>
         )}
       </div>

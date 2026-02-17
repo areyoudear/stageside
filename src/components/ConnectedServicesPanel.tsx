@@ -62,14 +62,14 @@ export function ConnectedServicesPanel({
   }, []);
 
   const handleConnect = async (service: MusicServiceType) => {
-    // Services that have custom OAuth connect endpoints
-    const supportedServices = ["spotify", "youtube_music"];
+    // Services with implemented OAuth flows
+    const implementedServices = ["spotify", "youtube_music"];
 
-    if (supportedServices.includes(service)) {
-      // Redirect to our OAuth connect endpoint (doesn't require re-login)
+    if (implementedServices.includes(service)) {
+      // Redirect to music service OAuth flow (NOT NextAuth signIn)
       window.location.href = `/api/music/connect/${service}?callbackUrl=/settings`;
     } else {
-      // For other services, show a message
+      // For services not yet implemented
       alert(
         `${service} integration coming soon! For now, connect with Spotify or YouTube Music.`
       );
