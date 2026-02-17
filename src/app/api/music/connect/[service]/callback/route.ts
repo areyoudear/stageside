@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertMusicConnection, saveMusicProfile, saveRelatedArtists } from "@/lib/supabase";
-import { getUserMusicProfile, SpotifyArtist } from "@/lib/spotify";
+import { getUserMusicProfile as getSpotifyMusicProfile, SpotifyArtist } from "@/lib/spotify";
+import { getUserMusicProfile as getYouTubeMusicProfile } from "@/lib/youtube-music";
 import { MusicServiceType } from "@/lib/music-types";
 
 // Token endpoint configurations
@@ -138,6 +139,21 @@ export async function GET(
       } catch (e) {
         console.error("Error fetching Spotify user info:", e);
       }
+    } else if (service === "youtube_music") {
+      try {
+        // Fetch Google user info
+        const userInfoResponse = await fetch(
+          "https://www.googleapis.com/oauth2/v2/userinfo",
+          { headers: { Authorization: `Bearer ${tokens.access_token}` } }
+        );
+        if (userInfoResponse.ok) {
+          const userInfo = await userInfoResponse.json();
+          serviceUserId = userInfo.id;
+          serviceUsername = userInfo.name || userInfo.email;
+        }
+      } catch (e) {
+        console.error("Error fetching YouTube/Google user info:", e);
+      }
     }
 
     // Save connection to database
@@ -151,9 +167,13 @@ export async function GET(
       service_username: serviceUsername,
     });
 
-    // Fetch and store music profile async (for Spotify)
-    if (service === "spotify" && tokens.access_token) {
-      fetchAndStoreMusicProfile(tokens.access_token, stateData.userId).catch(console.error);
+    // Fetch and store music profile async
+    if (tokens.access_token) {
+      if (service === "spotify") {
+        fetchAndStoreSpotifyProfile(tokens.access_token, stateData.userId).catch(console.error);
+      } else if (service === "youtube_music") {
+        fetchAndStoreYouTubeMusicProfile(tokens.access_token, stateData.userId).catch(console.error);
+      }
     }
 
     // Redirect to callback URL
@@ -171,12 +191,12 @@ export async function GET(
 /**
  * Fetch user's music profile from Spotify and store in Supabase
  */
-async function fetchAndStoreMusicProfile(
+async function fetchAndStoreSpotifyProfile(
   accessToken: string,
   userId: string
 ): Promise<void> {
   try {
-    const profile = await getUserMusicProfile(accessToken);
+    const profile = await getSpotifyMusicProfile(accessToken);
 
     // Transform to storage format
     const topArtists = profile.topArtists.slice(0, 50).map((artist: SpotifyArtist) => ({
@@ -195,8 +215,36 @@ async function fetchAndStoreMusicProfile(
         : Promise.resolve(),
     ]);
 
-    console.log(`Music profile saved for user ${userId}`);
+    console.log(`Spotify music profile saved for user ${userId}`);
   } catch (error) {
-    console.error("Error fetching/storing music profile:", error);
+    console.error("Error fetching/storing Spotify music profile:", error);
+  }
+}
+
+/**
+ * Fetch user's music profile from YouTube Music and store in Supabase
+ */
+async function fetchAndStoreYouTubeMusicProfile(
+  accessToken: string,
+  userId: string
+): Promise<void> {
+  try {
+    const profile = await getYouTubeMusicProfile(accessToken);
+
+    // Transform to storage format (YouTube Music returns simpler artist data)
+    const topArtists = profile.topArtists.slice(0, 50).map((artist) => ({
+      id: artist.id || `yt_${artist.name.toLowerCase().replace(/\s+/g, '_')}`,
+      name: artist.name,
+      genres: artist.genres || [],
+      popularity: artist.popularity || 0,
+      image_url: undefined, // YouTube Music doesn't provide artist images directly
+    }));
+
+    // Save profile (YouTube Music doesn't have related artists API like Spotify)
+    await saveMusicProfile(userId, topArtists, profile.topGenres);
+
+    console.log(`YouTube Music profile saved for user ${userId} (${profile.stats?.likedMusicVideos || 0} music videos analyzed)`);
+  } catch (error) {
+    console.error("Error fetching/storing YouTube Music profile:", error);
   }
 }
