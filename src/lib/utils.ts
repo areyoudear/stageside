@@ -88,6 +88,7 @@ const GENRE_AFFINITIES: Record<string, string[]> = {
 
 /**
  * Calculate match score between user profile and concert
+ * Returns score (0-150+) and detailed reasons for the match
  */
 export function calculateMatchScore(
   concertArtists: string[],
@@ -107,28 +108,38 @@ export function calculateMatchScore(
   for (const artist of normalizedConcertArtists) {
     const artistIndex = normalizedUserArtists.indexOf(artist);
     if (artistIndex !== -1) {
+      const originalArtistName = concertArtists[normalizedConcertArtists.indexOf(artist)];
       // Higher score for higher-ranked artists
       const rankBonus = Math.max(0, 50 - artistIndex * 2);
       score += 100 + rankBonus;
-      reasons.push(`You love ${concertArtists[normalizedConcertArtists.indexOf(artist)]}`);
+      
+      // More specific reason based on rank
+      if (artistIndex < 3) {
+        reasons.push(`🔥 ${originalArtistName} is in your top 3!`);
+      } else if (artistIndex < 10) {
+        reasons.push(`⭐ ${originalArtistName} is in your top 10`);
+      } else if (artistIndex < 25) {
+        reasons.push(`You listen to ${originalArtistName} regularly`);
+      } else {
+        reasons.push(`${originalArtistName} is in your library`);
+      }
       break; // Only count primary match
     }
   }
 
-  // Check for partial artist name matches (e.g., "Taylor Swift" matches "The Taylor Swift Experience")
+  // Check for partial artist name matches
   if (score === 0) {
     for (const concertArtist of normalizedConcertArtists) {
       for (let i = 0; i < normalizedUserArtists.length; i++) {
         const userArtist = normalizedUserArtists[i];
-        // Check if one contains the other (but require at least 5 chars to avoid false positives)
         if (userArtist.length >= 5 && concertArtist.includes(userArtist)) {
           score += 80;
-          reasons.push(`Similar to ${userTopArtists[i]}`);
+          reasons.push(`Related to ${userTopArtists[i]}`);
           break;
         }
         if (concertArtist.length >= 5 && userArtist.includes(concertArtist)) {
           score += 80;
-          reasons.push(`Similar to ${userTopArtists[i]}`);
+          reasons.push(`Related to ${userTopArtists[i]}`);
           break;
         }
       }
@@ -141,7 +152,8 @@ export function calculateMatchScore(
     for (const artist of normalizedConcertArtists) {
       if (normalizedRecentArtists.includes(artist)) {
         score += 70;
-        reasons.push(`Recently played ${concertArtists[normalizedConcertArtists.indexOf(artist)]}`);
+        const originalName = concertArtists[normalizedConcertArtists.indexOf(artist)];
+        reasons.push(`🎧 You played ${originalName} recently`);
         break;
       }
     }
@@ -160,28 +172,48 @@ export function calculateMatchScore(
     // Primary genre match gets more points
     score += 20 + (directMatches.length - 1) * 10;
     if (reasons.length === 0) {
-      reasons.push(`Matches your ${directMatches[0]} taste`);
+      // Find which user genre it matched
+      const matchedUserGenre = normalizedUserGenres.find((ug) =>
+        directMatches.some((dm) => dm.includes(ug) || ug.includes(dm))
+      );
+      const genreIndex = matchedUserGenre ? normalizedUserGenres.indexOf(matchedUserGenre) : -1;
+      
+      if (genreIndex < 3) {
+        reasons.push(`🎵 Perfect for your ${directMatches[0]} obsession`);
+      } else if (genreIndex < 10) {
+        reasons.push(`Fits your ${directMatches[0]} vibe`);
+      } else {
+        reasons.push(`Matches your ${directMatches[0]} taste`);
+      }
     }
   }
 
   // Check for affinity matches (related genres)
   if (reasons.length === 0) {
-    for (const userGenre of normalizedUserGenres) {
+    for (const userGenre of normalizedUserGenres.slice(0, 10)) { // Only check top 10 genres
       const affinities = GENRE_AFFINITIES[userGenre] || [];
       const affinityMatch = normalizedConcertGenres.find((cg) =>
         affinities.some((a) => cg.includes(a))
       );
       if (affinityMatch) {
         score += 15;
-        reasons.push(`You might like this ${affinityMatch} show`);
+        reasons.push(`💡 You like ${userGenre}, might enjoy this ${affinityMatch} show`);
         break;
       }
     }
   }
 
-  // Bonus for multiple genre matches (shows versatility)
+  // Bonus for multiple genre matches
   if (directMatches.length >= 2) {
     score += 5;
+    if (reasons.length === 1) {
+      reasons.push(`Hits ${directMatches.length} of your favorite genres`);
+    }
+  }
+
+  // If still no reasons, provide a discovery-focused message
+  if (reasons.length === 0 && score === 0) {
+    reasons.push("Discover something new near you");
   }
 
   return { score, reasons };

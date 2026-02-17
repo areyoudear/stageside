@@ -89,14 +89,26 @@ export default function DiscoverPage() {
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
   const [location, setLocation] = useState<Location | null>(null);
   const [radius, setRadius] = useState(50); // Default 50 miles
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: new Date(),
-    endDate: (() => {
-      const d = new Date();
-      d.setMonth(d.getMonth() + 3);
-      return d;
-    })(),
-    label: "Next 3 Months",
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    // Default to "This Weekend" (Friday to Sunday)
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+    const daysUntilFriday = dayOfWeek <= 5 ? 5 - dayOfWeek : 6; // Days until next Friday
+    const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek; // Days until Sunday
+    
+    const friday = new Date(today);
+    friday.setDate(today.getDate() + daysUntilFriday);
+    friday.setHours(0, 0, 0, 0);
+    
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() + daysUntilSunday);
+    sunday.setHours(23, 59, 59, 999);
+    
+    return {
+      startDate: friday,
+      endDate: sunday,
+      label: "This Weekend",
+    };
   });
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [popularConcerts, setPopularConcerts] = useState<Concert[]>([]);

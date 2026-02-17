@@ -18,6 +18,8 @@ import {
   HelpCircle,
   Share2,
   Check,
+  UserPlus,
+  CheckCircle2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,9 +32,18 @@ import type { Concert } from "@/lib/ticketmaster";
 // Vibe types based on genre
 type VibeType = "chill" | "energetic" | "intimate" | "festival" | "diverse";
 
+interface FriendInterest {
+  id: string;
+  name: string;
+  status: "interested" | "going";
+}
+
 interface ConcertCardProps {
   concert: Concert;
   onSave?: (concertId: string) => void;
+  interestStatus?: "interested" | "going" | null;
+  onInterestChange?: (concertId: string, status: "interested" | "going" | null, concert: Concert) => void;
+  friendsInterested?: FriendInterest[];
   onUnsave?: (concertId: string) => void;
   isAuthenticated?: boolean;
   isDemo?: boolean;
@@ -192,13 +203,32 @@ export function ConcertCard({
   isAuthenticated = false,
   isDemo = false,
   hasProfile = true,
+  interestStatus,
+  onInterestChange,
+  friendsInterested = [],
 }: ConcertCardProps) {
   const [isSaved, setIsSaved] = useState(concert.isSaved || false);
   const [imageError, setImageError] = useState(false);
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [localInterestStatus, setLocalInterestStatus] = useState<"interested" | "going" | null>(interestStatus || null);
   const hoverStartTime = useRef<number | null>(null);
   const hasTrackedTooltip = useRef(false);
+  
+  // Separate friends by status
+  const friendsGoing = friendsInterested.filter(f => f.status === "going");
+  const friendsInterestedOnly = friendsInterested.filter(f => f.status === "interested");
+  
+  const handleInterestClick = (status: "interested" | "going") => {
+    const newStatus = localInterestStatus === status ? null : status;
+    setLocalInterestStatus(newStatus);
+    onInterestChange?.(concert.id, newStatus, concert);
+    track("concert_interest_changed", {
+      concert_id: concert.id,
+      artist: concert.artists.join(", "),
+      new_status: newStatus || "removed",
+    });
+  };
 
   // Load saved state from localStorage on mount
   useEffect(() => {
@@ -531,6 +561,57 @@ export function ConcertCard({
                 {genre}
               </span>
             ))}
+          </div>
+        )}
+
+        {/* Friends Interested Section */}
+        {friendsInterested.length > 0 && (
+          <div className="flex items-center gap-2 py-2 px-3 bg-violet-500/10 rounded-lg border border-violet-500/20">
+            <Users className="w-4 h-4 text-violet-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              {friendsGoing.length > 0 && (
+                <p className="text-xs text-violet-300">
+                  <span className="font-medium">{friendsGoing.map(f => f.name).join(", ")}</span>
+                  {friendsGoing.length === 1 ? " is" : " are"} going
+                </p>
+              )}
+              {friendsInterestedOnly.length > 0 && (
+                <p className="text-xs text-violet-400">
+                  <span className="font-medium">{friendsInterestedOnly.map(f => f.name).join(", ")}</span>
+                  {friendsInterestedOnly.length === 1 ? " is" : " are"} interested
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Interest Buttons (Interested / Going) */}
+        {isAuthenticated && onInterestChange && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleInterestClick("interested")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                localInterestStatus === "interested"
+                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                  : "bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-white"
+              )}
+            >
+              <Star className={cn("w-4 h-4", localInterestStatus === "interested" && "fill-amber-400")} />
+              Interested
+            </button>
+            <button
+              onClick={() => handleInterestClick("going")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                localInterestStatus === "going"
+                  ? "bg-green-500/20 text-green-400 border border-green-500/40"
+                  : "bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-white"
+              )}
+            >
+              <CheckCircle2 className={cn("w-4 h-4", localInterestStatus === "going" && "fill-green-400")} />
+              Going
+            </button>
           </div>
         )}
 
