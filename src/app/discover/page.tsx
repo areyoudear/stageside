@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle } from "lucide-react";
+import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle, Heart, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocationSearch, Location } from "@/components/LocationSearch";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
@@ -38,6 +38,9 @@ type DayFilter = "all" | "weekday" | "weekend";
 
 // Sort options
 type SortOption = "match" | "date" | "price" | "distance";
+
+// Status filter (saved/going)
+type StatusFilter = "all" | "hearted" | "going";
 
 const SORT_OPTIONS: { value: SortOption; label: string; icon: typeof ArrowUpDown }[] = [
   { value: "match", label: "Best Match", icon: Sparkles },
@@ -123,6 +126,17 @@ export default function DiscoverPage() {
   const [dayFilter, setDayFilter] = useState<DayFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("match");
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [goingIds, setGoingIds] = useState<string[]>([]);
+
+  // Load saved/going IDs from localStorage on mount
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('savedConcerts') || '[]');
+    const going = JSON.parse(localStorage.getItem('goingConcerts') || '[]');
+    setSavedIds(saved);
+    setGoingIds(going);
+  }, []);
 
   const hasEnoughArtists = selectedArtists.length >= 3;
   const canSearch = hasEnoughArtists && location;
@@ -244,6 +258,13 @@ export default function DiscoverPage() {
       result = result.filter(concert => getDayType(concert.date) === dayFilter);
     }
 
+    // Apply status filter (hearted/going)
+    if (statusFilter === "hearted") {
+      result = result.filter(concert => savedIds.includes(concert.id));
+    } else if (statusFilter === "going") {
+      result = result.filter(concert => goingIds.includes(concert.id));
+    }
+
     // Apply sorting
     result = [...result].sort((a, b) => {
       switch (sortBy) {
@@ -267,7 +288,7 @@ export default function DiscoverPage() {
     });
 
     return result;
-  }, [concerts, vibeFilter, venueSizeFilter, distanceFilter, priceFilter, dayFilter, sortBy]);
+  }, [concerts, vibeFilter, venueSizeFilter, distanceFilter, priceFilter, dayFilter, statusFilter, sortBy, savedIds, goingIds]);
 
   // Check if we should show the upsell (any low matches in results)
   const hasLowMatches = useMemo(() => {
@@ -395,19 +416,46 @@ export default function DiscoverPage() {
     setConcerts((prev) =>
       prev.map((c) => (c.id === concertId ? { ...c, isSaved: true } : c))
     );
-    // Persist to localStorage
-    const saved = JSON.parse(localStorage.getItem('savedConcerts') || '[]');
-    if (!saved.includes(concertId)) {
-      localStorage.setItem('savedConcerts', JSON.stringify([...saved, concertId]));
-    }
+    // Update local state and persist to localStorage
+    setSavedIds(prev => {
+      if (!prev.includes(concertId)) {
+        const newSaved = [...prev, concertId];
+        localStorage.setItem('savedConcerts', JSON.stringify(newSaved));
+        return newSaved;
+      }
+      return prev;
+    });
   };
 
   const handleUnsaveConcert = async (concertId: string) => {
     setConcerts((prev) =>
       prev.map((c) => (c.id === concertId ? { ...c, isSaved: false } : c))
     );
-    const saved = JSON.parse(localStorage.getItem('savedConcerts') || '[]');
-    localStorage.setItem('savedConcerts', JSON.stringify(saved.filter((id: string) => id !== concertId)));
+    setSavedIds(prev => {
+      const newSaved = prev.filter(id => id !== concertId);
+      localStorage.setItem('savedConcerts', JSON.stringify(newSaved));
+      return newSaved;
+    });
+  };
+
+  // Going handlers
+  const handleGoingConcert = async (concertId: string) => {
+    setGoingIds(prev => {
+      if (!prev.includes(concertId)) {
+        const newGoing = [...prev, concertId];
+        localStorage.setItem('goingConcerts', JSON.stringify(newGoing));
+        return newGoing;
+      }
+      return prev;
+    });
+  };
+
+  const handleNotGoingConcert = async (concertId: string) => {
+    setGoingIds(prev => {
+      const newGoing = prev.filter(id => id !== concertId);
+      localStorage.setItem('goingConcerts', JSON.stringify(newGoing));
+      return newGoing;
+    });
   };
 
   const highMatches = filteredAndSortedConcerts.filter((c) => (c.matchScore || 0) >= 50).length;
@@ -452,6 +500,10 @@ export default function DiscoverPage() {
               <Link href="/saved" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
                 <Bookmark className="w-4 h-4" />
                 <span className="hidden sm:inline">Saved</span>
+              </Link>
+              <Link href="/groups" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">Friends</span>
               </Link>
               <Link href="/">
                 <Button className="bg-green-600 hover:bg-green-500 text-white">
@@ -786,6 +838,73 @@ export default function DiscoverPage() {
                 )}
               </div>
 
+              {/* Status Filters (Hearted/Going) */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-zinc-500 mr-1">Show:</span>
+                <button
+                  onClick={() => setStatusFilter("all")}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    statusFilter === "all"
+                      ? "bg-cyan-500 text-white"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setStatusFilter("hearted")}
+                  disabled={savedIds.length === 0}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    statusFilter === "hearted"
+                      ? "bg-red-500 text-white"
+                      : savedIds.length === 0
+                      ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  <Heart className="w-3.5 h-3.5" />
+                  Hearted
+                  <span className={cn(
+                    "ml-1 text-xs",
+                    statusFilter === "hearted" ? "text-red-200" : "text-zinc-500"
+                  )}>
+                    ({concerts.filter(c => savedIds.includes(c.id)).length})
+                  </span>
+                </button>
+                <button
+                  onClick={() => setStatusFilter("going")}
+                  disabled={goingIds.length === 0}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    statusFilter === "going"
+                      ? "bg-green-500 text-white"
+                      : goingIds.length === 0
+                      ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Going
+                  <span className={cn(
+                    "ml-1 text-xs",
+                    statusFilter === "going" ? "text-green-200" : "text-zinc-500"
+                  )}>
+                    ({concerts.filter(c => goingIds.includes(c.id)).length})
+                  </span>
+                </button>
+                {statusFilter !== "all" && (
+                  <button
+                    onClick={() => setStatusFilter("all")}
+                    className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
+                    title="Clear status filter"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
               {/* Expanded Filter Panel */}
               {showMoreFilters && (
                 <div className="mt-4 p-4 bg-zinc-800/50 rounded-xl border border-zinc-700/50 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -870,6 +989,8 @@ export default function DiscoverPage() {
                       concert={concert}
                       onSave={handleSaveConcert}
                       onUnsave={handleUnsaveConcert}
+                      onGoing={handleGoingConcert}
+                      onNotGoing={handleNotGoingConcert}
                       isAuthenticated={true}
                     />
                     {/* Insert upsell card after every 6th low-match result */}

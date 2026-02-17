@@ -41,10 +41,12 @@ interface FriendInterest {
 interface ConcertCardProps {
   concert: Concert;
   onSave?: (concertId: string) => void;
+  onUnsave?: (concertId: string) => void;
+  onGoing?: (concertId: string) => void;
+  onNotGoing?: (concertId: string) => void;
   interestStatus?: "interested" | "going" | null;
   onInterestChange?: (concertId: string, status: "interested" | "going" | null, concert: Concert) => void;
   friendsInterested?: FriendInterest[];
-  onUnsave?: (concertId: string) => void;
   isAuthenticated?: boolean;
   isDemo?: boolean;
   hasProfile?: boolean;
@@ -200,6 +202,8 @@ export function ConcertCard({
   concert,
   onSave,
   onUnsave,
+  onGoing,
+  onNotGoing,
   isAuthenticated = false,
   isDemo = false,
   hasProfile = true,
@@ -208,8 +212,10 @@ export function ConcertCard({
   friendsInterested = [],
 }: ConcertCardProps) {
   const [isSaved, setIsSaved] = useState(concert.isSaved || false);
+  const [isGoing, setIsGoing] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
+  const [showGoingFeedback, setShowGoingFeedback] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [localInterestStatus, setLocalInterestStatus] = useState<"interested" | "going" | null>(interestStatus || null);
   const hoverStartTime = useRef<number | null>(null);
@@ -230,11 +236,15 @@ export function ConcertCard({
     });
   };
 
-  // Load saved state from localStorage on mount
+  // Load saved/going state from localStorage on mount
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('savedConcerts') || '[]');
     if (saved.includes(concert.id)) {
       setIsSaved(true);
+    }
+    const going = JSON.parse(localStorage.getItem('goingConcerts') || '[]');
+    if (going.includes(concert.id)) {
+      setIsGoing(true);
     }
   }, [concert.id]);
 
@@ -296,6 +306,37 @@ export function ConcertCard({
       if (!saved.includes(concert.id)) {
         saved.push(concert.id);
         localStorage.setItem('savedConcerts', JSON.stringify(saved));
+      }
+    }
+  };
+
+  const handleGoingToggle = () => {
+    const artistName = concert.artists.join(", ");
+    if (isGoing) {
+      track('concert_not_going', {
+        concert_id: concert.id,
+        artist: artistName,
+      });
+      onNotGoing?.(concert.id);
+      setIsGoing(false);
+      // Remove from localStorage
+      const going = JSON.parse(localStorage.getItem('goingConcerts') || '[]');
+      localStorage.setItem('goingConcerts', JSON.stringify(going.filter((id: string) => id !== concert.id)));
+    } else {
+      track('concert_going', {
+        concert_id: concert.id,
+        artist: artistName,
+        match_score: concert.matchScore,
+      });
+      onGoing?.(concert.id);
+      setIsGoing(true);
+      setShowGoingFeedback(true);
+      setTimeout(() => setShowGoingFeedback(false), 2000);
+      // Save to localStorage
+      const going = JSON.parse(localStorage.getItem('goingConcerts') || '[]');
+      if (!going.includes(concert.id)) {
+        going.push(concert.id);
+        localStorage.setItem('goingConcerts', JSON.stringify(going));
       }
     }
   };
@@ -413,6 +454,33 @@ export function ConcertCard({
               <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
                 <Check className="w-3 h-3 inline mr-1" />
                 Saved!
+              </div>
+            )}
+          </button>
+
+          {/* Going Button */}
+          <button
+            onClick={handleGoingToggle}
+            className={cn(
+              "relative p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
+              isGoing 
+                ? "bg-green-500/20 hover:bg-green-500/30" 
+                : "bg-black/30 hover:bg-black/50"
+            )}
+            aria-label={isGoing ? "Not going anymore" : "Mark as going"}
+            title={isGoing ? "Not going anymore" : "I'm going!"}
+          >
+            <CheckCircle2
+              className={cn(
+                "w-5 h-5 transition-all",
+                isGoing ? "text-green-400 scale-110" : "text-white/80 hover:text-white"
+              )}
+            />
+            {/* Going feedback toast */}
+            {showGoingFeedback && (
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
+                <Check className="w-3 h-3 inline mr-1" />
+                Going!
               </div>
             )}
           </button>
