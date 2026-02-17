@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchConcerts, Concert } from "@/lib/ticketmaster";
-import { calculateMatchScore } from "@/lib/utils";
+import { calculateMatchScore, calculateDistance } from "@/lib/utils";
 
 /**
  * GET /api/concerts/matched
@@ -65,7 +65,11 @@ export async function GET(request: NextRequest) {
       size: 100,
     });
 
-    // Calculate match scores against user's artists and genres
+    // Parse user location for distance calculation
+    const userLat = parseFloat(lat);
+    const userLng = parseFloat(lng);
+
+    // Calculate match scores and distances
     const matchedConcerts: Concert[] = concertsResult.concerts.map((concert) => {
       const { score, reasons } = calculateMatchScore(
         concert.artists,
@@ -74,11 +78,23 @@ export async function GET(request: NextRequest) {
         userGenres
       );
 
+      // Calculate distance if venue has location
+      let distance: number | undefined;
+      if (concert.venue.location) {
+        distance = calculateDistance(
+          userLat,
+          userLng,
+          concert.venue.location.lat,
+          concert.venue.location.lng
+        );
+      }
+
       return {
         ...concert,
         matchScore: score,
         matchReasons: reasons.length > 0 ? reasons : ["Happening near you"],
         isSaved: false,
+        distance,
       };
     });
 

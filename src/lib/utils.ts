@@ -186,3 +186,36 @@ export function calculateMatchScore(
 
   return { score, reasons };
 }
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * @returns Distance in miles
+ */
+export function calculateDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 3959; // Earth's radius in miles
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10; // Round to 1 decimal
+}
+
+function toRad(deg: number): number {
+  return deg * (Math.PI / 180);
+}
+
+/**
+ * Get day of week from date string
+ */
+export function getDayOfWeek(dateStr: string): "weekday" | "weekend" {
+  const date = new Date(dateStr);
+  const day = date.getDay();
+  return day === 0 || day === 5 || day === 6 ? "weekend" : "weekday"; // Fri, Sat, Sun = weekend
+}

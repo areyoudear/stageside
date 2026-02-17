@@ -443,8 +443,30 @@ export function ConcertCard({
           </div>
           <div className="flex items-center gap-2 text-sm">
             <MapPin className="w-4 h-4 text-fuchsia-400 flex-shrink-0" />
-            <span className="text-zinc-300 line-clamp-1">{concert.venue.name}</span>
+            <span className="text-zinc-300 line-clamp-1">
+              {concert.venue.name}
+              {concert.distance !== undefined && (
+                <span className="text-zinc-500 ml-1">· {concert.distance} mi</span>
+              )}
+            </span>
           </div>
+          {/* Venue size indicator */}
+          {concert.venueSize && concert.venueSize !== "medium" && (
+            <div className="flex items-center gap-1 text-xs text-zinc-500">
+              <span className={cn(
+                "px-1.5 py-0.5 rounded",
+                concert.venueSize === "intimate" && "bg-violet-500/10 text-violet-400",
+                concert.venueSize === "large" && "bg-cyan-500/10 text-cyan-400",
+                concert.venueSize === "arena" && "bg-orange-500/10 text-orange-400",
+                concert.venueSize === "festival" && "bg-pink-500/10 text-pink-400"
+              )}>
+                {concert.venueSize === "intimate" && "🎤 Intimate"}
+                {concert.venueSize === "large" && "🎭 Large Venue"}
+                {concert.venueSize === "arena" && "🏟️ Arena"}
+                {concert.venueSize === "festival" && "🎪 Festival"}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Why You'll Love This - Always visible for good matches */}

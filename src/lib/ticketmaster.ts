@@ -84,6 +84,10 @@ export interface Concert {
     state?: string;
     country: string;
     address?: string;
+    location?: {
+      lat: number;
+      lng: number;
+    };
   };
   date: string;
   time?: string;
@@ -95,6 +99,10 @@ export interface Concert {
     currency: string;
   };
   genres: string[];
+  // Venue size: intimate (<1000), medium (1000-5000), large (5000-20000), arena (20000+)
+  venueSize?: "intimate" | "medium" | "large" | "arena" | "festival";
+  // Distance from search location (in miles, calculated after fetch)
+  distance?: number;
   // Added during matching
   matchScore?: number;
   matchReasons?: string[];
@@ -211,6 +219,13 @@ function transformEvent(event: TicketmasterEvent): Concert {
 
   // Extract venue info
   const venue = event._embedded?.venues?.[0];
+  const venueLocation = venue?.location
+    ? {
+        lat: parseFloat(venue.location.latitude),
+        lng: parseFloat(venue.location.longitude),
+      }
+    : undefined;
+  
   const venueInfo = venue
     ? {
         name: venue.name,
@@ -218,12 +233,16 @@ function transformEvent(event: TicketmasterEvent): Concert {
         state: venue.state?.stateCode,
         country: venue.country?.countryCode || venue.country?.name || "US",
         address: venue.address?.line1,
+        location: venueLocation,
       }
     : {
         name: "TBA",
         city: "Unknown",
         country: "US",
       };
+  
+  // Estimate venue size based on venue name patterns
+  const venueSize = estimateVenueSize(venue?.name || "");
 
   // Extract artist names from attractions
   const artists =
@@ -259,7 +278,70 @@ function transformEvent(event: TicketmasterEvent): Concert {
     ticketUrl: event.url,
     priceRange,
     genres: Array.from(new Set(genres)), // Deduplicate
+    venueSize,
   };
+}
+
+/**
+ * Estimate venue size based on venue name patterns
+ * This is a heuristic - not all venues will be correctly categorized
+ */
+function estimateVenueSize(venueName: string): Concert["venueSize"] {
+  const name = venueName.toLowerCase();
+  
+  // Festival/outdoor patterns
+  if (
+    name.includes("festival") ||
+    name.includes("fairground") ||
+    name.includes("polo field") ||
+    name.includes("speedway") ||
+    name.includes("raceway")
+  ) {
+    return "festival";
+  }
+  
+  // Arena patterns (15k-25k capacity)
+  if (
+    name.includes("arena") ||
+    name.includes("center") ||
+    name.includes("centre") ||
+    name.includes("coliseum") ||
+    name.includes("stadium") ||
+    name.includes("garden") ||
+    name.includes("forum")
+  ) {
+    return "arena";
+  }
+  
+  // Large venue patterns (5k-15k)
+  if (
+    name.includes("amphitheater") ||
+    name.includes("amphitheatre") ||
+    name.includes("pavilion") ||
+    name.includes("theater") ||
+    name.includes("theatre") ||
+    name.includes("hall")
+  ) {
+    return "large";
+  }
+  
+  // Intimate venue patterns (<1k)
+  if (
+    name.includes("lounge") ||
+    name.includes("club") ||
+    name.includes("bar") ||
+    name.includes("cafe") ||
+    name.includes("coffee") ||
+    name.includes("basement") ||
+    name.includes("room") ||
+    name.includes("tavern") ||
+    name.includes("pub")
+  ) {
+    return "intimate";
+  }
+  
+  // Default to medium
+  return "medium";
 }
 
 /**

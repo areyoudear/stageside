@@ -24,13 +24,56 @@ interface Artist {
 // Vibe filter types
 type VibeFilter = "all" | "chill" | "energetic" | "intimate" | "festival";
 
+// Venue size filter
+type VenueSizeFilter = "all" | "intimate" | "medium" | "large" | "arena";
+
+// Distance filter (in miles)
+type DistanceFilter = "all" | "5" | "10" | "25" | "50";
+
+// Price filter
+type PriceFilter = "all" | "free" | "under50" | "50to100" | "over100";
+
+// Day filter
+type DayFilter = "all" | "weekday" | "weekend";
+
 // Sort options
-type SortOption = "match" | "date" | "price";
+type SortOption = "match" | "date" | "price" | "distance";
 
 const SORT_OPTIONS: { value: SortOption; label: string; icon: typeof ArrowUpDown }[] = [
   { value: "match", label: "Best Match", icon: Sparkles },
   { value: "date", label: "Date", icon: Calendar },
-  { value: "price", label: "Price (Low to High)", icon: DollarSign },
+  { value: "price", label: "Price", icon: DollarSign },
+  { value: "distance", label: "Nearest", icon: MapPin },
+];
+
+const VENUE_SIZE_FILTERS: { value: VenueSizeFilter; label: string; description: string }[] = [
+  { value: "all", label: "All Sizes", description: "" },
+  { value: "intimate", label: "Intimate", description: "Clubs & bars (<1k)" },
+  { value: "medium", label: "Medium", description: "Ballrooms (1-5k)" },
+  { value: "large", label: "Large", description: "Theaters (5-15k)" },
+  { value: "arena", label: "Arena", description: "Arenas (15k+)" },
+];
+
+const DISTANCE_FILTERS: { value: DistanceFilter; label: string }[] = [
+  { value: "all", label: "Any Distance" },
+  { value: "5", label: "< 5 mi" },
+  { value: "10", label: "< 10 mi" },
+  { value: "25", label: "< 25 mi" },
+  { value: "50", label: "< 50 mi" },
+];
+
+const PRICE_FILTERS: { value: PriceFilter; label: string }[] = [
+  { value: "all", label: "Any Price" },
+  { value: "free", label: "Free" },
+  { value: "under50", label: "Under $50" },
+  { value: "50to100", label: "$50 - $100" },
+  { value: "over100", label: "$100+" },
+];
+
+const DAY_FILTERS: { value: DayFilter; label: string }[] = [
+  { value: "all", label: "Any Day" },
+  { value: "weekend", label: "Weekends" },
+  { value: "weekday", label: "Weekdays" },
 ];
 
 const VIBE_FILTERS: { value: VibeFilter; label: string; icon: typeof Music2; genres: string[] }[] = [
@@ -62,7 +105,12 @@ export default function DiscoverPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [vibeFilter, setVibeFilter] = useState<VibeFilter>("all");
+  const [venueSizeFilter, setVenueSizeFilter] = useState<VenueSizeFilter>("all");
+  const [distanceFilter, setDistanceFilter] = useState<DistanceFilter>("all");
+  const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
+  const [dayFilter, setDayFilter] = useState<DayFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("match");
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
 
   const hasEnoughArtists = selectedArtists.length >= 3;
   const canSearch = hasEnoughArtists && location;
@@ -114,6 +162,22 @@ export default function DiscoverPage() {
     setSortBy(newSort);
   };
 
+  // Helper to get day type from date
+  const getDayType = (dateStr: string): "weekday" | "weekend" => {
+    const date = new Date(dateStr);
+    const day = date.getDay();
+    return day === 0 || day === 5 || day === 6 ? "weekend" : "weekday";
+  };
+
+  // Count active filters
+  const activeFilterCount = [
+    vibeFilter !== "all",
+    venueSizeFilter !== "all",
+    distanceFilter !== "all",
+    priceFilter !== "all",
+    dayFilter !== "all",
+  ].filter(Boolean).length;
+
   // Filter and sort concerts
   const filteredAndSortedConcerts = useMemo(() => {
     let result = concerts;
@@ -129,6 +193,45 @@ export default function DiscoverPage() {
       }
     }
 
+    // Apply venue size filter
+    if (venueSizeFilter !== "all") {
+      result = result.filter(concert => concert.venueSize === venueSizeFilter);
+    }
+
+    // Apply distance filter
+    if (distanceFilter !== "all") {
+      const maxDistance = parseInt(distanceFilter);
+      result = result.filter(concert => 
+        concert.distance !== undefined && concert.distance <= maxDistance
+      );
+    }
+
+    // Apply price filter
+    if (priceFilter !== "all") {
+      result = result.filter(concert => {
+        const minPrice = concert.priceRange?.min;
+        if (minPrice === undefined) return priceFilter === "all"; // Keep if no price data and filter is "all"
+        
+        switch (priceFilter) {
+          case "free":
+            return minPrice === 0;
+          case "under50":
+            return minPrice < 50;
+          case "50to100":
+            return minPrice >= 50 && minPrice <= 100;
+          case "over100":
+            return minPrice > 100;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Apply day filter
+    if (dayFilter !== "all") {
+      result = result.filter(concert => getDayType(concert.date) === dayFilter);
+    }
+
     // Apply sorting
     result = [...result].sort((a, b) => {
       switch (sortBy) {
@@ -136,17 +239,23 @@ export default function DiscoverPage() {
           return (b.matchScore || 0) - (a.matchScore || 0);
         case "date":
           return new Date(a.date).getTime() - new Date(b.date).getTime();
-        case "price":
+        case "price": {
           const priceA = a.priceRange?.min ?? Infinity;
           const priceB = b.priceRange?.min ?? Infinity;
           return priceA - priceB;
+        }
+        case "distance": {
+          const distA = a.distance ?? Infinity;
+          const distB = b.distance ?? Infinity;
+          return distA - distB;
+        }
         default:
           return 0;
       }
     });
 
     return result;
-  }, [concerts, vibeFilter, sortBy]);
+  }, [concerts, vibeFilter, venueSizeFilter, distanceFilter, priceFilter, dayFilter, sortBy]);
 
   // Check if we should show the upsell (any low matches in results)
   const hasLowMatches = useMemo(() => {
@@ -627,16 +736,106 @@ export default function DiscoverPage() {
                     </button>
                   );
                 })}
-                {vibeFilter !== "all" && (
+
+                {/* More Filters Toggle */}
+                <button
+                  onClick={() => setShowMoreFilters(!showMoreFilters)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ml-2",
+                    showMoreFilters || activeFilterCount > 0
+                      ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                      : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  <Filter className="w-3.5 h-3.5" />
+                  More Filters
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 rounded-full bg-cyan-500 text-white text-xs">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Clear All Filters */}
+                {(vibeFilter !== "all" || activeFilterCount > 0) && (
                   <button
-                    onClick={() => handleVibeFilterChange("all")}
+                    onClick={() => {
+                      setVibeFilter("all");
+                      setVenueSizeFilter("all");
+                      setDistanceFilter("all");
+                      setPriceFilter("all");
+                      setDayFilter("all");
+                    }}
                     className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
-                    title="Clear filter"
+                    title="Clear all filters"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
+
+              {/* Expanded Filter Panel */}
+              {showMoreFilters && (
+                <div className="mt-4 p-4 bg-zinc-800/50 rounded-xl border border-zinc-700/50 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Venue Size */}
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400 mb-2 block">Venue Size</label>
+                    <select
+                      value={venueSizeFilter}
+                      onChange={(e) => setVenueSizeFilter(e.target.value as VenueSizeFilter)}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    >
+                      {VENUE_SIZE_FILTERS.map((f) => (
+                        <option key={f.value} value={f.value}>
+                          {f.label} {f.description && `- ${f.description}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Distance */}
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400 mb-2 block">Max Distance</label>
+                    <select
+                      value={distanceFilter}
+                      onChange={(e) => setDistanceFilter(e.target.value as DistanceFilter)}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    >
+                      {DISTANCE_FILTERS.map((f) => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Price */}
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400 mb-2 block">Price Range</label>
+                    <select
+                      value={priceFilter}
+                      onChange={(e) => setPriceFilter(e.target.value as PriceFilter)}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    >
+                      {PRICE_FILTERS.map((f) => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Day */}
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400 mb-2 block">Day of Week</label>
+                    <select
+                      value={dayFilter}
+                      onChange={(e) => setDayFilter(e.target.value as DayFilter)}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    >
+                      {DAY_FILTERS.map((f) => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Concert Grid - 3 columns */}
