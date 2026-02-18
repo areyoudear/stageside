@@ -17,6 +17,8 @@ import {
   AlertCircle,
   Camera,
   X,
+  Bell,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ArtistPicker } from "@/components/ArtistPicker";
@@ -66,12 +68,150 @@ export default function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
+  // Notification preferences
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationLocation, setNotificationLocation] = useState("");
+  const [notificationLocationCoords, setNotificationLocationCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [notificationRadius, setNotificationRadius] = useState(50);
+  const [notificationFrequency, setNotificationFrequency] = useState<"daily" | "weekly" | "instant">("daily");
+  const [minMatchScore, setMinMatchScore] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<"all" | "interested" | "going">("all");
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+  const [notificationsSaveStatus, setNotificationsSaveStatus] = useState<"idle" | "saved" | "error">("idle");
+
   // Load existing preferences
   useEffect(() => {
     if (status === "authenticated") {
       loadPreferences();
+      loadNotificationPreferences();
     }
   }, [status]);
+
+  const loadNotificationPreferences = async () => {
+    setIsLoadingNotifications(true);
+    try {
+      const response = await fetch("/api/notifications/filters");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.notification) {
+          setNotificationsEnabled(data.notification.enabled);
+          setNotificationLocation(data.notification.locationName);
+          setNotificationLocationCoords({
+            lat: data.notification.locationLat,
+            lng: data.notification.locationLng,
+          });
+          setNotificationRadius(data.notification.radiusMiles);
+          setNotificationFrequency(data.notification.frequency);
+          setMinMatchScore(data.notification.minMatchScore || 0);
+          setStatusFilter(data.notification.statusFilter || "all");
+        }
+      }
+    } catch (error) {
+      console.error("Error loading notification preferences:", error);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  };
+
+  const saveNotificationPreferences = async () => {
+    if (!notificationLocation || !notificationLocationCoords) {
+      alert("Please enter a location first");
+      return;
+    }
+
+    setIsSavingNotifications(true);
+    setNotificationsSaveStatus("idle");
+
+    try {
+      const response = await fetch("/api/notifications/filters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationName: notificationLocation,
+          locationLat: notificationLocationCoords.lat,
+          locationLng: notificationLocationCoords.lng,
+          radiusMiles: notificationRadius,
+          enabled: notificationsEnabled,
+          frequency: notificationFrequency,
+          minMatchScore: minMatchScore,
+          statusFilter: statusFilter,
+        }),
+      });
+
+      if (response.ok) {
+        setNotificationsSaveStatus("saved");
+        track("notification_preferences_saved", {
+          enabled: notificationsEnabled,
+          frequency: notificationFrequency,
+          radius: notificationRadius,
+          minMatchScore: minMatchScore,
+          statusFilter: statusFilter,
+        });
+        setTimeout(() => setNotificationsSaveStatus("idle"), 3000);
+      } else {
+        setNotificationsSaveStatus("error");
+      }
+    } catch (error) {
+      console.error("Error saving notification preferences:", error);
+      setNotificationsSaveStatus("error");
+    } finally {
+      setIsSavingNotifications(false);
+    }
+  };
+
+  const handleLocationSearch = async (query: string) => {
+    setNotificationLocation(query);
+    if (query.length < 3) return;
+
+    // Use browser geolocation API or a geocoding service
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
+      );
+      const results = await response.json();
+      if (results.length > 0) {
+        setNotificationLocationCoords({
+          lat: parseFloat(results[0].lat),
+          lng: parseFloat(results[0].lon),
+        });
+        setNotificationLocation(results[0].display_name.split(",").slice(0, 2).join(","));
+      }
+    } catch (error) {
+      console.error("Error geocoding location:", error);
+    }
+  };
+
+  const useCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          setNotificationLocationCoords({ lat: latitude, lng: longitude });
+          
+          // Reverse geocode to get location name
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            );
+            const result = await response.json();
+            const city = result.address?.city || result.address?.town || result.address?.village || "";
+            const state = result.address?.state || "";
+            setNotificationLocation(`${city}${state ? `, ${state}` : ""}`);
+          } catch {
+            setNotificationLocation("Current Location");
+          }
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          alert("Could not get your location. Please enter it manually.");
+        }
+      );
+    }
+  };
 
   const loadPreferences = async () => {
     setIsLoading(true);
@@ -441,6 +581,201 @@ export default function SettingsPage() {
           </p>
 
           <ConnectedServicesPanel />
+        </section>
+
+        {/* Notification Preferences Section */}
+        <section className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg bg-orange-500/10">
+              <Bell className="w-5 h-5 text-orange-500" />
+            </div>
+            <h2 className="text-lg font-semibold text-white">Email Notifications</h2>
+          </div>
+          <p className="text-zinc-500 text-sm mb-6">
+            Get notified when new concerts matching your taste are announced near you.
+          </p>
+
+          {isLoadingNotifications ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 text-cyan-500 animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Enable/Disable Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-medium">Enable Notifications</p>
+                  <p className="text-zinc-500 text-sm">
+                    Receive email alerts for new concerts
+                  </p>
+                </div>
+                <button
+                  onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    notificationsEnabled ? "bg-cyan-500" : "bg-zinc-700"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                      notificationsEnabled ? "translate-x-6" : ""
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {notificationsEnabled && (
+                <>
+                  {/* Location Input */}
+                  <div>
+                    <label className="block text-white font-medium mb-2">
+                      <MapPin className="w-4 h-4 inline mr-2" />
+                      Location
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={notificationLocation}
+                        onChange={(e) => handleLocationSearch(e.target.value)}
+                        placeholder="Enter city or zip code..."
+                        className="flex-1 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={useCurrentLocation}
+                        className="border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600"
+                      >
+                        <MapPin className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {notificationLocationCoords && (
+                      <p className="text-xs text-zinc-500 mt-1">
+                        📍 Location set
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Radius Slider */}
+                  <div>
+                    <label className="block text-white font-medium mb-2">
+                      Search Radius: {notificationRadius} miles
+                    </label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="200"
+                      step="10"
+                      value={notificationRadius}
+                      onChange={(e) => setNotificationRadius(parseInt(e.target.value))}
+                      className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
+                    <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                      <span>10 mi</span>
+                      <span>200 mi</span>
+                    </div>
+                  </div>
+
+                  {/* Minimum Match Score */}
+                  <div>
+                    <label className="block text-white font-medium mb-2">
+                      Minimum Match Score: {minMatchScore > 0 ? `${minMatchScore}%+` : "Any"}
+                    </label>
+                    <p className="text-zinc-500 text-xs mb-2">
+                      Only notify for concerts with artists you&apos;ll vibe with
+                    </p>
+                    <input
+                      type="range"
+                      min="0"
+                      max="80"
+                      step="10"
+                      value={minMatchScore}
+                      onChange={(e) => setMinMatchScore(parseInt(e.target.value))}
+                      className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    />
+                    <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                      <span>Any match</span>
+                      <span>High vibe only</span>
+                    </div>
+                  </div>
+
+                  {/* Concert Status Filter */}
+                  <div>
+                    <label className="block text-white font-medium mb-2">
+                      Show Concerts
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {([
+                        { value: "all", label: "All Concerts" },
+                        { value: "interested", label: "Interested" },
+                        { value: "going", label: "Going" },
+                      ] as const).map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => setStatusFilter(option.value)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            statusFilter === option.value
+                              ? "bg-purple-500/20 border border-purple-500/50 text-purple-300"
+                              : "bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Frequency Selection */}
+                  <div>
+                    <label className="block text-white font-medium mb-2">
+                      Notification Frequency
+                    </label>
+                    <div className="flex gap-2">
+                      {(["daily", "weekly"] as const).map((freq) => (
+                        <button
+                          key={freq}
+                          onClick={() => setNotificationFrequency(freq)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            notificationFrequency === freq
+                              ? "bg-cyan-500/20 border border-cyan-500/50 text-cyan-300"
+                              : "bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                          }`}
+                        >
+                          {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <Button
+                    onClick={saveNotificationPreferences}
+                    disabled={isSavingNotifications || !notificationLocationCoords}
+                    className={`w-full ${
+                      notificationsSaveStatus === "saved"
+                        ? "bg-green-600 hover:bg-green-700"
+                        : notificationsSaveStatus === "error"
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-cyan-600 hover:bg-cyan-700"
+                    }`}
+                  >
+                    {isSavingNotifications ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : notificationsSaveStatus === "saved" ? (
+                      <Check className="w-4 h-4 mr-2" />
+                    ) : notificationsSaveStatus === "error" ? (
+                      <AlertCircle className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Bell className="w-4 h-4 mr-2" />
+                    )}
+                    {notificationsSaveStatus === "saved"
+                      ? "Saved!"
+                      : notificationsSaveStatus === "error"
+                      ? "Error"
+                      : "Save Notification Settings"}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Sign Out Section */}
