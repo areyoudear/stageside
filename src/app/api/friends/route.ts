@@ -20,13 +20,7 @@ export async function GET() {
     // Get all friendships involving this user
     const { data: friendships, error: friendsError } = await adminClient
       .from("friendships")
-      .select(`
-        id,
-        status,
-        created_at,
-        requester_id,
-        addressee_id
-      `)
+      .select("id, status, created_at, requester_id, addressee_id")
       .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
       .order("created_at", { ascending: false });
 
@@ -116,42 +110,51 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      console.error("No session or user ID found");
+      return NextResponse.json({ error: "Please sign in to add friends" }, { status: 401 });
     }
 
-    const { username, email, query } = await request.json();
+    const body = await request.json();
+    const { username, email, query } = body;
     
     const adminClient = createAdminClient();
     const userId = session.user.id;
+
+    console.log("Friend request from user:", userId);
+    console.log("Search params:", { username, email, query });
 
     let targetUser = null;
 
     // If query provided, search by multiple fields
     if (query) {
-      const searchTerm = query.trim().toLowerCase();
+      const searchTerm = query.trim();
+      console.log("Searching for:", searchTerm);
       
-      // Try exact username match first
-      const { data: exactUsername } = await adminClient
+      // Try exact username match first (case insensitive)
+      const { data: byUsername } = await adminClient
         .from("users")
         .select("id, display_name, username, email")
         .ilike("username", searchTerm)
         .neq("id", userId)
-        .single();
+        .maybeSingle();
       
-      if (exactUsername) {
-        targetUser = exactUsername;
+      if (byUsername) {
+        console.log("Found by username:", byUsername.display_name);
+        targetUser = byUsername;
       } else {
         // Try exact email match
-        const { data: exactEmail } = await adminClient
+        const { data: byEmail } = await adminClient
           .from("users")
           .select("id, display_name, username, email")
           .ilike("email", searchTerm)
           .neq("id", userId)
-          .single();
+          .maybeSingle();
         
-        if (exactEmail) {
-          targetUser = exactEmail;
+        if (byEmail) {
+          console.log("Found by email:", byEmail.display_name);
+          targetUser = byEmail;
         } else {
           // Search by display name (partial match)
           const { data: nameMatches } = await adminClient
@@ -162,6 +165,7 @@ export async function POST(request: NextRequest) {
             .limit(1);
           
           if (nameMatches && nameMatches.length > 0) {
+            console.log("Found by name:", nameMatches[0].display_name);
             targetUser = nameMatches[0];
           }
         }
@@ -170,56 +174,74 @@ export async function POST(request: NextRequest) {
       const { data } = await adminClient
         .from("users")
         .select("id, display_name, username, email")
-        .eq("username", username)
-        .single();
+        .ilike("username", username)
+        .neq("id", userId)
+        .maybeSingle();
       targetUser = data;
     } else if (email) {
       const { data } = await adminClient
         .from("users")
         .select("id, display_name, username, email")
         .ilike("email", email)
-        .single();
+        .neq("id", userId)
+        .maybeSingle();
       targetUser = data;
     } else {
       return NextResponse.json({ error: "Please enter a username, email, or name to search" }, { status: 400 });
     }
 
     if (!targetUser) {
+      console.log("No user found for search");
       return NextResponse.json({ 
-        error: "No user found with that username, email, or name. They may need to create an account first." 
+        error: "No user found. They may need to create an account first." 
       }, { status: 404 });
     }
 
-    if (targetUser.id === userId) {
-      return NextResponse.json({ error: "You can't add yourself as a friend" }, { status: 400 });
-    }
+    console.log("Target user found:", targetUser.id, targetUser.display_name);
 
     // Check if friendship already exists (in either direction)
-    const { data: existing } = await adminClient
+    // Query for requester -> addressee
+    const { data: sentToTarget } = await adminClient
       .from("friendships")
-      .select("id, status, requester_id")
-      .or(`and(requester_id.eq.${userId},addressee_id.eq.${targetUser.id}),and(requester_id.eq.${targetUser.id},addressee_id.eq.${userId})`)
+      .select("id, status")
+      .eq("requester_id", userId)
+      .eq("addressee_id", targetUser.id)
       .maybeSingle();
 
+    // Query for addressee <- requester (they sent to us)
+    const { data: receivedFromTarget } = await adminClient
+      .from("friendships")
+      .select("id, status")
+      .eq("requester_id", targetUser.id)
+      .eq("addressee_id", userId)
+      .maybeSingle();
+
+    const existing = sentToTarget || receivedFromTarget;
+
     if (existing) {
+      console.log("Existing friendship found:", existing);
+      
       if (existing.status === "accepted") {
         return NextResponse.json({ error: "You're already friends!" }, { status: 400 });
       }
+      
       if (existing.status === "pending") {
-        if (existing.requester_id === targetUser.id) {
-          // They sent us a request - auto-accept it
+        // If they sent us a request, auto-accept it
+        if (receivedFromTarget) {
+          console.log("They sent us a request - auto-accepting");
           const { error: acceptError } = await adminClient
             .from("friendships")
             .update({ status: "accepted", updated_at: new Date().toISOString() })
             .eq("id", existing.id);
           
           if (acceptError) {
+            console.error("Error accepting request:", acceptError);
             return NextResponse.json({ error: "Failed to accept request" }, { status: 500 });
           }
           
           return NextResponse.json({
             success: true,
-            message: "Friend request accepted!",
+            message: `You and ${targetUser.display_name || targetUser.username} are now friends!`,
             friendship: {
               id: existing.id,
               targetUser: {
@@ -230,14 +252,18 @@ export async function POST(request: NextRequest) {
             },
           });
         }
+        
+        // We already sent them a request
         return NextResponse.json({ error: "Friend request already sent" }, { status: 400 });
       }
+      
       if (existing.status === "blocked") {
         return NextResponse.json({ error: "Unable to send friend request" }, { status: 400 });
       }
     }
 
     // Create friend request
+    console.log("Creating new friend request...");
     const { data: friendship, error: createError } = await adminClient
       .from("friendships")
       .insert({
@@ -250,8 +276,12 @@ export async function POST(request: NextRequest) {
 
     if (createError) {
       console.error("Error creating friendship:", createError);
-      return NextResponse.json({ error: "Failed to send friend request" }, { status: 500 });
+      return NextResponse.json({ 
+        error: `Failed to send friend request: ${createError.message}` 
+      }, { status: 500 });
     }
+
+    console.log("Friendship created:", friendship);
 
     return NextResponse.json({
       success: true,
@@ -267,24 +297,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error in friends POST:", error);
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    return NextResponse.json({ 
+      error: `Something went wrong: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    }, { status: 500 });
   }
-}
-
-/**
- * GET /api/friends/search?q=query
- * Search for users to add as friends
- */
-export async function searchUsers(query: string, currentUserId: string) {
-  const adminClient = createAdminClient();
-  const searchTerm = query.trim().toLowerCase();
-  
-  const { data: users } = await adminClient
-    .from("users")
-    .select("id, display_name, username, email")
-    .or(`username.ilike.%${searchTerm}%,display_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-    .neq("id", currentUserId)
-    .limit(10);
-  
-  return users || [];
 }
