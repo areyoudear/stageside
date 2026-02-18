@@ -78,7 +78,7 @@ export default function SettingsPage() {
   const [notificationRadius, setNotificationRadius] = useState(50);
   const [notificationFrequency, setNotificationFrequency] = useState<"daily" | "weekly" | "instant">("daily");
   const [minMatchScore, setMinMatchScore] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<"all" | "interested" | "going">("all");
+  // Status filter removed - users want notifications for ALL new concerts, not ones they've already marked
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
   const [notificationsSaveStatus, setNotificationsSaveStatus] = useState<"idle" | "saved" | "error">("idle");
@@ -107,7 +107,7 @@ export default function SettingsPage() {
           setNotificationRadius(data.notification.radiusMiles);
           setNotificationFrequency(data.notification.frequency);
           setMinMatchScore(data.notification.minMatchScore || 0);
-          setStatusFilter(data.notification.statusFilter || "all");
+          // statusFilter removed from UI
         }
       }
     } catch (error) {
@@ -138,7 +138,6 @@ export default function SettingsPage() {
           enabled: notificationsEnabled,
           frequency: notificationFrequency,
           minMatchScore: minMatchScore,
-          statusFilter: statusFilter,
         }),
       });
 
@@ -149,7 +148,6 @@ export default function SettingsPage() {
           frequency: notificationFrequency,
           radius: notificationRadius,
           minMatchScore: minMatchScore,
-          statusFilter: statusFilter,
         });
         setTimeout(() => setNotificationsSaveStatus("idle"), 3000);
       } else {
@@ -694,32 +692,6 @@ export default function SettingsPage() {
                     <div className="flex justify-between text-xs text-zinc-500 mt-1">
                       <span>Any match</span>
                       <span>High vibe only</span>
-                    </div>
-                  </div>
-
-                  {/* Concert Status Filter */}
-                  <div>
-                    <label className="block text-white font-medium mb-2">
-                      Show Concerts
-                    </label>
-                    <div className="flex gap-2 flex-wrap">
-                      {([
-                        { value: "all", label: "All Concerts" },
-                        { value: "interested", label: "Interested" },
-                        { value: "going", label: "Going" },
-                      ] as const).map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => setStatusFilter(option.value)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            statusFilter === option.value
-                              ? "bg-purple-500/20 border border-purple-500/50 text-purple-300"
-                              : "bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-600"
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
                     </div>
                   </div>
 

@@ -10,7 +10,6 @@ export interface FilterNotificationSettings {
   locationLng: number;
   radiusMiles: number;
   minMatchScore?: number;
-  statusFilter?: string;
   enabled: boolean;
   frequency: "daily" | "weekly" | "instant";
 }
@@ -52,7 +51,6 @@ export async function GET() {
         locationLng: data.location_lng,
         radiusMiles: data.radius_miles,
         minMatchScore: data.min_match_score,
-        statusFilter: data.status_filter,
         enabled: data.enabled,
         frequency: data.frequency,
         lastNotifiedAt: data.last_notified_at,
@@ -95,7 +93,7 @@ export async function POST(request: NextRequest) {
           location_lng: body.locationLng,
           radius_miles: body.radiusMiles || 50,
           min_match_score: body.minMatchScore || 0,
-          status_filter: body.statusFilter || "all",
+          status_filter: "all", // Always notify about all concerts
           enabled: body.enabled !== false,
           frequency: body.frequency || "daily",
           updated_at: new Date().toISOString(),
@@ -119,7 +117,6 @@ export async function POST(request: NextRequest) {
         locationLng: data.location_lng,
         radiusMiles: data.radius_miles,
         minMatchScore: data.min_match_score,
-        statusFilter: data.status_filter,
         enabled: data.enabled,
         frequency: data.frequency,
       },

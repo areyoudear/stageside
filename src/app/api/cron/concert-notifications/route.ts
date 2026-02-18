@@ -13,7 +13,6 @@ interface NotificationRow {
   location_lng: number;
   radius_miles: number;
   min_match_score: number;
-  status_filter: string;
   enabled: boolean;
   frequency: string;
   last_notified_at: string | null;
@@ -92,7 +91,6 @@ export async function GET(request: NextRequest) {
           radius: notif.radius_miles,
           minMatchScore: notif.min_match_score,
           userId: notif.user_id,
-          statusFilter: notif.status_filter,
         });
 
         // Filter out concerts we've already notified about
@@ -156,11 +154,10 @@ interface FetchConcertsParams {
   radius: number;
   minMatchScore: number;
   userId: string;
-  statusFilter: string;
 }
 
 async function fetchMatchingConcerts(params: FetchConcertsParams) {
-  const { lat, lng, radius, minMatchScore, userId, statusFilter } = params;
+  const { lat, lng, radius, minMatchScore, userId } = params;
 
   const adminClient = createAdminClient();
 
@@ -220,20 +217,6 @@ async function fetchMatchingConcerts(params: FetchConcertsParams) {
     // Apply min match score filter
     if (minMatchScore > 0) {
       concerts = concerts.filter((c: { matchScore?: number }) => (c.matchScore || 0) >= minMatchScore);
-    }
-
-    // Apply status filter if needed
-    if (statusFilter && statusFilter !== "all") {
-      if (statusFilter === "interested" || statusFilter === "going") {
-        const { data: interests } = await adminClient
-          .from("concert_interests")
-          .select("concert_id")
-          .eq("user_id", userId)
-          .eq("status", statusFilter);
-
-        const interestIds = new Set((interests || []).map((i: { concert_id: string }) => i.concert_id));
-        concerts = concerts.filter((c: { id: string }) => interestIds.has(c.id));
-      }
     }
 
     return concerts;
