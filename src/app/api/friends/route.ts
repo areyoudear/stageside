@@ -24,17 +24,31 @@ export async function GET() {
       .eq("id", userId)
       .maybeSingle();
 
-    if (!userCheck && session.user.email) {
-      // User ID not found, try email
-      const { data: userByEmail } = await adminClient
-        .from("users")
-        .select("id")
-        .eq("email", session.user.email)
-        .maybeSingle();
+    if (!userCheck) {
+      console.log("User not found by ID:", userId, "- trying email:", session.user.email);
       
-      if (userByEmail) {
-        userId = userByEmail.id;
-        console.log("Using fallback user ID from email:", userId);
+      if (session.user.email) {
+        const { data: userByEmail } = await adminClient
+          .from("users")
+          .select("id")
+          .eq("email", session.user.email)
+          .maybeSingle();
+        
+        if (userByEmail) {
+          userId = userByEmail.id;
+          console.log("Using fallback user ID from email:", userId);
+        } else {
+          console.error("User not found by email either:", session.user.email);
+          return NextResponse.json({ 
+            error: "Account not found. Please log out and log back in.",
+            debug: { sessionId: session.user.id, sessionEmail: session.user.email }
+          }, { status: 400 });
+        }
+      } else {
+        console.error("No email in session to fallback");
+        return NextResponse.json({ 
+          error: "Account not found. Please log out and log back in." 
+        }, { status: 400 });
       }
     }
 
