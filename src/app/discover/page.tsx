@@ -161,25 +161,36 @@ export default function DiscoverPage() {
     setGoingIds(going);
   }, []);
 
-  // Fetch friends' concert interests
+  // Fetch user's own interests and friends' interests
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const fetchFriendsInterests = async () => {
+    const fetchInterests = async () => {
       try {
-        const res = await fetch("/api/friends/interests");
-        if (res.ok) {
-          const data = await res.json();
+        // Fetch user's own interests
+        const userRes = await fetch("/api/concerts/interest");
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          const interested = userData.interests?.filter((i: { status: string }) => i.status === "interested").map((i: { concertId: string }) => i.concertId) || [];
+          const going = userData.interests?.filter((i: { status: string }) => i.status === "going").map((i: { concertId: string }) => i.concertId) || [];
+          setSavedIds(interested);
+          setGoingIds(going);
+        }
+
+        // Fetch friends' interests
+        const friendsRes = await fetch("/api/friends/interests");
+        if (friendsRes.ok) {
+          const data = await friendsRes.json();
           setFriendsInterests(data.interests || {});
           setFriendsConcertIds(data.concertIds || { interested: [], going: [] });
           setFriendCount(data.friendCount || 0);
         }
       } catch (error) {
-        console.error("Failed to fetch friends interests:", error);
+        console.error("Failed to fetch interests:", error);
       }
     };
 
-    fetchFriendsInterests();
+    fetchInterests();
   }, [isAuthenticated]);
 
   const hasEnoughArtists = selectedArtists.length >= 3;
@@ -504,6 +515,44 @@ export default function DiscoverPage() {
       localStorage.setItem('goingConcerts', JSON.stringify(newGoing));
       return newGoing;
     });
+  };
+
+  // Interest change handler (calls API so friends can see)
+  const handleInterestChange = async (
+    concertId: string,
+    status: "interested" | "going" | null,
+    concert: Concert
+  ) => {
+    if (!isAuthenticated) return;
+
+    // Update local state immediately
+    if (status === "interested") {
+      setSavedIds(prev => [...prev.filter(id => id !== concertId), concertId]);
+      setGoingIds(prev => prev.filter(id => id !== concertId));
+    } else if (status === "going") {
+      setGoingIds(prev => [...prev.filter(id => id !== concertId), concertId]);
+      setSavedIds(prev => prev.filter(id => id !== concertId));
+    } else {
+      setSavedIds(prev => prev.filter(id => id !== concertId));
+      setGoingIds(prev => prev.filter(id => id !== concertId));
+    }
+
+    // Call API to persist
+    try {
+      if (status) {
+        await fetch("/api/concerts/interest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ concertId, status, concert }),
+        });
+      } else {
+        await fetch(`/api/concerts/interest?concertId=${concertId}`, {
+          method: "DELETE",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to save interest:", error);
+    }
   };
 
   const highMatches = filteredAndSortedConcerts.filter((c) => (c.matchScore || 0) >= 50).length;
@@ -1088,6 +1137,11 @@ export default function DiscoverPage() {
                       onGoing={handleGoingConcert}
                       onNotGoing={handleNotGoingConcert}
                       isAuthenticated={isAuthenticated}
+                      onInterestChange={isAuthenticated ? handleInterestChange : undefined}
+                      interestStatus={
+                        goingIds.includes(concert.id) ? "going" :
+                        savedIds.includes(concert.id) ? "interested" : null
+                      }
                       friendsInterested={friendsInterests[concert.id] ? [
                         ...friendsInterests[concert.id].interested.map(f => ({ id: f.id, name: f.name, status: "interested" as const })),
                         ...friendsInterests[concert.id].going.map(f => ({ id: f.id, name: f.name, status: "going" as const })),
