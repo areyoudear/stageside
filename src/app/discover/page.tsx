@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle, Heart, Check } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle, Heart, Check, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocationSearch, Location } from "@/components/LocationSearch";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
@@ -13,6 +14,21 @@ import { NoMatchesCard } from "@/components/NoMatchesCard";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import type { Concert } from "@/lib/ticketmaster";
+
+// Friend interest info
+interface FriendInfo {
+  id: string;
+  name: string;
+  username: string;
+  imageUrl: string | null;
+}
+
+interface FriendsInterests {
+  [concertId: string]: {
+    interested: FriendInfo[];
+    going: FriendInfo[];
+  };
+}
 
 interface Artist {
   id: string;
@@ -39,8 +55,8 @@ type DayFilter = "all" | "weekday" | "weekend";
 // Sort options
 type SortOption = "match" | "date" | "price" | "distance";
 
-// Status filter (saved/going)
-type StatusFilter = "all" | "hearted" | "going";
+// Status filter (saved/going/friends)
+type StatusFilter = "all" | "hearted" | "going" | "friends-interested" | "friends-going";
 
 const SORT_OPTIONS: { value: SortOption; label: string; icon: typeof ArrowUpDown }[] = [
   { value: "match", label: "Best Match", icon: Sparkles },
@@ -88,6 +104,10 @@ const VIBE_FILTERS: { value: VibeFilter; label: string; icon: typeof Music2; gen
 ];
 
 export default function DiscoverPage() {
+  // Session
+  const { data: session } = useSession();
+  const isAuthenticated = !!session?.user;
+
   // State
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
   const [location, setLocation] = useState<Location | null>(null);
@@ -129,6 +149,9 @@ export default function DiscoverPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [goingIds, setGoingIds] = useState<string[]>([]);
+  const [friendsInterests, setFriendsInterests] = useState<FriendsInterests>({});
+  const [friendsConcertIds, setFriendsConcertIds] = useState<{ interested: string[]; going: string[] }>({ interested: [], going: [] });
+  const [friendCount, setFriendCount] = useState(0);
 
   // Load saved/going IDs from localStorage on mount
   useEffect(() => {
@@ -137,6 +160,27 @@ export default function DiscoverPage() {
     setSavedIds(saved);
     setGoingIds(going);
   }, []);
+
+  // Fetch friends' concert interests
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchFriendsInterests = async () => {
+      try {
+        const res = await fetch("/api/friends/interests");
+        if (res.ok) {
+          const data = await res.json();
+          setFriendsInterests(data.interests || {});
+          setFriendsConcertIds(data.concertIds || { interested: [], going: [] });
+          setFriendCount(data.friendCount || 0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch friends interests:", error);
+      }
+    };
+
+    fetchFriendsInterests();
+  }, [isAuthenticated]);
 
   const hasEnoughArtists = selectedArtists.length >= 3;
   const canSearch = hasEnoughArtists && location;
@@ -258,11 +302,15 @@ export default function DiscoverPage() {
       result = result.filter(concert => getDayType(concert.date) === dayFilter);
     }
 
-    // Apply status filter (hearted/going)
+    // Apply status filter (hearted/going/friends)
     if (statusFilter === "hearted") {
       result = result.filter(concert => savedIds.includes(concert.id));
     } else if (statusFilter === "going") {
       result = result.filter(concert => goingIds.includes(concert.id));
+    } else if (statusFilter === "friends-interested") {
+      result = result.filter(concert => friendsConcertIds.interested.includes(concert.id));
+    } else if (statusFilter === "friends-going") {
+      result = result.filter(concert => friendsConcertIds.going.includes(concert.id));
     }
 
     // Apply sorting
@@ -288,7 +336,7 @@ export default function DiscoverPage() {
     });
 
     return result;
-  }, [concerts, vibeFilter, venueSizeFilter, distanceFilter, priceFilter, dayFilter, statusFilter, sortBy, savedIds, goingIds]);
+  }, [concerts, vibeFilter, venueSizeFilter, distanceFilter, priceFilter, dayFilter, statusFilter, sortBy, savedIds, goingIds, friendsConcertIds]);
 
   // Check if we should show the upsell (any low matches in results)
   const hasLowMatches = useMemo(() => {
@@ -894,6 +942,54 @@ export default function DiscoverPage() {
                     ({concerts.filter(c => goingIds.includes(c.id)).length})
                   </span>
                 </button>
+                {/* Friends filters - only show if authenticated and have friends */}
+                {isAuthenticated && friendCount > 0 && (
+                  <>
+                    <div className="w-px h-6 bg-zinc-700 mx-1" /> {/* Separator */}
+                    <button
+                      onClick={() => setStatusFilter("friends-interested")}
+                      disabled={friendsConcertIds.interested.length === 0}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                        statusFilter === "friends-interested"
+                          ? "bg-violet-500 text-white"
+                          : friendsConcertIds.interested.length === 0
+                          ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                      )}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      Friends Interested
+                      <span className={cn(
+                        "ml-1 text-xs",
+                        statusFilter === "friends-interested" ? "text-violet-200" : "text-zinc-500"
+                      )}>
+                        ({concerts.filter(c => friendsConcertIds.interested.includes(c.id)).length})
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter("friends-going")}
+                      disabled={friendsConcertIds.going.length === 0}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                        statusFilter === "friends-going"
+                          ? "bg-emerald-500 text-white"
+                          : friendsConcertIds.going.length === 0
+                          ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                      )}
+                    >
+                      <UserCheck className="w-3.5 h-3.5" />
+                      Friends Going
+                      <span className={cn(
+                        "ml-1 text-xs",
+                        statusFilter === "friends-going" ? "text-emerald-200" : "text-zinc-500"
+                      )}>
+                        ({concerts.filter(c => friendsConcertIds.going.includes(c.id)).length})
+                      </span>
+                    </button>
+                  </>
+                )}
                 {statusFilter !== "all" && (
                   <button
                     onClick={() => setStatusFilter("all")}
@@ -991,7 +1087,11 @@ export default function DiscoverPage() {
                       onUnsave={handleUnsaveConcert}
                       onGoing={handleGoingConcert}
                       onNotGoing={handleNotGoingConcert}
-                      isAuthenticated={true}
+                      isAuthenticated={isAuthenticated}
+                      friendsInterested={friendsInterests[concert.id] ? [
+                        ...friendsInterests[concert.id].interested.map(f => ({ id: f.id, name: f.name, status: "interested" as const })),
+                        ...friendsInterests[concert.id].going.map(f => ({ id: f.id, name: f.name, status: "going" as const })),
+                      ] : undefined}
                     />
                     {/* Insert upsell card after every 6th low-match result */}
                     {hasLowMatches && index === 5 && (
