@@ -13,6 +13,7 @@ import {
   Music,
   ArrowLeft,
   Loader2,
+  Bookmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -170,24 +171,48 @@ export default function FriendsPage() {
     <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-lg border-b border-zinc-800">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/discover" className="flex items-center gap-2 text-zinc-400 hover:text-white">
-              <ArrowLeft className="w-5 h-5" />
-              <span>Back</span>
-            </Link>
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                 <Music className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold text-white">Stageside</span>
             </Link>
-            <div className="w-20" /> {/* Spacer */}
+
+            {/* Mode tabs */}
+            <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
+              <Link
+                href="/dashboard"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors"
+              >
+                Concerts
+              </Link>
+              <Link
+                href="/festivals"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors"
+              >
+                Festivals
+              </Link>
+              <Link
+                href="/saved"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+              >
+                <Bookmark className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Saved</span>
+              </Link>
+              <span className="px-4 py-1.5 rounded-md text-sm bg-cyan-600 text-white flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Friends</span>
+              </span>
+            </div>
+
+            <div className="w-8" /> {/* Spacer for balance */}
           </div>
         </div>
       </nav>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
           <Users className="w-7 h-7 text-violet-400" />
           Friends

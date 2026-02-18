@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Music, Loader2, RefreshCw, Filter, Settings, Sparkles } from "lucide-react";
+import { Music, Loader2, RefreshCw, Filter, Settings, Sparkles, Users, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
 import { LocationSearch, Location } from "@/components/LocationSearch";
@@ -193,6 +193,20 @@ export default function DashboardPage() {
                 className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors"
               >
                 Festivals
+              </Link>
+              <Link
+                href="/saved"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+              >
+                <Bookmark className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Saved</span>
+              </Link>
+              <Link
+                href="/friends"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Friends</span>
               </Link>
             </div>
 

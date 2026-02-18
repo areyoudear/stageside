@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { Music, Search, Loader2, MapPin, Calendar, Filter } from "lucide-react";
+import { Music, Search, Loader2, MapPin, Calendar, Filter, Users, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
@@ -102,6 +102,20 @@ export default function FestivalsPage() {
               <span className="px-4 py-1.5 rounded-md text-sm bg-cyan-600 text-white">
                 Festivals
               </span>
+              <Link
+                href="/saved"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+              >
+                <Bookmark className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Saved</span>
+              </Link>
+              <Link
+                href="/friends"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Friends</span>
+              </Link>
             </div>
 
             <SpotifyConnectButton size="sm" showName={false} />

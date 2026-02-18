@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Music, ArrowRight, Heart, Check, Filter, Users, Calendar } from "lucide-react";
+import { Music, ArrowRight, Heart, Check, Filter, Users, Calendar, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
 import { cn } from "@/lib/utils";
@@ -123,12 +123,29 @@ export default function SavedConcertsPage() {
               <span className="text-xl font-bold text-white">Stageside</span>
             </Link>
 
-            <div className="flex items-center gap-4">
-              <Link href="/discover" className="text-sm text-zinc-400 hover:text-white transition-colors">
-                Discover
+            {/* Mode tabs */}
+            <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
+              <Link
+                href="/dashboard"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors"
+              >
+                Concerts
               </Link>
-              <Link href="/groups" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                <Users className="w-4 h-4" />
+              <Link
+                href="/festivals"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors"
+              >
+                Festivals
+              </Link>
+              <span className="px-4 py-1.5 rounded-md text-sm bg-cyan-600 text-white flex items-center gap-1">
+                <Bookmark className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Saved</span>
+              </span>
+              <Link
+                href="/friends"
+                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+              >
+                <Users className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Friends</span>
               </Link>
             </div>
