@@ -11,6 +11,7 @@ import { LocationSearch, Location } from "@/components/LocationSearch";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
 import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
 import { EmailSignupForm } from "@/components/EmailSignupForm";
+import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
 import type { Concert } from "@/lib/ticketmaster";
 import type { MusicServiceType } from "@/lib/music-types";
@@ -631,6 +632,15 @@ export default function DashboardPage() {
                     <X className="w-4 h-4" />
                   </button>
                 )}
+
+                {/* Spacer and Notification Bell */}
+                <div className="flex-1" />
+                <NotificationBell
+                  location={location}
+                  radius={radius}
+                  minMatchScore={minMatchScore}
+                  statusFilter={statusFilter}
+                />
               </div>
             </div>
           )}

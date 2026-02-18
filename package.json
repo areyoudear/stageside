@@ -29,6 +29,7 @@
     "posthog-js": "^1.345.5",
     "react": "^18",
     "react-dom": "^18",
+    "resend": "^6.9.2",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
