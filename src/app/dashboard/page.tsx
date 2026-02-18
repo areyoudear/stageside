@@ -50,17 +50,74 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
-  // Load saved location from localStorage on mount
+  // Load saved location from localStorage on mount, or auto-detect
   useEffect(() => {
-    try {
-      const savedLocation = localStorage.getItem("stageside_location");
-      if (savedLocation) {
-        const parsed = JSON.parse(savedLocation);
-        setLocation(parsed);
+    const loadLocation = async () => {
+      try {
+        const savedLocation = localStorage.getItem("stageside_location");
+        if (savedLocation) {
+          const parsed = JSON.parse(savedLocation);
+          setLocation(parsed);
+          return;
+        }
+        
+        // No saved location - try to auto-detect
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              const { latitude, longitude } = position.coords;
+              
+              // Reverse geocode to get city name
+              try {
+                const response = await fetch(
+                  `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+                  {
+                    headers: {
+                      "User-Agent": "Stageside/1.0 (https://getstageside.com)",
+                    },
+                  }
+                );
+                const data = await response.json();
+                const cityName =
+                  data.address?.city ||
+                  data.address?.town ||
+                  data.address?.municipality ||
+                  data.address?.village ||
+                  "Current Location";
+
+                const state = data.address?.state;
+                const displayName = state ? `${cityName}, ${state}` : cityName;
+
+                const detectedLocation = {
+                  name: displayName,
+                  lat: latitude,
+                  lng: longitude,
+                };
+                setLocation(detectedLocation);
+                localStorage.setItem("stageside_location", JSON.stringify(detectedLocation));
+              } catch {
+                const detectedLocation = {
+                  name: "Current Location",
+                  lat: latitude,
+                  lng: longitude,
+                };
+                setLocation(detectedLocation);
+                localStorage.setItem("stageside_location", JSON.stringify(detectedLocation));
+              }
+            },
+            (error) => {
+              console.log("Geolocation not available or denied:", error.message);
+              // Silent fail - user can manually select location
+            },
+            { enableHighAccuracy: false, timeout: 5000 }
+          );
+        }
+      } catch (e) {
+        console.error("Error loading saved location:", e);
       }
-    } catch (e) {
-      console.error("Error loading saved location:", e);
-    }
+    };
+    
+    loadLocation();
   }, []);
 
   // Save location to localStorage when it changes
