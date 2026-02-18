@@ -108,9 +108,12 @@ export async function sendConcertNotificationEmail({
           
           <!-- Footer -->
           <div style="padding: 16px 24px; background: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center;">
-            <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            <p style="color: #9ca3af; font-size: 12px; margin: 0 0 8px 0;">
               You're receiving this because you enabled concert notifications on Stageside.<br/>
               <a href="https://www.getstageside.com/settings" style="color: #06b6d4;">Manage notification settings</a>
+            </p>
+            <p style="color: #9ca3af; font-size: 11px; margin: 0;">
+              Stageside · San Francisco, CA
             </p>
           </div>
         </div>
@@ -118,12 +121,48 @@ export async function sendConcertNotificationEmail({
     </html>
   `;
 
+  // Generate plain text version
+  const plainText = `
+Hey ${userName}!
+
+We found ${concerts.length} new concert${concerts.length !== 1 ? "s" : ""} near ${locationName}${filterDescription ? ` ${filterDescription}` : ""}.
+
+${concerts
+  .map((concert) => {
+    const dateFormatted = new Date(concert.date).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short", 
+      day: "numeric",
+    });
+    return `${concert.artists?.join(", ") || concert.name}
+📅 ${dateFormatted}${concert.time ? ` at ${concert.time}` : ""}
+📍 ${concert.venue.name}, ${concert.venue.city}${concert.venue.state ? `, ${concert.venue.state}` : ""}
+${concert.ticketUrl ? `🎟️ ${concert.ticketUrl}` : ""}
+`;
+  })
+  .join("\n")}
+
+View all concerts: https://www.getstageside.com/dashboard
+
+---
+You're receiving this because you enabled concert notifications on Stageside.
+Manage settings: https://www.getstageside.com/settings
+
+Stageside
+San Francisco, CA
+`.trim();
+
   try {
     const { data, error } = await resend.emails.send({
       from: "Stageside <notifications@getstageside.com>",
       to,
       subject: `🎵 ${concerts.length} new concert${concerts.length !== 1 ? "s" : ""} near ${locationName}`,
       html,
+      text: plainText,
+      headers: {
+        "List-Unsubscribe": "<https://www.getstageside.com/settings>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
     });
 
     if (error) {

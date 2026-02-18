@@ -162,17 +162,30 @@ interface FetchConcertsParams {
 async function fetchMatchingConcerts(params: FetchConcertsParams) {
   const { lat, lng, radius, minMatchScore, userId, statusFilter } = params;
 
-  // Call the internal concerts API
-  const baseUrl = process.env.NEXTAUTH_URL || "https://www.getstageside.com";
-  
-  // Build query params
-  const searchParams = new URLSearchParams({
-    lat: lat.toString(),
-    lng: lng.toString(),
-    radius: radius.toString(),
-  });
+  const adminClient = createAdminClient();
 
   try {
+    // Get user's top artists for match scoring
+    const { data: userArtists } = await adminClient
+      .from("user_artists")
+      .select("artist_name")
+      .eq("user_id", userId)
+      .order("rank", { ascending: true })
+      .limit(100);
+
+    const userArtistNames = new Set(
+      (userArtists || []).map((a: { artist_name: string }) => a.artist_name.toLowerCase())
+    );
+
+    // Call the internal concerts API
+    const baseUrl = process.env.NEXTAUTH_URL || "https://www.getstageside.com";
+    
+    const searchParams = new URLSearchParams({
+      lat: lat.toString(),
+      lng: lng.toString(),
+      radius: radius.toString(),
+    });
+
     const response = await fetch(`${baseUrl}/api/concerts?${searchParams}`, {
       headers: {
         "Content-Type": "application/json",
@@ -187,6 +200,23 @@ async function fetchMatchingConcerts(params: FetchConcertsParams) {
     const data = await response.json();
     let concerts = data.concerts || [];
 
+    // Calculate match scores manually since API doesn't have user context
+    concerts = concerts.map((concert: { artists?: string[]; matchScore?: number }) => {
+      if (userArtistNames.size === 0) return concert;
+      
+      const concertArtists = concert.artists || [];
+      const matchingArtists = concertArtists.filter((a: string) => 
+        userArtistNames.has(a.toLowerCase())
+      );
+      
+      // Simple match score: % of concert artists that match user's library
+      const matchScore = concertArtists.length > 0 
+        ? Math.round((matchingArtists.length / concertArtists.length) * 100)
+        : 0;
+      
+      return { ...concert, matchScore };
+    });
+
     // Apply min match score filter
     if (minMatchScore > 0) {
       concerts = concerts.filter((c: { matchScore?: number }) => (c.matchScore || 0) >= minMatchScore);
@@ -194,10 +224,7 @@ async function fetchMatchingConcerts(params: FetchConcertsParams) {
 
     // Apply status filter if needed
     if (statusFilter && statusFilter !== "all") {
-      const adminClient = createAdminClient();
-
       if (statusFilter === "interested" || statusFilter === "going") {
-        // Get user's interests
         const { data: interests } = await adminClient
           .from("concert_interests")
           .select("concert_id")
