@@ -72,11 +72,11 @@ export async function GET() {
     });
 
     // Fetch user details
-    let usersMap: Record<string, { id: string; display_name: string | null; username: string | null; email: string | null }> = {};
+    let usersMap: Record<string, { id: string; display_name: string | null; username: string | null; email: string | null; avatar_url: string | null }> = {};
     if (userIds.size > 0) {
       const { data: users } = await adminClient
         .from("users")
-        .select("id, display_name, username, email")
+        .select("id, display_name, username, email, avatar_url")
         .in("id", Array.from(userIds));
       
       users?.forEach((u) => {
@@ -95,6 +95,7 @@ export async function GET() {
           id: friendId,
           name: friend?.display_name || friend?.username || friend?.email?.split("@")[0] || "Unknown",
           username: friend?.username,
+          avatarUrl: friend?.avatar_url,
           since: f.created_at,
         };
       }) || [];

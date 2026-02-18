@@ -15,6 +15,8 @@ import {
   Link2,
   Check,
   AlertCircle,
+  Camera,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ArtistPicker } from "@/components/ArtistPicker";
@@ -61,6 +63,8 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [hasChanges, setHasChanges] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Load existing preferences
   useEffect(() => {
@@ -96,6 +100,80 @@ export default function SettingsPage() {
       console.error("Error loading preferences:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Load avatar from session or fetch from API
+  useEffect(() => {
+    if (session?.user?.image) {
+      setAvatarUrl(session.user.image);
+    }
+  }, [session]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image must be less than 5MB");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+
+        const response = await fetch("/api/user/avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64 }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAvatarUrl(data.avatarUrl);
+          track("avatar_uploaded", {});
+        } else {
+          const error = await response.json();
+          alert(error.error || "Failed to upload avatar");
+        }
+
+        setIsUploadingAvatar(false);
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      alert("Failed to upload avatar");
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!confirm("Remove your profile picture?")) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const response = await fetch("/api/user/avatar", { method: "DELETE" });
+      if (response.ok) {
+        setAvatarUrl(null);
+        track("avatar_removed", {});
+      }
+    } catch (error) {
+      console.error("Error removing avatar:", error);
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -235,23 +313,55 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            {session.user?.image ? (
-              <img
-                src={session.user.image}
-                alt={session.user.name || "Profile"}
-                className="w-16 h-16 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center">
-                <User className="w-8 h-8 text-zinc-500" />
-              </div>
-            )}
+            <div className="relative group">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={session.user?.name || "Profile"}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-zinc-700"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white">
+                    {(session.user?.name || "U").charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              
+              {/* Upload overlay */}
+              <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                {isUploadingAvatar ? (
+                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+                ) : (
+                  <Camera className="w-6 h-6 text-white" />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  disabled={isUploadingAvatar}
+                  className="hidden"
+                />
+              </label>
+
+              {/* Remove button */}
+              {avatarUrl && !isUploadingAvatar && (
+                <button
+                  onClick={handleRemoveAvatar}
+                  className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Remove photo"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
             <div>
-              <p className="text-white font-medium">{session.user?.name || "User"}</p>
+              <p className="text-white font-medium text-lg">{session.user?.name || "User"}</p>
               <p className="text-zinc-500 text-sm">{session.user?.email}</p>
               {session.user?.username && (
                 <p className="text-zinc-600 text-sm">@{session.user.username}</p>
               )}
+              <p className="text-xs text-zinc-600 mt-1">Hover on photo to change</p>
             </div>
           </div>
         </section>

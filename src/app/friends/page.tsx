@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import { 
   Users, 
   UserPlus, 
@@ -16,6 +17,7 @@ import {
   UserCheck,
   Send,
   AlertCircle,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,6 +27,7 @@ interface Friend {
   id: string;
   name: string;
   username?: string;
+  avatarUrl?: string;
   since?: string;
 }
 
@@ -546,25 +549,42 @@ export default function FriendsPage() {
               {friends.map((friend) => (
                 <div
                   key={friend.friendshipId}
-                  className="flex items-center justify-between bg-zinc-800/50 rounded-lg p-3 hover:bg-zinc-800/80 transition-colors"
+                  className="flex items-center justify-between bg-zinc-800/50 rounded-lg p-3 hover:bg-zinc-800/80 transition-colors group"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold">
-                      {friend.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">{friend.name}</p>
+                  <Link 
+                    href={`/friends/${friend.id}`}
+                    className="flex items-center gap-3 flex-1 min-w-0"
+                  >
+                    {friend.avatarUrl ? (
+                      <Image
+                        src={friend.avatarUrl}
+                        alt={friend.name}
+                        width={40}
+                        height={40}
+                        className="w-10 h-10 rounded-full object-cover border border-zinc-700"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                        {friend.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white font-medium truncate">{friend.name}</p>
                       {friend.username && (
-                        <p className="text-sm text-zinc-500">@{friend.username}</p>
+                        <p className="text-sm text-zinc-500 truncate">@{friend.username}</p>
                       )}
                     </div>
-                  </div>
+                    <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0" />
+                  </Link>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => removeFriend(friend.friendshipId, friend.name)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      removeFriend(friend.friendshipId, friend.name);
+                    }}
                     disabled={actionLoading === friend.friendshipId}
-                    className="text-zinc-500 hover:text-red-400"
+                    className="text-zinc-500 hover:text-red-400 ml-2"
                   >
                     {actionLoading === friend.friendshipId ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
