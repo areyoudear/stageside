@@ -20,6 +20,7 @@ export default function DashboardPage() {
 
   // State
   const [location, setLocation] = useState<Location | null>(null);
+  const [radius, setRadius] = useState(50); // Default 50 miles
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: new Date(),
     endDate: (() => {
@@ -143,6 +144,7 @@ export default function DashboardPage() {
       const params = new URLSearchParams({
         lat: location.lat.toString(),
         lng: location.lng.toString(),
+        radius: radius.toString(),
         startDate: dateRange.startDate.toISOString().split("T")[0],
         endDate: dateRange.endDate.toISOString().split("T")[0],
       });
@@ -171,7 +173,7 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [location, dateRange, session]);
+  }, [location, dateRange, radius, session]);
 
   // Auto-fetch concerts when location is loaded from storage (on initial mount)
   const [hasAutoFetched, setHasAutoFetched] = useState(false);
@@ -299,12 +301,18 @@ export default function DashboardPage() {
         {/* Search Controls */}
         <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6 mb-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Location */}
+            {/* Location & Radius */}
             <div className="sm:col-span-2 lg:col-span-1">
               <label className="block text-sm font-medium text-zinc-400 mb-2">
-                Location
+                Location & Radius
               </label>
-              <LocationSearch value={location} onChange={setLocation} />
+              <LocationSearch 
+                value={location} 
+                onChange={setLocation}
+                radius={radius}
+                onRadiusChange={setRadius}
+                showRadius={true}
+              />
             </div>
 
             {/* Date Range */}
