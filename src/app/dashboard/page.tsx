@@ -10,7 +10,6 @@ import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
 import { LocationSearch, Location } from "@/components/LocationSearch";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
 import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
-import { EmailSignupForm } from "@/components/EmailSignupForm";
 import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
 import type { Concert } from "@/lib/ticketmaster";
@@ -799,27 +798,6 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* Email Signup (at bottom) */}
-        {hasSearched && concerts.length > 0 && (
-          <div className="mt-16 py-12 px-8 bg-zinc-900/50 rounded-2xl border border-zinc-800">
-            <div className="max-w-xl mx-auto text-center">
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Never miss a concert
-              </h3>
-              <p className="text-zinc-400 mb-6">
-                Get weekly email updates when artists you love announce shows in{" "}
-                {location?.name || "your area"}.
-              </p>
-              <EmailSignupForm
-                location={
-                  location
-                    ? { lat: location.lat, lng: location.lng, city: location.name }
-                    : undefined
-                }
-              />
-            </div>
-          </div>
-        )}
       </div>
     </main>
   );
