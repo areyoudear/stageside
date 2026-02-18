@@ -4,15 +4,33 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Music, Loader2, RefreshCw, Filter, Settings, Sparkles, Users, Bookmark } from "lucide-react";
+import { Music, Loader2, RefreshCw, Filter, Settings, Sparkles, Users, Bookmark, Heart, Check, UserCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
 import { LocationSearch, Location } from "@/components/LocationSearch";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
 import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
 import { EmailSignupForm } from "@/components/EmailSignupForm";
+import { cn } from "@/lib/utils";
 import type { Concert } from "@/lib/ticketmaster";
 import type { MusicServiceType } from "@/lib/music-types";
+
+// Friend interest types
+interface FriendInfo {
+  id: string;
+  name: string;
+  username: string;
+  imageUrl: string | null;
+}
+
+interface FriendsInterests {
+  [concertId: string]: {
+    interested: FriendInfo[];
+    going: FriendInfo[];
+  };
+}
+
+type StatusFilter = "all" | "interested" | "going" | "friends-interested" | "friends-going";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -43,6 +61,13 @@ export default function DashboardPage() {
     hasProfile: boolean;
   } | null>(null);
   const [minMatchScore, setMinMatchScore] = useState(0);
+  
+  // Friends & interest state
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [userInterests, setUserInterests] = useState<{ interested: string[]; going: string[] }>({ interested: [], going: [] });
+  const [friendsInterests, setFriendsInterests] = useState<FriendsInterests>({});
+  const [friendsConcertIds, setFriendsConcertIds] = useState<{ interested: string[]; going: string[] }>({ interested: [], going: [] });
+  const [friendCount, setFriendCount] = useState(0);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -50,6 +75,37 @@ export default function DashboardPage() {
       router.push("/");
     }
   }, [status, router]);
+
+  // Fetch user's interests and friends' interests
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    const fetchInterests = async () => {
+      try {
+        // Fetch user's own interests
+        const userRes = await fetch("/api/concerts/interest");
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          const interested = userData.interests?.filter((i: { status: string }) => i.status === "interested").map((i: { concertId: string }) => i.concertId) || [];
+          const going = userData.interests?.filter((i: { status: string }) => i.status === "going").map((i: { concertId: string }) => i.concertId) || [];
+          setUserInterests({ interested, going });
+        }
+
+        // Fetch friends' interests
+        const friendsRes = await fetch("/api/friends/interests");
+        if (friendsRes.ok) {
+          const data = await friendsRes.json();
+          setFriendsInterests(data.interests || {});
+          setFriendsConcertIds(data.concertIds || { interested: [], going: [] });
+          setFriendCount(data.friendCount || 0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch interests:", error);
+      }
+    };
+
+    fetchInterests();
+  }, [status]);
 
   // Load saved location from localStorage on mount, or auto-detect
   useEffect(() => {
@@ -209,11 +265,66 @@ export default function DashboardPage() {
     }
   };
 
-  // Filter concerts by minimum match score
+  // Interest change handler (calls API so friends can see)
+  const handleInterestChange = async (
+    concertId: string,
+    newStatus: "interested" | "going" | null,
+    concert: Concert
+  ) => {
+    // Update local state immediately
+    setUserInterests(prev => {
+      const newInterested = prev.interested.filter(id => id !== concertId);
+      const newGoing = prev.going.filter(id => id !== concertId);
+      
+      if (newStatus === "interested") {
+        newInterested.push(concertId);
+      } else if (newStatus === "going") {
+        newGoing.push(concertId);
+      }
+      
+      return { interested: newInterested, going: newGoing };
+    });
+
+    // Call API to persist
+    try {
+      if (newStatus) {
+        await fetch("/api/concerts/interest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ concertId, status: newStatus, concert }),
+        });
+      } else {
+        await fetch(`/api/concerts/interest?concertId=${concertId}`, {
+          method: "DELETE",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to save interest:", error);
+    }
+  };
+
+  // Filter concerts by minimum match score and status
   const filteredConcerts = useMemo(() => {
-    if (minMatchScore === 0) return concerts;
-    return concerts.filter((c) => (c.matchScore || 0) >= minMatchScore);
-  }, [concerts, minMatchScore]);
+    let result = concerts;
+    
+    // Apply match score filter
+    if (minMatchScore > 0) {
+      result = result.filter((c) => (c.matchScore || 0) >= minMatchScore);
+    }
+    
+    // Apply status filter
+    if (statusFilter === "interested") {
+      result = result.filter(c => userInterests.interested.includes(c.id));
+    } else if (statusFilter === "going") {
+      result = result.filter(c => userInterests.going.includes(c.id));
+    } else if (statusFilter === "friends-interested") {
+      result = result.filter(c => friendsConcertIds.interested.includes(c.id));
+    } else if (statusFilter === "friends-going") {
+      result = result.filter(c => friendsConcertIds.going.includes(c.id));
+    }
+    
+    return result;
+  }, [concerts, minMatchScore, statusFilter, userInterests, friendsConcertIds]);
 
   // Show loading while checking auth
   if (status === "loading") {
@@ -405,6 +516,125 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Status Filters (Interested/Going/Friends) */}
+          {hasSearched && concerts.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-zinc-800">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-zinc-500 mr-1">Show:</span>
+                <button
+                  onClick={() => setStatusFilter("all")}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    statusFilter === "all"
+                      ? "bg-cyan-500 text-white"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setStatusFilter("interested")}
+                  disabled={userInterests.interested.length === 0}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    statusFilter === "interested"
+                      ? "bg-amber-500 text-white"
+                      : userInterests.interested.length === 0
+                      ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  <Heart className="w-3.5 h-3.5" />
+                  Interested
+                  <span className={cn(
+                    "ml-1 text-xs",
+                    statusFilter === "interested" ? "text-amber-200" : "text-zinc-500"
+                  )}>
+                    ({concerts.filter(c => userInterests.interested.includes(c.id)).length})
+                  </span>
+                </button>
+                <button
+                  onClick={() => setStatusFilter("going")}
+                  disabled={userInterests.going.length === 0}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    statusFilter === "going"
+                      ? "bg-green-500 text-white"
+                      : userInterests.going.length === 0
+                      ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Going
+                  <span className={cn(
+                    "ml-1 text-xs",
+                    statusFilter === "going" ? "text-green-200" : "text-zinc-500"
+                  )}>
+                    ({concerts.filter(c => userInterests.going.includes(c.id)).length})
+                  </span>
+                </button>
+                {/* Friends filters - only show if have friends */}
+                {friendCount > 0 && (
+                  <>
+                    <div className="w-px h-6 bg-zinc-700 mx-1" />
+                    <button
+                      onClick={() => setStatusFilter("friends-interested")}
+                      disabled={friendsConcertIds.interested.length === 0}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                        statusFilter === "friends-interested"
+                          ? "bg-violet-500 text-white"
+                          : friendsConcertIds.interested.length === 0
+                          ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                      )}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      Friends Interested
+                      <span className={cn(
+                        "ml-1 text-xs",
+                        statusFilter === "friends-interested" ? "text-violet-200" : "text-zinc-500"
+                      )}>
+                        ({concerts.filter(c => friendsConcertIds.interested.includes(c.id)).length})
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter("friends-going")}
+                      disabled={friendsConcertIds.going.length === 0}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                        statusFilter === "friends-going"
+                          ? "bg-emerald-500 text-white"
+                          : friendsConcertIds.going.length === 0
+                          ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                      )}
+                    >
+                      <UserCheck className="w-3.5 h-3.5" />
+                      Friends Going
+                      <span className={cn(
+                        "ml-1 text-xs",
+                        statusFilter === "friends-going" ? "text-emerald-200" : "text-zinc-500"
+                      )}>
+                        ({concerts.filter(c => friendsConcertIds.going.includes(c.id)).length})
+                      </span>
+                    </button>
+                  </>
+                )}
+                {statusFilter !== "all" && (
+                  <button
+                    onClick={() => setStatusFilter("all")}
+                    className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
+                    title="Clear filter"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* User's Top Tastes Preview */}
           {stats && stats.userTopArtists.length > 0 && (
             <div className="mt-4 pt-4 border-t border-zinc-800">
@@ -544,6 +774,15 @@ export default function DashboardPage() {
                   onUnsave={handleUnsaveConcert}
                   isAuthenticated={!!session}
                   hasProfile={stats?.hasProfile ?? true}
+                  onInterestChange={handleInterestChange}
+                  interestStatus={
+                    userInterests.going.includes(concert.id) ? "going" :
+                    userInterests.interested.includes(concert.id) ? "interested" : null
+                  }
+                  friendsInterested={friendsInterests[concert.id] ? [
+                    ...friendsInterests[concert.id].interested.map(f => ({ id: f.id, name: f.name, status: "interested" as const })),
+                    ...friendsInterests[concert.id].going.map(f => ({ id: f.id, name: f.name, status: "going" as const })),
+                  ] : undefined}
                 />
               ))}
             </div>
