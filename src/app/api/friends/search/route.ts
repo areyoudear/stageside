@@ -22,7 +22,26 @@ export async function GET(request: NextRequest) {
     }
 
     const adminClient = createAdminClient();
-    const userId = session.user.id;
+    let userId = session.user.id;
+
+    // Verify user exists, fallback to email
+    const { data: userCheck } = await adminClient
+      .from("users")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!userCheck && session.user.email) {
+      const { data: userByEmail } = await adminClient
+        .from("users")
+        .select("id")
+        .eq("email", session.user.email)
+        .maybeSingle();
+      
+      if (userByEmail) {
+        userId = userByEmail.id;
+      }
+    }
     const searchTerm = query.trim();
 
     // Search users by username, display_name, or email

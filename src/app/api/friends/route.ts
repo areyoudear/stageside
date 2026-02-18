@@ -15,7 +15,28 @@ export async function GET() {
     }
 
     const adminClient = createAdminClient();
-    const userId = session.user.id;
+    let userId = session.user.id;
+
+    // Verify user exists in database, fallback to email lookup
+    const { data: userCheck } = await adminClient
+      .from("users")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!userCheck && session.user.email) {
+      // User ID not found, try email
+      const { data: userByEmail } = await adminClient
+        .from("users")
+        .select("id")
+        .eq("email", session.user.email)
+        .maybeSingle();
+      
+      if (userByEmail) {
+        userId = userByEmail.id;
+        console.log("Using fallback user ID from email:", userId);
+      }
+    }
 
     // Get all friendships involving this user
     const { data: friendships, error: friendsError } = await adminClient
@@ -120,7 +141,30 @@ export async function POST(request: NextRequest) {
     const { username, email, query } = body;
     
     const adminClient = createAdminClient();
-    const userId = session.user.id;
+    let userId = session.user.id;
+
+    // Verify user exists in database, fallback to email lookup
+    const { data: userCheck } = await adminClient
+      .from("users")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!userCheck && session.user.email) {
+      const { data: userByEmail } = await adminClient
+        .from("users")
+        .select("id")
+        .eq("email", session.user.email)
+        .maybeSingle();
+      
+      if (userByEmail) {
+        userId = userByEmail.id;
+        console.log("POST: Using fallback user ID from email:", userId);
+      } else {
+        console.error("User not found in database for session:", session.user.email);
+        return NextResponse.json({ error: "Your account was not found. Please log out and log back in." }, { status: 400 });
+      }
+    }
 
     console.log("Friend request from user:", userId);
     console.log("Search params:", { username, email, query });
