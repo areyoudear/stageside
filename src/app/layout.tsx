@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   title: "Stageside - Discover Concerts You'll Actually Love",
   description:
     "Connect your Spotify and find upcoming concerts from artists you already listen to. Personalized concert discovery powered by your music taste.",
+  other: {
+    'impact-site-verification': 'ef070b3e-c823-4143-8d3b-ab020704771f',
+  },
   keywords: [
     "concerts",
     "live music",
