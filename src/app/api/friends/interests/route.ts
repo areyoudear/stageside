@@ -45,18 +45,27 @@ export async function GET(request: NextRequest) {
     // Get all friends' concert interests
     const { data: interests, error: interestsError } = await adminClient
       .from("concert_interests")
-      .select(`
-        concert_id,
-        status,
-        concert_data,
-        user:users!concert_interests_user_id_fkey(id, display_name, username, image_url)
-      `)
+      .select("concert_id, status, concert_data, user_id")
       .in("user_id", friendIds);
 
     if (interestsError) {
       console.error("Error fetching interests:", interestsError);
       return NextResponse.json({ error: "Failed to fetch interests" }, { status: 500 });
     }
+
+    // Get friend user details separately
+    const { data: friendUsers, error: usersError } = await adminClient
+      .from("users")
+      .select("id, display_name, username, image_url")
+      .in("id", friendIds);
+
+    if (usersError) {
+      console.error("Error fetching friend users:", usersError);
+    }
+
+    const friendUserMap = new Map(
+      (friendUsers || []).map((u) => [u.id, u])
+    );
 
     // Group by concert_id
     const interestsByConvert: Record<string, {
@@ -73,11 +82,12 @@ export async function GET(request: NextRequest) {
         interestsByConvert[concertId] = { interested: [], going: [] };
       }
 
+      const user = friendUserMap.get(interest.user_id);
       const friendInfo = {
-        id: interest.user.id,
-        name: interest.user.display_name || interest.user.username || "Unknown",
-        username: interest.user.username || "",
-        imageUrl: interest.user.image_url,
+        id: interest.user_id,
+        name: user?.display_name || user?.username || "Unknown",
+        username: user?.username || "",
+        imageUrl: user?.image_url || null,
       };
 
       if (interest.status === "interested") {

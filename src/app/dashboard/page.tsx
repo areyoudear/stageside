@@ -534,7 +534,7 @@ export default function DashboardPage() {
                 </button>
                 <button
                   onClick={() => setStatusFilter("interested")}
-                  disabled={userInterests.interested.length === 0}
+                  disabled={userInterests.interested.length === 0 && concerts.filter(c => userInterests.interested.includes(c.id)).length === 0}
                   className={cn(
                     "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
                     statusFilter === "interested"
@@ -550,12 +550,12 @@ export default function DashboardPage() {
                     "ml-1 text-xs",
                     statusFilter === "interested" ? "text-amber-200" : "text-zinc-500"
                   )}>
-                    ({concerts.filter(c => userInterests.interested.includes(c.id)).length})
+                    ({userInterests.interested.length})
                   </span>
                 </button>
                 <button
                   onClick={() => setStatusFilter("going")}
-                  disabled={userInterests.going.length === 0}
+                  disabled={userInterests.going.length === 0 && concerts.filter(c => userInterests.going.includes(c.id)).length === 0}
                   className={cn(
                     "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
                     statusFilter === "going"
@@ -571,7 +571,7 @@ export default function DashboardPage() {
                     "ml-1 text-xs",
                     statusFilter === "going" ? "text-green-200" : "text-zinc-500"
                   )}>
-                    ({concerts.filter(c => userInterests.going.includes(c.id)).length})
+                    ({userInterests.going.length})
                   </span>
                 </button>
                 {/* Friends filters - only show if have friends */}
@@ -596,7 +596,7 @@ export default function DashboardPage() {
                         "ml-1 text-xs",
                         statusFilter === "friends-interested" ? "text-violet-200" : "text-zinc-500"
                       )}>
-                        ({concerts.filter(c => friendsConcertIds.interested.includes(c.id)).length})
+                        ({friendsConcertIds.interested.length})
                       </span>
                     </button>
                     <button
@@ -617,7 +617,7 @@ export default function DashboardPage() {
                         "ml-1 text-xs",
                         statusFilter === "friends-going" ? "text-emerald-200" : "text-zinc-500"
                       )}>
-                        ({concerts.filter(c => friendsConcertIds.going.includes(c.id)).length})
+                        ({friendsConcertIds.going.length})
                       </span>
                     </button>
                   </>
