@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { 
@@ -11,9 +11,11 @@ import {
   Clock, 
   Search,
   Music,
-  ArrowLeft,
   Loader2,
   Bookmark,
+  UserCheck,
+  Send,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,15 @@ interface SentRequest {
   sentAt: string;
 }
 
+interface SearchResult {
+  id: string;
+  name: string;
+  username?: string;
+  email?: string;
+  friendshipStatus: string | null;
+  isRequestSender: boolean;
+}
+
 export default function FriendsPage() {
   const { data: session, status } = useSession();
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -49,9 +60,10 @@ export default function FriendsPage() {
   const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Fetch friends data
   useEffect(() => {
@@ -76,41 +88,97 @@ export default function FriendsPage() {
     }
   };
 
-  const sendFriendRequest = async () => {
-    if (!searchQuery.trim()) return;
-    
-    setIsSearching(true);
-    setSearchError(null);
-    setSuccessMessage(null);
+  // Search users with debounce
+  const searchUsers = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
 
+    setIsSearching(true);
     try {
-      const isEmail = searchQuery.includes("@");
+      const res = await fetch(`/api/friends/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      setSearchResults(data.users || []);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchUsers(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, searchUsers]);
+
+  const showMessage = (type: "success" | "error", text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 4000);
+  };
+
+  const sendFriendRequest = async (userId: string, userName: string) => {
+    setActionLoading(userId);
+    try {
       const res = await fetch("/api/friends", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          isEmail ? { email: searchQuery } : { username: searchQuery }
-        ),
+        body: JSON.stringify({ query: userName }),
       });
       
       const data = await res.json();
       
       if (!res.ok) {
-        setSearchError(data.error || "Failed to send request");
+        showMessage("error", data.error || "Failed to send request");
         return;
       }
 
-      setSuccessMessage(`Friend request sent to ${data.friendship.targetUser.name}!`);
+      showMessage("success", data.message || "Friend request sent!");
       setSearchQuery("");
-      fetchFriends(); // Refresh lists
-    } catch (error) {
-      setSearchError("Failed to send request");
+      setSearchResults([]);
+      fetchFriends();
+    } catch {
+      showMessage("error", "Failed to send request");
     } finally {
-      setIsSearching(false);
+      setActionLoading(null);
+    }
+  };
+
+  const sendRequestByQuery = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setActionLoading("query");
+    try {
+      const res = await fetch("/api/friends", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: searchQuery }),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        showMessage("error", data.error || "Failed to send request");
+        return;
+      }
+
+      showMessage("success", data.message || "Friend request sent!");
+      setSearchQuery("");
+      setSearchResults([]);
+      fetchFriends();
+    } catch {
+      showMessage("error", "Failed to send request");
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const respondToRequest = async (friendshipId: string, action: "accept" | "reject") => {
+    setActionLoading(friendshipId);
     try {
       const res = await fetch(`/api/friends/${friendshipId}`, {
         method: "PATCH",
@@ -119,29 +187,53 @@ export default function FriendsPage() {
       });
       
       if (res.ok) {
+        showMessage("success", action === "accept" ? "Friend request accepted!" : "Request declined");
         fetchFriends();
-        if (action === "accept") {
-          setSuccessMessage("Friend added!");
-        }
+      } else {
+        showMessage("error", "Failed to respond to request");
       }
-    } catch (error) {
-      console.error("Error responding to request:", error);
+    } catch {
+      showMessage("error", "Failed to respond to request");
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const removeFriend = async (friendshipId: string) => {
-    if (!confirm("Remove this friend?")) return;
-    
+  const cancelRequest = async (friendshipId: string) => {
+    setActionLoading(friendshipId);
     try {
       const res = await fetch(`/api/friends/${friendshipId}`, {
         method: "DELETE",
       });
       
       if (res.ok) {
+        showMessage("success", "Request cancelled");
         fetchFriends();
       }
-    } catch (error) {
-      console.error("Error removing friend:", error);
+    } catch {
+      showMessage("error", "Failed to cancel request");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const removeFriend = async (friendshipId: string, friendName: string) => {
+    if (!confirm(`Remove ${friendName} as a friend?`)) return;
+    
+    setActionLoading(friendshipId);
+    try {
+      const res = await fetch(`/api/friends/${friendshipId}`, {
+        method: "DELETE",
+      });
+      
+      if (res.ok) {
+        showMessage("success", "Friend removed");
+        fetchFriends();
+      }
+    } catch {
+      showMessage("error", "Failed to remove friend");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -207,87 +299,182 @@ export default function FriendsPage() {
               </span>
             </div>
 
-            <div className="w-8" /> {/* Spacer for balance */}
+            <div className="w-8" />
           </div>
         </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-          <Users className="w-7 h-7 text-violet-400" />
-          Friends
-        </h1>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Toast Message */}
+        {message && (
+          <div
+            className={cn(
+              "fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top",
+              message.type === "success"
+                ? "bg-emerald-500/90 text-white"
+                : "bg-red-500/90 text-white"
+            )}
+          >
+            {message.type === "success" ? (
+              <Check className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+            <span>{message.text}</span>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+            <Users className="w-7 h-7 text-violet-400" />
+            Friends
+          </h1>
+          <p className="text-zinc-400">
+            Add friends to see which concerts they&apos;re interested in
+          </p>
+        </div>
 
         {/* Add Friend Section */}
-        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-4 mb-6">
-          <h2 className="text-sm font-medium text-zinc-400 mb-3">Add a friend</h2>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendFriendRequest()}
-                placeholder="Enter username or email"
-                className="w-full pl-10 pr-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
+        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5 mb-6">
+          <h2 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
+            <UserPlus className="w-4 h-4 text-violet-400" />
+            Add a Friend
+          </h2>
+          
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendRequestByQuery()}
+                  placeholder="Search by name, username, or email..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
+                />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-zinc-500" />
+                )}
+              </div>
+              <Button
+                onClick={sendRequestByQuery}
+                disabled={!searchQuery.trim() || actionLoading === "query"}
+                className="bg-violet-600 hover:bg-violet-700"
+              >
+                {actionLoading === "query" ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
             </div>
-            <Button
-              onClick={sendFriendRequest}
-              disabled={isSearching || !searchQuery.trim()}
-              className="bg-violet-600 hover:bg-violet-500"
-            >
-              {isSearching ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add
-                </>
-              )}
-            </Button>
+
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+              <div className="bg-zinc-800/50 rounded-lg border border-zinc-700 divide-y divide-zinc-700">
+                {searchResults.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 hover:bg-zinc-800/80"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">{user.name}</p>
+                        <p className="text-sm text-zinc-500">
+                          {user.username ? `@${user.username}` : user.email}
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      {user.friendshipStatus === "accepted" ? (
+                        <span className="flex items-center gap-1 text-sm text-emerald-400">
+                          <UserCheck className="w-4 h-4" />
+                          Friends
+                        </span>
+                      ) : user.friendshipStatus === "pending" ? (
+                        <span className="flex items-center gap-1 text-sm text-amber-400">
+                          <Clock className="w-4 h-4" />
+                          {user.isRequestSender ? "Pending" : "Respond"}
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => sendFriendRequest(user.id, user.name)}
+                          disabled={actionLoading === user.id}
+                          className="bg-violet-600 hover:bg-violet-700"
+                        >
+                          {actionLoading === user.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <UserPlus className="w-4 h-4 mr-1" />
+                              Add
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
+              <p className="text-sm text-zinc-500 text-center py-3">
+                No users found. Try a different search or send a request directly.
+              </p>
+            )}
           </div>
-          {searchError && (
-            <p className="text-sm text-red-400 mt-2">{searchError}</p>
-          )}
-          {successMessage && (
-            <p className="text-sm text-green-400 mt-2">{successMessage}</p>
-          )}
         </div>
 
         {/* Pending Requests */}
         {pendingRequests.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-sm font-medium text-zinc-400 mb-3 flex items-center gap-2">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 mb-6">
+            <h2 className="text-sm font-semibold text-amber-400 mb-3 flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Friend Requests ({pendingRequests.length})
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {pendingRequests.map((request) => (
                 <div
                   key={request.friendshipId}
-                  className="flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg"
+                  className="flex items-center justify-between bg-zinc-900/50 rounded-lg p-3"
                 >
-                  <div>
-                    <p className="font-medium text-white">{request.name}</p>
-                    {request.username && (
-                      <p className="text-sm text-zinc-500">@{request.username}</p>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-semibold">
+                      {request.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{request.name}</p>
+                      {request.username && (
+                        <p className="text-sm text-zinc-500">@{request.username}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     <Button
                       size="sm"
                       onClick={() => respondToRequest(request.friendshipId, "accept")}
-                      className="bg-green-600 hover:bg-green-500 h-8"
+                      disabled={actionLoading === request.friendshipId}
+                      className="bg-emerald-600 hover:bg-emerald-700"
                     >
-                      <Check className="w-4 h-4" />
+                      {actionLoading === request.friendshipId ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => respondToRequest(request.friendshipId, "reject")}
-                      className="border-zinc-700 h-8"
+                      disabled={actionLoading === request.friendshipId}
+                      className="border-zinc-700 hover:bg-zinc-800"
                     >
                       <X className="w-4 h-4" />
                     </Button>
@@ -300,27 +487,38 @@ export default function FriendsPage() {
 
         {/* Sent Requests */}
         {sentRequests.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-sm font-medium text-zinc-400 mb-3">
-              Pending ({sentRequests.length})
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5 mb-6">
+            <h2 className="text-sm font-semibold text-zinc-400 mb-3 flex items-center gap-2">
+              <Send className="w-4 h-4" />
+              Sent Requests ({sentRequests.length})
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {sentRequests.map((request) => (
                 <div
                   key={request.friendshipId}
-                  className="flex items-center justify-between p-3 bg-zinc-800/50 border border-zinc-700/50 rounded-lg"
+                  className="flex items-center justify-between bg-zinc-800/50 rounded-lg p-3"
                 >
-                  <div>
-                    <p className="font-medium text-white">{request.name}</p>
-                    <p className="text-xs text-zinc-500">Request sent</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-600 to-zinc-700 flex items-center justify-center text-white font-semibold">
+                      {request.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{request.name}</p>
+                      <p className="text-sm text-zinc-500">Awaiting response</p>
+                    </div>
                   </div>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => removeFriend(request.friendshipId)}
-                    className="text-zinc-500 hover:text-red-400"
+                    onClick={() => cancelRequest(request.friendshipId)}
+                    disabled={actionLoading === request.friendshipId}
+                    className="text-zinc-400 hover:text-white"
                   >
-                    Cancel
+                    {actionLoading === request.friendshipId ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Cancel"
+                    )}
                   </Button>
                 </div>
               ))}
@@ -329,31 +527,33 @@ export default function FriendsPage() {
         )}
 
         {/* Friends List */}
-        <div>
-          <h2 className="text-sm font-medium text-zinc-400 mb-3">
+        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5">
+          <h2 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-emerald-400" />
             Your Friends ({friends.length})
           </h2>
+          
           {friends.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-8">
               <Users className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
               <p className="text-zinc-500">No friends yet</p>
               <p className="text-sm text-zinc-600 mt-1">
-                Add friends to see what concerts they&apos;re interested in!
+                Search for friends above to get started
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {friends.map((friend) => (
                 <div
                   key={friend.friendshipId}
-                  className="flex items-center justify-between p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg hover:bg-zinc-800/50 transition-colors"
+                  className="flex items-center justify-between bg-zinc-800/50 rounded-lg p-3 hover:bg-zinc-800/80 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-medium">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold">
                       {friend.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-medium text-white">{friend.name}</p>
+                      <p className="text-white font-medium">{friend.name}</p>
                       {friend.username && (
                         <p className="text-sm text-zinc-500">@{friend.username}</p>
                       )}
@@ -362,10 +562,15 @@ export default function FriendsPage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => removeFriend(friend.friendshipId)}
+                    onClick={() => removeFriend(friend.friendshipId, friend.name)}
+                    disabled={actionLoading === friend.friendshipId}
                     className="text-zinc-500 hover:text-red-400"
                   >
-                    Remove
+                    {actionLoading === friend.friendshipId ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
               ))}
