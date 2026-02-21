@@ -432,11 +432,11 @@ export function ConcertCard({
 
         {/* Save & Share Buttons */}
         <div className="absolute top-3 left-3 flex items-center gap-2">
-          {/* Save Button */}
+          {/* Save Button - min 44px touch target */}
           <button
             onClick={handleSaveToggle}
             className={cn(
-              "relative p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
+              "relative p-3 rounded-full backdrop-blur-md transition-all duration-300 min-w-[44px] min-h-[44px] flex items-center justify-center",
               isSaved 
                 ? "bg-red-500/20 hover:bg-red-500/30" 
                 : "bg-black/30 hover:bg-black/50"
@@ -451,18 +451,18 @@ export function ConcertCard({
             />
             {/* Saved feedback toast */}
             {showSavedFeedback && (
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-sm font-medium rounded-md whitespace-nowrap animate-fade-in">
                 <Check className="w-3 h-3 inline mr-1" />
                 Saved!
               </div>
             )}
           </button>
 
-          {/* Going Button */}
+          {/* Going Button - min 44px touch target */}
           <button
             onClick={handleGoingToggle}
             className={cn(
-              "relative p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
+              "relative p-3 rounded-full backdrop-blur-md transition-all duration-300 min-w-[44px] min-h-[44px] flex items-center justify-center",
               isGoing 
                 ? "bg-green-500/20 hover:bg-green-500/30" 
                 : "bg-black/30 hover:bg-black/50"
@@ -478,17 +478,17 @@ export function ConcertCard({
             />
             {/* Going feedback toast */}
             {showGoingFeedback && (
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-sm font-medium rounded-md whitespace-nowrap animate-fade-in">
                 <Check className="w-3 h-3 inline mr-1" />
                 Going!
               </div>
             )}
           </button>
 
-          {/* Share Button */}
+          {/* Share Button - min 44px touch target */}
           <button
             onClick={handleShare}
-            className="p-2.5 rounded-full backdrop-blur-md bg-black/30 hover:bg-black/50 transition-all duration-300"
+            className="p-3 rounded-full backdrop-blur-md bg-black/30 hover:bg-black/50 transition-all duration-300 min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Share concert"
           >
             <Share2 className="w-5 h-5 text-white/80 hover:text-white transition-colors" />
@@ -653,13 +653,13 @@ export function ConcertCard({
           </div>
         )}
 
-        {/* Interest Buttons (Interested / Going) */}
+        {/* Interest Buttons (Interested / Going) - min 44px height for touch */}
         {isAuthenticated && onInterestChange && (
           <div className="flex gap-2">
             <button
               onClick={() => handleInterestClick("interested")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                "flex-1 flex items-center justify-center gap-1.5 py-3 px-3 rounded-lg text-sm font-medium transition-all min-h-[44px]",
                 localInterestStatus === "interested"
                   ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
                   : "bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-white"
@@ -671,7 +671,7 @@ export function ConcertCard({
             <button
               onClick={() => handleInterestClick("going")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                "flex-1 flex items-center justify-center gap-1.5 py-3 px-3 rounded-lg text-sm font-medium transition-all min-h-[44px]",
                 localInterestStatus === "going"
                   ? "bg-green-500/20 text-green-400 border border-green-500/40"
                   : "bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-white"

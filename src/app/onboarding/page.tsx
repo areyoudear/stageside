@@ -68,6 +68,26 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
+      return;
+    }
+    
+    // Check if user already completed onboarding
+    if (status === "authenticated") {
+      const checkStatus = async () => {
+        try {
+          const res = await fetch("/api/user/onboarding-status");
+          if (res.ok) {
+            const data = await res.json();
+            // If user already has music preferences, redirect to dashboard
+            if (data.completed && (data.hasArtists || data.hasConnections)) {
+              router.push("/dashboard");
+            }
+          }
+        } catch (error) {
+          console.error("Error checking onboarding status:", error);
+        }
+      };
+      checkStatus();
     }
   }, [status, router]);
 
@@ -196,19 +216,19 @@ export default function OnboardingPage() {
   };
 
   const handleComplete = async () => {
-    // Save location preference if selected
-    if (selectedLocation) {
-      try {
-        await fetch("/api/user/preferences", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            default_location: selectedLocation,
-          }),
-        });
-      } catch (error) {
-        console.error("Error saving preferences:", error);
-      }
+    try {
+      // Save preferences and mark onboarding complete
+      await fetch("/api/user/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          default_location: selectedLocation || null,
+          onboarding_completed: true,
+        }),
+      });
+    } catch (error) {
+      console.error("Error saving preferences:", error);
+      // Continue anyway - don't block user from using the app
     }
 
     router.push("/dashboard");
@@ -318,9 +338,17 @@ export default function OnboardingPage() {
 
                 {connectedCount === 0 && (
                   <p className="text-xs text-gray-500 text-center mt-4">
-                    Connect a service or enter artists manually
+                    Connect a service or enter artists manually to get personalized recommendations
                   </p>
                 )}
+                
+                {/* Skip option */}
+                <button
+                  onClick={() => setStep(2)}
+                  className="w-full text-xs text-gray-600 hover:text-gray-400 mt-4 py-2 transition-colors"
+                >
+                  Skip for now — I&apos;ll browse all concerts
+                </button>
               </>
             ) : (
               <>
@@ -358,7 +386,7 @@ export default function OnboardingPage() {
                         <button
                           key={artist.id}
                           onClick={() => handleSelectArtist(artist)}
-                          className="w-full px-4 py-3 text-left hover:bg-white/10 flex items-center gap-3"
+                          className="w-full px-4 py-4 text-left hover:bg-white/10 flex items-center gap-3 min-h-[56px] active:bg-white/20"
                         >
                           {artist.imageUrl ? (
                             <Image

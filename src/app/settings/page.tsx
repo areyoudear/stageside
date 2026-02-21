@@ -652,12 +652,14 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                  className={`relative w-14 h-8 rounded-full transition-colors min-w-[56px] ${
                     notificationsEnabled ? "bg-cyan-500" : "bg-zinc-700"
                   }`}
+                  role="switch"
+                  aria-checked={notificationsEnabled}
                 >
                   <span
-                    className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                    className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-white transition-transform shadow-md ${
                       notificationsEnabled ? "translate-x-6" : ""
                     }`}
                   />
@@ -707,9 +709,9 @@ export default function SettingsPage() {
                       step="10"
                       value={notificationRadius}
                       onChange={(e) => setNotificationRadius(parseInt(e.target.value))}
-                      className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                      className="w-full h-3 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-cyan-500 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-500 [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-cyan-500 [&::-moz-range-thumb]:border-0"
                     />
-                    <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                    <div className="flex justify-between text-sm text-zinc-500 mt-2">
                       <span>10 mi</span>
                       <span>200 mi</span>
                     </div>
@@ -730,9 +732,9 @@ export default function SettingsPage() {
                       step="10"
                       value={minMatchScore}
                       onChange={(e) => setMinMatchScore(parseInt(e.target.value))}
-                      className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      className="w-full h-3 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:border-0"
                     />
-                    <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                    <div className="flex justify-between text-sm text-zinc-500 mt-2">
                       <span>Any match</span>
                       <span>High vibe only</span>
                     </div>

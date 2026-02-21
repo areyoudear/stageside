@@ -69,12 +69,36 @@ export default function DashboardPage() {
   const [friendsConcertIds, setFriendsConcertIds] = useState<{ interested: string[]; going: string[] }>({ interested: [], going: [] });
   const [friendCount, setFriendCount] = useState(0);
 
-  // Redirect if not authenticated
+  // Check auth and onboarding status
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
+      return;
     }
-  }, [status, router]);
+    
+    // Check if user has completed onboarding
+    if (status === "authenticated" && !onboardingChecked) {
+      const checkOnboarding = async () => {
+        try {
+          const res = await fetch("/api/user/onboarding-status");
+          if (res.ok) {
+            const data = await res.json();
+            if (!data.completed) {
+              // User hasn't set up their music preferences - redirect to onboarding
+              router.push("/onboarding");
+              return;
+            }
+          }
+        } catch (error) {
+          console.error("Error checking onboarding:", error);
+        }
+        setOnboardingChecked(true);
+      };
+      checkOnboarding();
+    }
+  }, [status, router, onboardingChecked]);
 
   // Fetch user's interests and friends' interests
   useEffect(() => {
@@ -326,8 +350,8 @@ export default function DashboardPage() {
     return result;
   }, [concerts, minMatchScore, statusFilter, userInterests, friendsConcertIds]);
 
-  // Show loading while checking auth
-  if (status === "loading") {
+  // Show loading while checking auth or onboarding status
+  if (status === "loading" || (status === "authenticated" && !onboardingChecked)) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
@@ -353,29 +377,29 @@ export default function DashboardPage() {
               <span className="text-xl font-bold text-white">Stageside</span>
             </Link>
 
-            {/* Mode tabs */}
-            <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
-              <span className="px-4 py-1.5 rounded-md text-sm bg-cyan-600 text-white">
+            {/* Mode tabs - scrollable on mobile */}
+            <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1 overflow-x-auto scrollbar-hide max-w-[50vw] sm:max-w-none">
+              <span className="px-3 sm:px-4 py-2 rounded-md text-sm bg-cyan-600 text-white whitespace-nowrap min-h-[36px] flex items-center">
                 Concerts
               </span>
               <Link
                 href="/festivals"
-                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors"
+                className="px-3 sm:px-4 py-2 rounded-md text-sm text-zinc-400 hover:text-white transition-colors whitespace-nowrap min-h-[36px] flex items-center"
               >
                 Festivals
               </Link>
               <Link
                 href="/saved"
-                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+                className="px-3 sm:px-4 py-2 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap min-h-[36px]"
               >
-                <Bookmark className="w-3.5 h-3.5" />
+                <Bookmark className="w-4 h-4" />
                 <span className="hidden sm:inline">Saved</span>
               </Link>
               <Link
                 href="/friends"
-                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+                className="px-3 sm:px-4 py-2 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap min-h-[36px]"
               >
-                <Users className="w-3.5 h-3.5" />
+                <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">Friends</span>
               </Link>
             </div>

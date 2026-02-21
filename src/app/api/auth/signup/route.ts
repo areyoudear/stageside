@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUser } from "@/lib/auth";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,6 +51,12 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Send welcome email (fire-and-forget, don't block signup)
+    sendWelcomeEmail({
+      to: email,
+      userName: name.split(" ")[0], // Use first name
+    }).catch((err) => console.error("Failed to send welcome email:", err));
 
     return NextResponse.json({
       success: true,

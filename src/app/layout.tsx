@@ -13,6 +13,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://getstageside.com"),
   title: "Stageside - Discover Concerts You'll Actually Love",
   description:
     "Connect your Spotify and find upcoming concerts from artists you already listen to. Personalized concert discovery powered by your music taste.",
@@ -42,12 +43,23 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "Stageside",
+    url: "https://getstageside.com",
+    images: [
+      {
+        url: "https://getstageside.com/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Stageside - Personalized Concert Discovery",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Stageside - Discover Concerts You'll Actually Love",
     description:
       "Connect your Spotify and find upcoming concerts from artists you already listen to.",
+    images: ["https://getstageside.com/og-image.png"],
+    creator: "@getstageside",
   },
   robots: {
     index: true,

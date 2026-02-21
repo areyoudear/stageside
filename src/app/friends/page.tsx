@@ -4,12 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { 
-  Users, 
-  UserPlus, 
-  Check, 
-  X, 
-  Clock, 
+import {
+  Users,
+  UserPlus,
+  Check,
+  X,
+  Clock,
   Search,
   Music,
   Loader2,
@@ -18,8 +18,11 @@ import {
   Send,
   AlertCircle,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 
 interface Friend {
@@ -67,6 +70,7 @@ export default function FriendsPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Fetch friends data
   useEffect(() => {
@@ -76,16 +80,21 @@ export default function FriendsPage() {
   }, [status]);
 
   const fetchFriends = async () => {
+    setFetchError(null);
     try {
       const res = await fetch("/api/friends");
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load friends");
+      }
       
       setFriends(data.friends || []);
       setPendingRequests(data.pendingRequests || []);
       setSentRequests(data.sentRequests || []);
     } catch (error) {
       console.error("Error fetching friends:", error);
+      setFetchError(error instanceof Error ? error.message : "Failed to load friends");
     } finally {
       setIsLoading(false);
     }
@@ -132,9 +141,9 @@ export default function FriendsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: userName }),
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         showMessage("error", data.error || "Failed to send request");
         return;
@@ -153,7 +162,7 @@ export default function FriendsPage() {
 
   const sendRequestByQuery = async () => {
     if (!searchQuery.trim()) return;
-    
+
     setActionLoading("query");
     try {
       const res = await fetch("/api/friends", {
@@ -161,9 +170,9 @@ export default function FriendsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: searchQuery }),
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         showMessage("error", data.error || "Failed to send request");
         return;
@@ -188,7 +197,7 @@ export default function FriendsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      
+
       if (res.ok) {
         showMessage("success", action === "accept" ? "Friend request accepted!" : "Request declined");
         fetchFriends();
@@ -208,7 +217,7 @@ export default function FriendsPage() {
       const res = await fetch(`/api/friends/${friendshipId}`, {
         method: "DELETE",
       });
-      
+
       if (res.ok) {
         showMessage("success", "Request cancelled");
         fetchFriends();
@@ -222,13 +231,13 @@ export default function FriendsPage() {
 
   const removeFriend = async (friendshipId: string, friendName: string) => {
     if (!confirm(`Remove ${friendName} as a friend?`)) return;
-    
+
     setActionLoading(friendshipId);
     try {
       const res = await fetch(`/api/friends/${friendshipId}`, {
         method: "DELETE",
       });
-      
+
       if (res.ok) {
         showMessage("success", "Friend removed");
         fetchFriends();
@@ -344,7 +353,7 @@ export default function FriendsPage() {
             <UserPlus className="w-4 h-4 text-blue-400" />
             Add a Friend
           </h2>
-          
+
           <div className="space-y-3">
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -535,15 +544,21 @@ export default function FriendsPage() {
             <UserCheck className="w-4 h-4 text-emerald-400" />
             Your Friends ({friends.length})
           </h2>
-          
-          {friends.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
-              <p className="text-zinc-500">No friends yet</p>
-              <p className="text-sm text-zinc-600 mt-1">
-                Search for friends above to get started
-              </p>
-            </div>
+
+          {fetchError ? (
+            <ErrorState
+              type="server"
+              message={fetchError}
+              onRetry={fetchFriends}
+              compact
+            />
+          ) : friends.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No friends yet"
+              description="Connect with friends to see which concerts they're interested in and plan shows together."
+              compact
+            />
           ) : (
             <div className="space-y-3">
               {friends.map((friend) => (
@@ -551,7 +566,7 @@ export default function FriendsPage() {
                   key={friend.friendshipId}
                   className="flex items-center justify-between bg-zinc-800/50 rounded-lg p-3 hover:bg-zinc-800/80 transition-colors group"
                 >
-                  <Link 
+                  <Link
                     href={`/friends/${friend.id}`}
                     className="flex items-center gap-3 flex-1 min-w-0"
                   >

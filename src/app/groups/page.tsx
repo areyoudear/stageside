@@ -14,7 +14,10 @@ import {
   Loader2,
   Music,
   Share2,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface GroupMember {
   userId: string;
@@ -38,6 +41,7 @@ export default function GroupsPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<ConcertGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
 
@@ -50,14 +54,19 @@ export default function GroupsPage() {
   }, [status, router]);
 
   const fetchGroups = async () => {
+    setFetchError(null);
     try {
       const res = await fetch("/api/groups");
-      if (res.ok) {
-        const data = await res.json();
-        setGroups(data.groups || []);
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load groups");
       }
+      
+      setGroups(data.groups || []);
     } catch (error) {
       console.error("Error fetching groups:", error);
+      setFetchError(error instanceof Error ? error.message : "Failed to load groups");
     } finally {
       setIsLoading(false);
     }
@@ -132,9 +141,27 @@ export default function GroupsPage() {
         </div>
 
         {/* Groups List */}
-        {groups.length === 0 ? (
+        {fetchError ? (
+          <div className="bg-red-500/5 rounded-2xl p-12 text-center border border-red-500/20">
+            <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">
+              Couldn&apos;t load groups
+            </h2>
+            <p className="text-gray-400 mb-6">
+              {fetchError}
+            </p>
+            <Button
+              onClick={fetchGroups}
+              variant="outline"
+              className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
+        ) : groups.length === 0 ? (
           <div className="bg-white/5 rounded-2xl p-12 text-center border border-white/10">
-            <Music className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">
               No groups yet
             </h2>
@@ -324,7 +351,7 @@ function CreateGroupModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., SF Concert Crew"
-              className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full bg-white/10 border border-white/20 rounded-xl py-4 px-4 text-base text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
           </div>
 
@@ -337,7 +364,7 @@ function CreateGroupModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g., Finding shows for summer 2026"
-              className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full bg-white/10 border border-white/20 rounded-xl py-4 px-4 text-base text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
           </div>
         </div>
@@ -345,14 +372,14 @@ function CreateGroupModal({
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 py-3 px-4 rounded-xl text-gray-400 hover:text-white transition-colors"
+            className="flex-1 py-4 px-4 rounded-xl text-gray-400 hover:text-white transition-colors min-h-[48px]"
           >
             Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={isLoading}
-            className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-4 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px]"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -431,9 +458,9 @@ function JoinGroupModal({
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
             placeholder="e.g., XK7N2M9P"
             maxLength={8}
-            className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-center text-2xl tracking-widest"
+            className="w-full bg-white/10 border border-white/20 rounded-xl py-4 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-center text-2xl tracking-widest"
           />
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 mt-2">
             Ask your friend for their group&apos;s invite code
           </p>
         </div>
@@ -441,14 +468,14 @@ function JoinGroupModal({
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 py-3 px-4 rounded-xl text-gray-400 hover:text-white transition-colors"
+            className="flex-1 py-4 px-4 rounded-xl text-gray-400 hover:text-white transition-colors min-h-[48px]"
           >
             Cancel
           </button>
           <button
             onClick={handleJoin}
             disabled={isLoading}
-            className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-4 px-4 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px]"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />

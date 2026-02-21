@@ -524,11 +524,11 @@ export default async function LandingPage() {
               </div>
               <span className="text-white font-semibold">Stageside</span>
             </div>
-            <div className="flex items-center gap-6 text-gray-400 text-sm">
-              <Link href="/about" className="hover:text-white transition-colors">About</Link>
-              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-              <a href="mailto:hello@getstageside.com" className="hover:text-white transition-colors">Contact</a>
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-gray-400 text-sm">
+              <Link href="/about" className="hover:text-white transition-colors py-2 px-2 min-h-[44px] flex items-center">About</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors py-2 px-2 min-h-[44px] flex items-center">Privacy</Link>
+              <Link href="/terms" className="hover:text-white transition-colors py-2 px-2 min-h-[44px] flex items-center">Terms</Link>
+              <a href="mailto:hello@getstageside.com" className="hover:text-white transition-colors py-2 px-2 min-h-[44px] flex items-center">Contact</a>
             </div>
             <div className="text-gray-500 text-sm">
               © 2026 Stageside. All rights reserved.

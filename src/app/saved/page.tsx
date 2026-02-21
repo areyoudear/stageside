@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Music, ArrowRight, Heart, Check, Filter, Users, Calendar, Bookmark } from "lucide-react";
+import { Music, ArrowRight, Heart, Check, Filter, Users, Calendar, Bookmark, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
 import { cn } from "@/lib/utils";
 import type { Concert } from "@/lib/ticketmaster";
@@ -15,6 +17,7 @@ export default function SavedConcertsPage() {
   const [goingIds, setGoingIds] = useState<string[]>([]);
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
 
   useEffect(() => {
@@ -37,6 +40,7 @@ export default function SavedConcertsPage() {
   }, []);
 
   const fetchConcerts = async (ids: string[]) => {
+    setFetchError(null);
     try {
       const res = await fetch('/api/concerts/by-ids', {
         method: 'POST',
@@ -44,17 +48,21 @@ export default function SavedConcertsPage() {
         body: JSON.stringify({ ids }),
       });
       
-      if (res.ok) {
-        const data = await res.json();
-        // Mark saved/going status on each concert
-        const concertsWithStatus = data.concerts.map((c: Concert) => ({
-          ...c,
-          isSaved: savedIds.includes(c.id),
-        }));
-        setConcerts(concertsWithStatus);
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load concerts");
       }
+      
+      // Mark saved/going status on each concert
+      const concertsWithStatus = data.concerts.map((c: Concert) => ({
+        ...c,
+        isSaved: savedIds.includes(c.id),
+      }));
+      setConcerts(concertsWithStatus);
     } catch (error) {
       console.error("Error fetching concerts:", error);
+      setFetchError(error instanceof Error ? error.message : "Failed to load saved concerts");
     } finally {
       setIsLoading(false);
     }
@@ -123,29 +131,29 @@ export default function SavedConcertsPage() {
               <span className="text-xl font-bold text-white">Stageside</span>
             </Link>
 
-            {/* Mode tabs */}
-            <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
+            {/* Mode tabs - scrollable on mobile */}
+            <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1 overflow-x-auto scrollbar-hide max-w-[50vw] sm:max-w-none">
               <Link
                 href="/dashboard"
-                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors"
+                className="px-3 sm:px-4 py-2 rounded-md text-sm text-zinc-400 hover:text-white transition-colors whitespace-nowrap min-h-[36px] flex items-center"
               >
                 Concerts
               </Link>
               <Link
                 href="/festivals"
-                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors"
+                className="px-3 sm:px-4 py-2 rounded-md text-sm text-zinc-400 hover:text-white transition-colors whitespace-nowrap min-h-[36px] flex items-center"
               >
                 Festivals
               </Link>
-              <span className="px-4 py-1.5 rounded-md text-sm bg-cyan-600 text-white flex items-center gap-1">
-                <Bookmark className="w-3.5 h-3.5" />
+              <span className="px-3 sm:px-4 py-2 rounded-md text-sm bg-cyan-600 text-white flex items-center gap-1 whitespace-nowrap min-h-[36px]">
+                <Bookmark className="w-4 h-4" />
                 <span className="hidden sm:inline">Saved</span>
               </span>
               <Link
                 href="/friends"
-                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+                className="px-3 sm:px-4 py-2 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap min-h-[36px]"
               >
-                <Users className="w-3.5 h-3.5" />
+                <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">Friends</span>
               </Link>
             </div>
@@ -239,51 +247,46 @@ export default function SavedConcertsPage() {
               <ConcertCardSkeleton key={i} />
             ))}
           </div>
+        ) : fetchError ? (
+          // Error State
+          <ErrorState
+            type="server"
+            message={fetchError}
+            onRetry={() => {
+              const allIds = Array.from(new Set([...savedIds, ...goingIds]));
+              if (allIds.length > 0) {
+                setIsLoading(true);
+                fetchConcerts(allIds);
+              }
+            }}
+          />
         ) : allCount === 0 ? (
           // Empty State
-          <div className="text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-6">
-              <Heart className="w-10 h-10 text-zinc-700" />
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-2">
-              No saved concerts yet
-            </h2>
-            <p className="text-zinc-500 max-w-md mx-auto mb-6">
-              When you find concerts you&apos;re interested in, tap the heart icon to save them here for later.
-            </p>
-            <Link href="/discover">
-              <Button className="bg-green-600 hover:bg-green-500">
-                Discover Concerts
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
+          <EmptyState
+            icon={Heart}
+            title="No saved concerts yet"
+            description="When you find concerts you're interested in, tap the heart icon to save them here for later."
+            action={{
+              label: "Discover Concerts",
+              href: "/dashboard",
+              icon: ArrowRight,
+            }}
+          />
         ) : filteredConcerts.length === 0 ? (
           // No results for this filter
-          <div className="text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-6">
-              {filter === "hearted" ? (
-                <Heart className="w-10 h-10 text-zinc-700" />
-              ) : (
-                <Check className="w-10 h-10 text-zinc-700" />
-              )}
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-2">
-              No {filter === "hearted" ? "hearted" : "going"} concerts
-            </h2>
-            <p className="text-zinc-500 max-w-md mx-auto mb-6">
-              {filter === "hearted" 
+          <EmptyState
+            icon={filter === "hearted" ? Heart : Check}
+            title={`No ${filter === "hearted" ? "hearted" : "going"} concerts`}
+            description={
+              filter === "hearted"
                 ? "Tap the heart icon on concerts you're interested in."
                 : "Tap the checkmark icon on concerts you're definitely going to."
-              }
-            </p>
-            <button
-              onClick={() => setFilter("all")}
-              className="text-cyan-400 hover:text-cyan-300 text-sm font-medium"
-            >
-              Show all saved concerts instead
-            </button>
-          </div>
+            }
+            secondaryAction={{
+              label: "Show all saved concerts",
+              onClick: () => setFilter("all"),
+            }}
+          />
         ) : (
           // Concert Grid
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
