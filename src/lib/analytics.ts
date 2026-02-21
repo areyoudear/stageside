@@ -74,6 +74,17 @@ export interface AnalyticsEvents {
   feedback_opened: { page: string };
   feedback_submitted: { page: string; rating?: number };
 
+  // Auth & Signup
+  user_signup_started: { method: 'email' | 'google' };
+  user_signup_completed: { method: 'email' | 'google'; user_id: string };
+  user_login: { method: 'email' | 'google' };
+
+  // Invites & Groups
+  invite_link_copied: { group_id: string; group_name: string };
+  invite_code_shared: { group_id: string; method: 'native' | 'clipboard' };
+  group_joined_via_invite: { group_id: string; invite_code: string };
+  group_created: { group_id: string; group_name: string };
+
   // Settings
   settings_saved: { artist_count: number; genre_count: number };
   user_signed_out: Record<string, never>;

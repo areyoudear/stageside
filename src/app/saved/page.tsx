@@ -191,7 +191,7 @@ export default function SavedConcertsPage() {
           )}
         </div>
 
-        {/* Filter Tabs */}
+        {/* Filter Tabs - min 44px touch targets */}
         {allCount > 0 && (
           <div className="mb-6 flex items-center gap-2 flex-wrap">
             <span className="text-sm text-zinc-500 mr-1">
@@ -201,39 +201,39 @@ export default function SavedConcertsPage() {
             <button
               onClick={() => setFilter("all")}
               className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
                 filter === "all"
                   ? "bg-cyan-500 text-white"
                   : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
               )}
             >
-              <Calendar className="w-3.5 h-3.5" />
+              <Calendar className="w-4 h-4" />
               All
               <span className="ml-1 text-xs opacity-70">({allCount})</span>
             </button>
             <button
               onClick={() => setFilter("hearted")}
               className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
                 filter === "hearted"
                   ? "bg-red-500 text-white"
                   : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
               )}
             >
-              <Heart className="w-3.5 h-3.5" />
+              <Heart className="w-4 h-4" />
               Hearted
               <span className="ml-1 text-xs opacity-70">({heartedCount})</span>
             </button>
             <button
               onClick={() => setFilter("going")}
               className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
                 filter === "going"
                   ? "bg-green-500 text-white"
                   : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
               )}
             >
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-4 h-4" />
               Going
               <span className="ml-1 text-xs opacity-70">({goingCount})</span>
             </button>

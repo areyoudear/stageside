@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Music, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import { track } from "@/lib/analytics";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -30,6 +31,9 @@ export default function SignupPage() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    
+    // Track signup started
+    track("user_signup_started", { method: "email" });
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
@@ -80,6 +84,9 @@ export default function SignupPage() {
         throw new Error("Account created but failed to sign in. Please try logging in.");
       }
 
+      // Track successful signup
+      track("user_signup_completed", { method: "email", user_id: data.userId });
+
       router.push("/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -89,6 +96,7 @@ export default function SignupPage() {
   };
 
   const handleGoogleSignUp = () => {
+    track("user_signup_started", { method: "google" });
     signIn("google", { callbackUrl: "/onboarding" });
   };
 

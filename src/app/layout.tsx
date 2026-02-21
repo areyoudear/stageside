@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { CookieConsent } from "@/components/CookieConsent";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -46,7 +47,7 @@ export const metadata: Metadata = {
     url: "https://getstageside.com",
     images: [
       {
-        url: "https://getstageside.com/og-image.png",
+        url: "https://getstageside.com/api/og",
         width: 1200,
         height: 630,
         alt: "Stageside - Personalized Concert Discovery",
@@ -58,7 +59,7 @@ export const metadata: Metadata = {
     title: "Stageside - Discover Concerts You'll Actually Love",
     description:
       "Connect your Spotify and find upcoming concerts from artists you already listen to.",
-    images: ["https://getstageside.com/og-image.png"],
+    images: ["https://getstageside.com/api/og"],
     creator: "@getstageside",
   },
   robots: {
@@ -82,6 +83,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <FeedbackButton />
+          <CookieConsent />
         </Providers>
       </body>
     </html>

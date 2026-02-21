@@ -498,16 +498,16 @@ export default function DashboardPage() {
                     step="5"
                     value={minMatchScore}
                     onChange={(e) => setMinMatchScore(parseInt(e.target.value))}
-                    className="flex-1 h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500
+                    className="flex-1 h-3 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500
                       [&::-webkit-slider-thumb]:appearance-none
-                      [&::-webkit-slider-thumb]:w-4
-                      [&::-webkit-slider-thumb]:h-4
+                      [&::-webkit-slider-thumb]:w-6
+                      [&::-webkit-slider-thumb]:h-6
                       [&::-webkit-slider-thumb]:rounded-full
                       [&::-webkit-slider-thumb]:bg-cyan-500
                       [&::-webkit-slider-thumb]:shadow-lg
                       [&::-webkit-slider-thumb]:cursor-pointer
-                      [&::-moz-range-thumb]:w-4
-                      [&::-moz-range-thumb]:h-4
+                      [&::-moz-range-thumb]:w-6
+                      [&::-moz-range-thumb]:h-6
                       [&::-moz-range-thumb]:rounded-full
                       [&::-moz-range-thumb]:bg-cyan-500
                       [&::-moz-range-thumb]:border-0
@@ -540,7 +540,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Status Filters (Interested/Going/Friends) */}
+          {/* Status Filters (Interested/Going/Friends) - min 44px touch targets */}
           {hasSearched && concerts.length > 0 && (
             <div className="mt-4 pt-4 border-t border-zinc-800">
               <div className="flex flex-wrap items-center gap-2">
@@ -548,7 +548,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => setStatusFilter("all")}
                   className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
                     statusFilter === "all"
                       ? "bg-cyan-500 text-white"
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
@@ -560,7 +560,7 @@ export default function DashboardPage() {
                   onClick={() => setStatusFilter("interested")}
                   disabled={userInterests.interested.length === 0 && concerts.filter(c => userInterests.interested.includes(c.id)).length === 0}
                   className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
                     statusFilter === "interested"
                       ? "bg-amber-500 text-white"
                       : userInterests.interested.length === 0
@@ -568,7 +568,7 @@ export default function DashboardPage() {
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
                   )}
                 >
-                  <Heart className="w-3.5 h-3.5" />
+                  <Heart className="w-4 h-4" />
                   Interested
                   <span className={cn(
                     "ml-1 text-xs",
@@ -581,7 +581,7 @@ export default function DashboardPage() {
                   onClick={() => setStatusFilter("going")}
                   disabled={userInterests.going.length === 0 && concerts.filter(c => userInterests.going.includes(c.id)).length === 0}
                   className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
                     statusFilter === "going"
                       ? "bg-green-500 text-white"
                       : userInterests.going.length === 0
@@ -589,7 +589,7 @@ export default function DashboardPage() {
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
                   )}
                 >
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="w-4 h-4" />
                   Going
                   <span className={cn(
                     "ml-1 text-xs",
@@ -606,7 +606,7 @@ export default function DashboardPage() {
                       onClick={() => setStatusFilter("friends-interested")}
                       disabled={friendsConcertIds.interested.length === 0}
                       className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                        "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
                         statusFilter === "friends-interested"
                           ? "bg-blue-500 text-white"
                           : friendsConcertIds.interested.length === 0
@@ -627,7 +627,7 @@ export default function DashboardPage() {
                       onClick={() => setStatusFilter("friends-going")}
                       disabled={friendsConcertIds.going.length === 0}
                       className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                        "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
                         statusFilter === "friends-going"
                           ? "bg-emerald-500 text-white"
                           : friendsConcertIds.going.length === 0
@@ -635,7 +635,7 @@ export default function DashboardPage() {
                           : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
                       )}
                     >
-                      <UserCheck className="w-3.5 h-3.5" />
+                      <UserCheck className="w-4 h-4" />
                       Friends Going
                       <span className={cn(
                         "ml-1 text-xs",
@@ -649,10 +649,10 @@ export default function DashboardPage() {
                 {statusFilter !== "all" && (
                   <button
                     onClick={() => setStatusFilter("all")}
-                    className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
+                    className="p-2.5 rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                     title="Clear filter"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-5 h-5" />
                   </button>
                 )}
 

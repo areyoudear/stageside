@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { track } from "@/lib/analytics";
 
 interface GroupMember {
   userId: string;
@@ -217,6 +218,9 @@ function GroupCard({ group }: { group: ConcertGroup }) {
     navigator.clipboard.writeText(group.inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    
+    // Track invite link copied
+    track("invite_link_copied", { group_id: group.id, group_name: group.name });
   };
 
   return (
@@ -321,6 +325,9 @@ function CreateGroupModal({
       if (!res.ok) {
         throw new Error(data.error || "Failed to create group");
       }
+
+      // Track group created
+      track("group_created", { group_id: data.group.id, group_name: data.group.name });
 
       onCreated(data.group);
     } catch (err) {
@@ -428,6 +435,12 @@ function JoinGroupModal({
       if (!res.ok) {
         throw new Error(data.error || "Failed to join group");
       }
+
+      // Track group joined via invite
+      track("group_joined_via_invite", { 
+        group_id: data.group.id, 
+        invite_code: inviteCode.toUpperCase() 
+      });
 
       onJoined(data.group);
     } catch (err) {
