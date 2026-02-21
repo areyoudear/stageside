@@ -34,6 +34,8 @@ interface ServiceProfile {
  * Sync music profile from all connected services
  *
  * Optional body: { service: "spotify" } to sync only one service
+ * Note: Even when syncing a specific service, we re-aggregate from ALL services
+ * to preserve artists from other connected services.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -46,16 +48,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const specificService = body.service as MusicServiceType | undefined;
 
-    // Get all connections (or specific one)
-    let connections;
-    if (specificService) {
-      const conn = await getMusicConnection(session.user.id, specificService);
-      connections = conn ? [conn] : [];
-    } else {
-      connections = await getMusicConnections(session.user.id);
-    }
-
-    const activeConnections = connections.filter(
+    // Always get ALL connections to preserve data from all services
+    const allConnections = await getMusicConnections(session.user.id);
+    const activeConnections = allConnections.filter(
       (c) => c.is_active && c.access_token
     );
 
@@ -66,11 +61,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch profiles from each service
+    // Determine which services to sync (specific one or all)
+    const servicesToSync = specificService
+      ? activeConnections.filter((c) => c.service === specificService)
+      : activeConnections;
+
+    if (specificService && servicesToSync.length === 0) {
+      return NextResponse.json(
+        { error: `Service ${specificService} is not connected or active` },
+        { status: 400 }
+      );
+    }
+
+    // Fetch profiles from each service that needs syncing
     const profiles: ServiceProfile[] = [];
     const errors: Array<{ service: string; error: string }> = [];
+    const syncedServices: string[] = [];
 
-    for (const connection of activeConnections) {
+    for (const connection of servicesToSync) {
       try {
         const profile = await fetchServiceProfile(
           connection.service as MusicService,
@@ -79,6 +87,7 @@ export async function POST(request: NextRequest) {
 
         if (profile) {
           profiles.push(profile);
+          syncedServices.push(connection.service);
           await updateConnectionSyncTime(connection.id);
         }
       } catch (error) {
@@ -87,6 +96,29 @@ export async function POST(request: NextRequest) {
         console.error(`Error syncing ${connection.service}:`, errorMessage);
         errors.push({ service: connection.service, error: errorMessage });
         await setConnectionError(connection.id, errorMessage);
+      }
+    }
+
+    // If syncing specific service, also fetch from other services to preserve their artists
+    if (specificService) {
+      const otherConnections = activeConnections.filter(
+        (c) => c.service !== specificService && !errors.some((e) => e.service === c.service)
+      );
+
+      for (const connection of otherConnections) {
+        try {
+          const profile = await fetchServiceProfile(
+            connection.service as MusicService,
+            connection.access_token
+          );
+
+          if (profile) {
+            profiles.push(profile);
+          }
+        } catch (error) {
+          // Don't fail for other services, just skip them
+          console.warn(`Skipping ${connection.service} during partial sync:`, error);
+        }
       }
     }
 
@@ -100,7 +132,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Aggregate artists from all profiles
+    // Aggregate artists from ALL profiles (including preserved ones)
     const aggregatedArtists = aggregateArtists(profiles);
 
     // Save to database
@@ -115,7 +147,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      syncedServices: profiles.map((p) => p.service),
+      syncedServices, // Only services that were actually synced this request
+      totalServices: profiles.map((p) => p.service), // All services included in aggregation
       artistCount: aggregatedArtists.length,
       genreCount: aggregatedGenres.length,
       topArtists: aggregatedArtists.slice(0, 10).map((a) => ({

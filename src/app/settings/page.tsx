@@ -263,11 +263,32 @@ export default function SettingsPage() {
     }
   };
 
-  // Load avatar from session or fetch from API
+  // Load avatar from database (more reliable than session which may be stale)
   useEffect(() => {
-    if (session?.user?.image) {
-      setAvatarUrl(session.user.image);
-    }
+    const fetchAvatar = async () => {
+      if (!session?.user?.id) return;
+      
+      try {
+        // Try to get latest avatar from database via API
+        const response = await fetch("/api/user/profile");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.avatar_url) {
+            setAvatarUrl(data.avatar_url);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn("Could not fetch avatar from API:", error);
+      }
+      
+      // Fall back to session image
+      if (session?.user?.image) {
+        setAvatarUrl(session.user.image);
+      }
+    };
+    
+    fetchAvatar();
   }, [session]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
