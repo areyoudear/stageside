@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertMusicConnection, saveMusicProfile, saveRelatedArtists } from "@/lib/supabase";
-import { getUserMusicProfile as getSpotifyMusicProfile, SpotifyArtist } from "@/lib/spotify";
+import { getUserMusicProfile as getSpotifyMusicProfile, SpotifyArtist, validateArtistsAgainstSpotify } from "@/lib/spotify";
 import { getUserMusicProfile as getYouTubeMusicProfile } from "@/lib/youtube-music";
 import { MusicServiceType } from "@/lib/music-types";
 
@@ -223,6 +223,7 @@ async function fetchAndStoreSpotifyProfile(
 
 /**
  * Fetch user's music profile from YouTube Music and store in Supabase
+ * Validates extracted artists against Spotify to filter out non-music channels
  */
 async function fetchAndStoreYouTubeMusicProfile(
   accessToken: string,
@@ -231,19 +232,42 @@ async function fetchAndStoreYouTubeMusicProfile(
   try {
     const profile = await getYouTubeMusicProfile(accessToken);
 
-    // Transform to storage format (YouTube Music returns simpler artist data)
-    const topArtists = profile.topArtists.slice(0, 50).map((artist) => ({
-      id: artist.id || `yt_${artist.name.toLowerCase().replace(/\s+/g, '_')}`,
-      name: artist.name,
-      genres: artist.genres || [],
-      popularity: artist.popularity || 0,
-      image_url: undefined, // YouTube Music doesn't provide artist images directly
-    }));
+    // Extract artist names from YouTube data
+    const candidateArtistNames = profile.topArtists
+      .slice(0, 100) // Check more candidates since some will be filtered
+      .map((artist) => artist.name);
 
-    // Save profile (YouTube Music doesn't have related artists API like Spotify)
-    await saveMusicProfile(userId, topArtists, profile.topGenres);
+    console.log(`YouTube: Found ${candidateArtistNames.length} candidate artists, validating against Spotify...`);
 
-    console.log(`YouTube Music profile saved for user ${userId} (${profile.stats?.likedMusicVideos || 0} music videos analyzed)`);
+    // Validate against Spotify to filter out non-music channels/creators
+    const validatedArtists = await validateArtistsAgainstSpotify(candidateArtistNames);
+
+    console.log(`YouTube: ${validatedArtists.length} artists validated as real music artists`);
+
+    // Transform validated Spotify artists to storage format with YouTube popularity scores
+    const topArtists = validatedArtists.slice(0, 50).map((spotifyArtist) => {
+      // Find original YouTube score if available
+      const ytArtist = profile.topArtists.find(
+        (a) => a.name.toLowerCase() === spotifyArtist.name.toLowerCase()
+      );
+      return {
+        id: spotifyArtist.id,
+        name: spotifyArtist.name,
+        genres: spotifyArtist.genres || [],
+        popularity: ytArtist?.popularity || spotifyArtist.popularity || 0,
+        image_url: spotifyArtist.images?.[0]?.url,
+      };
+    });
+
+    // Extract genres from validated artists
+    const topGenres = Array.from(
+      new Set(validatedArtists.flatMap((a) => a.genres || []))
+    ).slice(0, 25);
+
+    // Save profile
+    await saveMusicProfile(userId, topArtists, topGenres);
+
+    console.log(`YouTube Music profile saved for user ${userId} (${profile.stats?.likedMusicVideos || 0} videos analyzed, ${topArtists.length} valid artists)`);
   } catch (error) {
     console.error("Error fetching/storing YouTube Music profile:", error);
   }

@@ -685,7 +685,7 @@ export default function DiscoverPage() {
                 {selectedGenres.map((genre) => (
                   <span
                     key={genre}
-                    className="px-2 py-1 rounded-full bg-purple-500/10 text-purple-300 text-xs border border-cyan-500/20"
+                    className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-300 text-xs border border-cyan-500/20"
                   >
                     {genre}
                   </span>
@@ -826,7 +826,7 @@ export default function DiscoverPage() {
                   <p className="text-sm text-zinc-500">
                     In {location?.name} • {dateRange.label || "Custom dates"}
                     {vibeFilter !== "all" && (
-                      <span className="text-purple-400"> • {VIBE_FILTERS.find(f => f.value === vibeFilter)?.label} filter</span>
+                      <span className="text-blue-400"> • {VIBE_FILTERS.find(f => f.value === vibeFilter)?.label} filter</span>
                     )}
                   </p>
                 </div>
@@ -878,7 +878,7 @@ export default function DiscoverPage() {
                       className={cn(
                         "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
                         isActive
-                          ? "bg-purple-500 text-white"
+                          ? "bg-blue-500 text-white"
                           : count === 0
                           ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
                           : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
@@ -889,7 +889,7 @@ export default function DiscoverPage() {
                       {filter.value !== "all" && (
                         <span className={cn(
                           "ml-1 text-xs",
-                          isActive ? "text-purple-200" : "text-zinc-500"
+                          isActive ? "text-blue-200" : "text-zinc-500"
                         )}>
                           ({count})
                         </span>
@@ -1001,7 +1001,7 @@ export default function DiscoverPage() {
                       className={cn(
                         "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
                         statusFilter === "friends-interested"
-                          ? "bg-violet-500 text-white"
+                          ? "bg-blue-500 text-white"
                           : friendsConcertIds.interested.length === 0
                           ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
                           : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
@@ -1011,7 +1011,7 @@ export default function DiscoverPage() {
                       Friends Interested
                       <span className={cn(
                         "ml-1 text-xs",
-                        statusFilter === "friends-interested" ? "text-violet-200" : "text-zinc-500"
+                        statusFilter === "friends-interested" ? "text-blue-200" : "text-zinc-500"
                       )}>
                         ({concerts.filter(c => friendsConcertIds.interested.includes(c.id)).length})
                       </span>
@@ -1120,7 +1120,7 @@ export default function DiscoverPage() {
                 <p className="text-zinc-400">No {VIBE_FILTERS.find(f => f.value === vibeFilter)?.label.toLowerCase()} concerts found.</p>
                 <button
                   onClick={() => setVibeFilter("all")}
-                  className="mt-2 text-purple-400 hover:text-purple-300 text-sm"
+                  className="mt-2 text-blue-400 hover:text-blue-300 text-sm"
                 >
                   Show all concerts instead
                 </button>

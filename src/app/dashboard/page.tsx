@@ -439,7 +439,7 @@ export default function DashboardPage() {
               <Button
                 onClick={fetchConcerts}
                 disabled={!location || isLoading}
-                className="w-full bg-gradient-to-r from-cyan-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 h-10"
+                className="w-full bg-gradient-to-r from-cyan-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 h-10"
               >
                 {isLoading ? (
                   <>
@@ -584,7 +584,7 @@ export default function DashboardPage() {
                       className={cn(
                         "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
                         statusFilter === "friends-interested"
-                          ? "bg-violet-500 text-white"
+                          ? "bg-blue-500 text-white"
                           : friendsConcertIds.interested.length === 0
                           ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
                           : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
@@ -594,7 +594,7 @@ export default function DashboardPage() {
                       Friends Interested
                       <span className={cn(
                         "ml-1 text-xs",
-                        statusFilter === "friends-interested" ? "text-violet-200" : "text-zinc-500"
+                        statusFilter === "friends-interested" ? "text-blue-200" : "text-zinc-500"
                       )}>
                         ({friendsConcertIds.interested.length})
                       </span>

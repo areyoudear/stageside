@@ -123,7 +123,7 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
   if (isLoading) {
     return (
       <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
       </main>
     );
   }
@@ -187,7 +187,7 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
 
               <div className="flex flex-wrap items-center gap-4 text-zinc-400 mb-6">
                 <span className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-purple-400" />
+                  <Calendar className="w-4 h-4 text-blue-400" />
                   {formatDateRange(festival.dates)}
                 </span>
                 <span className="flex items-center gap-2">

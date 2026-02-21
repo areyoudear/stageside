@@ -85,7 +85,7 @@ function ConflictArtistOption({ artist, onSelect }: ConflictArtistOptionProps) {
   return (
     <button
       onClick={onSelect}
-      className="flex flex-col items-center text-center p-4 rounded-xl border border-zinc-700 hover:border-cyan-500 hover:bg-purple-500/10 transition-all group"
+      className="flex flex-col items-center text-center p-4 rounded-xl border border-zinc-700 hover:border-cyan-500 hover:bg-blue-500/10 transition-all group"
     >
       {/* Image */}
       <div className="relative w-20 h-20 rounded-full overflow-hidden mb-3">
@@ -105,7 +105,7 @@ function ConflictArtistOption({ artist, onSelect }: ConflictArtistOptionProps) {
       </div>
 
       {/* Name */}
-      <h4 className="font-semibold text-white group-hover:text-purple-300 transition-colors">
+      <h4 className="font-semibold text-white group-hover:text-blue-300 transition-colors">
         {artist.artist_name}
       </h4>
 

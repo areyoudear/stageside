@@ -330,7 +330,7 @@ export default function FriendsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-            <Users className="w-7 h-7 text-violet-400" />
+            <Users className="w-7 h-7 text-blue-400" />
             Friends
           </h1>
           <p className="text-zinc-400">
@@ -341,7 +341,7 @@ export default function FriendsPage() {
         {/* Add Friend Section */}
         <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-5 mb-6">
           <h2 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-violet-400" />
+            <UserPlus className="w-4 h-4 text-blue-400" />
             Add a Friend
           </h2>
           
@@ -355,7 +355,7 @@ export default function FriendsPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendRequestByQuery()}
                   placeholder="Search by name, username, or email..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
+                  className="w-full pl-10 pr-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 />
                 {isSearching && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-zinc-500" />
@@ -364,7 +364,7 @@ export default function FriendsPage() {
               <Button
                 onClick={sendRequestByQuery}
                 disabled={!searchQuery.trim() || actionLoading === "query"}
-                className="bg-violet-600 hover:bg-violet-700"
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 {actionLoading === "query" ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -383,7 +383,7 @@ export default function FriendsPage() {
                     className="flex items-center justify-between p-3 hover:bg-zinc-800/80"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -409,7 +409,7 @@ export default function FriendsPage() {
                           size="sm"
                           onClick={() => sendFriendRequest(user.id, user.name)}
                           disabled={actionLoading === user.id}
-                          className="bg-violet-600 hover:bg-violet-700"
+                          className="bg-blue-600 hover:bg-blue-700"
                         >
                           {actionLoading === user.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />

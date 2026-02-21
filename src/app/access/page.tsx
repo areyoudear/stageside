@@ -54,8 +54,8 @@ function AccessForm() {
         {/* Card */}
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
           <div className="text-center mb-6">
-            <div className="w-14 h-14 rounded-full bg-purple-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-7 h-7 text-purple-400" />
+            <div className="w-14 h-14 rounded-full bg-blue-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-7 h-7 text-blue-400" />
             </div>
             <h1 className="text-xl font-semibold text-white mb-2">
               Early Access Preview
@@ -83,7 +83,7 @@ function AccessForm() {
             <Button
               type="submit"
               disabled={!password || isLoading}
-              className="w-full bg-gradient-to-r from-cyan-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 h-12"
+              className="w-full bg-gradient-to-r from-cyan-600 to-pink-500 hover:from-blue-700 hover:to-pink-600 h-12"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -100,7 +100,7 @@ function AccessForm() {
             Don&apos;t have an access code?{" "}
             <a
               href="mailto:hello@getstageside.com"
-              className="text-purple-400 hover:text-purple-300"
+              className="text-blue-400 hover:text-blue-300"
             >
               Request early access
             </a>
@@ -119,7 +119,7 @@ function AccessForm() {
 function LoadingFallback() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950 flex items-center justify-center px-4">
-      <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+      <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
     </main>
   );
 }

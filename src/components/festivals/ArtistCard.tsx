@@ -233,7 +233,7 @@ export function ArtistCard({
         {showScheduleInfo && (artist.day || artist.stage) && (
           <div className="mt-2 pt-2 border-t border-zinc-800">
             <p className="text-xs text-zinc-500">
-              {artist.day && <span className="text-purple-400">{artist.day}</span>}
+              {artist.day && <span className="text-blue-400">{artist.day}</span>}
               {artist.day && artist.start_time && " • "}
               {artist.start_time && (
                 <span className="text-pink-400">{artist.start_time}</span>

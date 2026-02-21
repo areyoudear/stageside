@@ -88,9 +88,9 @@ function getVibe(genres: string[]): {
       type: "intimate", 
       label: "Intimate", 
       icon: Users, 
-      color: "text-violet-400",
-      bgGradient: "from-violet-500/20 via-violet-500/10 to-transparent",
-      borderColor: "border-violet-500/30 hover:border-violet-500/60"
+      color: "text-blue-400",
+      bgGradient: "from-blue-500/20 via-blue-500/10 to-transparent",
+      borderColor: "border-blue-500/30 hover:border-blue-500/60"
     };
   }
   if (genreString.match(/rock|metal|punk|hip-hop|rap|pop|latin/)) {
@@ -107,9 +107,9 @@ function getVibe(genres: string[]): {
     type: "diverse", 
     label: "Mixed", 
     icon: Music2, 
-    color: "text-fuchsia-400",
-    bgGradient: "from-fuchsia-500/20 via-fuchsia-500/10 to-transparent",
-    borderColor: "border-fuchsia-500/30 hover:border-fuchsia-500/60"
+    color: "text-cyan-400",
+    bgGradient: "from-cyan-500/20 via-cyan-500/10 to-transparent",
+    borderColor: "border-cyan-500/30 hover:border-cyan-500/60"
   };
 }
 
@@ -540,7 +540,7 @@ export function ConcertCard({
             )}
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-fuchsia-400 flex-shrink-0" />
+            <MapPin className="w-4 h-4 text-cyan-400 flex-shrink-0" />
             <span className="text-zinc-300 line-clamp-1">
               {concert.venue.name}
               {concert.distance !== undefined && (
@@ -553,7 +553,7 @@ export function ConcertCard({
             <div className="flex items-center gap-1 text-xs text-zinc-500">
               <span className={cn(
                 "px-1.5 py-0.5 rounded",
-                concert.venueSize === "intimate" && "bg-violet-500/10 text-violet-400",
+                concert.venueSize === "intimate" && "bg-blue-500/10 text-blue-400",
                 concert.venueSize === "large" && "bg-cyan-500/10 text-cyan-400",
                 concert.venueSize === "arena" && "bg-orange-500/10 text-orange-400",
                 concert.venueSize === "festival" && "bg-pink-500/10 text-pink-400"
@@ -575,21 +575,21 @@ export function ConcertCard({
             isPerfectMatch 
               ? "bg-green-500/10 border border-green-500/20" 
               : isGreatMatch
-              ? "bg-violet-500/10 border border-violet-500/20"
+              ? "bg-blue-500/10 border border-blue-500/20"
               : "bg-zinc-800/50 border border-zinc-700/30"
           )}>
             <div className="flex items-start gap-2">
               {isPerfectMatch ? (
                 <Star className="w-3.5 h-3.5 text-green-400 mt-0.5 flex-shrink-0" />
               ) : isGreatMatch ? (
-                <Sparkles className="w-3.5 h-3.5 text-violet-400 mt-0.5 flex-shrink-0" />
+                <Sparkles className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
               ) : (
                 <Music2 className="w-3.5 h-3.5 text-zinc-400 mt-0.5 flex-shrink-0" />
               )}
               <div className="flex-1 min-w-0">
                 <p className={cn(
                   "text-xs leading-relaxed font-medium",
-                  isPerfectMatch ? "text-green-200" : isGreatMatch ? "text-violet-200" : "text-zinc-300"
+                  isPerfectMatch ? "text-green-200" : isGreatMatch ? "text-blue-200" : "text-zinc-300"
                 )}>
                   {concert.matchReasons[0]}
                 </p>
@@ -603,7 +603,7 @@ export function ConcertCard({
                         className={cn(
                           "px-2 py-0.5 text-[10px] font-semibold rounded-full uppercase tracking-wide",
                           tag === "Must-see" ? "bg-green-500/20 text-green-300" :
-                          tag === "For you" ? "bg-violet-500/20 text-violet-300" :
+                          tag === "For you" ? "bg-blue-500/20 text-blue-300" :
                           tag === "Fresh pick" ? "bg-blue-500/20 text-blue-300" :
                           "bg-zinc-700/50 text-zinc-400"
                         )}
@@ -634,17 +634,17 @@ export function ConcertCard({
 
         {/* Friends Interested Section */}
         {friendsInterested.length > 0 && (
-          <div className="flex items-center gap-2 py-2 px-3 bg-violet-500/10 rounded-lg border border-violet-500/20">
-            <Users className="w-4 h-4 text-violet-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+            <Users className="w-4 h-4 text-blue-400 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               {friendsGoing.length > 0 && (
-                <p className="text-xs text-violet-300">
+                <p className="text-xs text-blue-300">
                   <span className="font-medium">{friendsGoing.map(f => f.name).join(", ")}</span>
                   {friendsGoing.length === 1 ? " is" : " are"} going
                 </p>
               )}
               {friendsInterestedOnly.length > 0 && (
-                <p className="text-xs text-violet-400">
+                <p className="text-xs text-blue-400">
                   <span className="font-medium">{friendsInterestedOnly.map(f => f.name).join(", ")}</span>
                   {friendsInterestedOnly.length === 1 ? " is" : " are"} interested
                 </p>

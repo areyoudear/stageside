@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 interface MusicVisualizerProps {
   className?: string;
   variant?: "bars" | "wave" | "circular";
-  color?: "purple" | "green" | "mixed" | "cyan";
+  color?: "blue" | "green" | "mixed" | "cyan";
   intensity?: "low" | "medium" | "high";
 }
 
@@ -38,8 +38,8 @@ export function MusicVisualizer({
 
   const getColorClasses = () => {
     switch (color) {
-      case "purple":
-        return "from-violet-500/40 to-fuchsia-500/40";
+      case "blue":
+        return "from-blue-500/40 to-cyan-500/40";
       case "green":
         return "from-green-500/40 to-emerald-500/40";
       case "cyan":
@@ -99,8 +99,8 @@ function WaveVisualizer({
 }: Omit<MusicVisualizerProps, "variant">) {
   const getColorStops = () => {
     switch (color) {
-      case "purple":
-        return "rgba(139, 92, 246, 0.3), rgba(217, 70, 239, 0.2), rgba(139, 92, 246, 0.3)";
+      case "blue":
+        return "rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.2), rgba(59, 130, 246, 0.3)";
       case "green":
         return "rgba(34, 197, 94, 0.3), rgba(16, 185, 129, 0.2), rgba(34, 197, 94, 0.3)";
       case "cyan":
@@ -158,7 +158,7 @@ function CircularVisualizer({
   const rings = Array.from({ length: ringCount }, (_, i) => i);
 
   const getColorClass = (index: number) => {
-    if (color === "purple") return "border-violet-500/30";
+    if (color === "blue") return "border-blue-500/30";
     if (color === "green") return "border-green-500/30";
     if (color === "cyan") return "border-cyan-500/30";
     // Mixed - alternate colors
@@ -192,7 +192,7 @@ function CircularVisualizer({
       })}
 
       {/* Center glow */}
-      <div className="absolute w-32 h-32 rounded-full bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 blur-xl animate-pulse" />
+      <div className="absolute w-32 h-32 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-xl animate-pulse" />
     </div>
   );
 }

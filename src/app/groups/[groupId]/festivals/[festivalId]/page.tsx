@@ -146,7 +146,7 @@ export default function GroupFestivalPage({
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Building your group schedule...</p>
         </div>
       </div>
@@ -163,7 +163,7 @@ export default function GroupFestivalPage({
           </h2>
           <Link
             href={`/groups/${groupId}`}
-            className="text-purple-400 hover:text-purple-300"
+            className="text-blue-400 hover:text-blue-300"
           >
             ← Back to group
           </Link>
@@ -196,7 +196,7 @@ export default function GroupFestivalPage({
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Hero */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-full px-4 py-2 mb-4">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500/20 to-blue-500/20 border border-pink-500/30 rounded-full px-4 py-2 mb-4">
             <Users className="w-5 h-5 text-pink-400" />
             <span className="text-white font-medium">Festival Buddy</span>
           </div>
@@ -232,12 +232,12 @@ export default function GroupFestivalPage({
             </div>
             <div className="text-yellow-300/70 text-sm">Acts Scheduled</div>
           </div>
-          <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-xl p-4 border border-cyan-500/20 text-center">
-            <Sparkles className="w-6 h-6 text-purple-400 mx-auto mb-2" />
+          <div className="bg-gradient-to-br from-blue-500/20 to-blue-500/5 rounded-xl p-4 border border-cyan-500/20 text-center">
+            <Sparkles className="w-6 h-6 text-blue-400 mx-auto mb-2" />
             <div className="text-2xl font-bold text-white">
               {Math.round(itinerary.totalGroupScore)}
             </div>
-            <div className="text-purple-300/70 text-sm">Group Score</div>
+            <div className="text-blue-300/70 text-sm">Group Score</div>
           </div>
           <button
             onClick={() => setShowSatisfaction(!showSatisfaction)}

@@ -324,3 +324,133 @@ export async function getUserMusicProfile(accessToken: string) {
     throw error;
   }
 }
+
+/**
+ * Search Spotify for an artist by name
+ * Returns the top match if found, null otherwise
+ */
+export async function searchArtist(
+  artistName: string,
+  clientId?: string,
+  clientSecret?: string
+): Promise<SpotifyArtist | null> {
+  try {
+    // Get client credentials token for searching
+    const token = await getClientCredentialsToken(clientId, clientSecret);
+    if (!token) return null;
+
+    const response = await fetch(
+      `${SPOTIFY_API_BASE}/search?q=${encodeURIComponent(artistName)}&type=artist&limit=1`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const artists = data.artists?.items || [];
+    
+    if (artists.length === 0) return null;
+
+    const match = artists[0];
+    // Fuzzy match: check if names are similar enough
+    const normalizedQuery = artistName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normalizedResult = match.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    // Accept if either contains the other or they're very similar
+    if (
+      normalizedQuery.includes(normalizedResult) ||
+      normalizedResult.includes(normalizedQuery) ||
+      normalizedQuery === normalizedResult
+    ) {
+      return match;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`Error searching for artist "${artistName}":`, error);
+    return null;
+  }
+}
+
+/**
+ * Get a client credentials access token for Spotify API
+ * (for searching without user auth)
+ */
+let cachedClientToken: { token: string; expiresAt: number } | null = null;
+
+async function getClientCredentialsToken(
+  clientId?: string,
+  clientSecret?: string
+): Promise<string | null> {
+  const id = clientId || process.env.SPOTIFY_CLIENT_ID;
+  const secret = clientSecret || process.env.SPOTIFY_CLIENT_SECRET;
+  
+  if (!id || !secret) return null;
+
+  // Return cached token if still valid
+  if (cachedClientToken && cachedClientToken.expiresAt > Date.now()) {
+    return cachedClientToken.token;
+  }
+
+  try {
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`,
+      },
+      body: "grant_type=client_credentials",
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    cachedClientToken = {
+      token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in - 60) * 1000, // Expire 1 min early
+    };
+
+    return cachedClientToken.token;
+  } catch (error) {
+    console.error("Error getting Spotify client credentials:", error);
+    return null;
+  }
+}
+
+/**
+ * Validate a list of artist names against Spotify
+ * Returns only the ones that are real music artists with enriched data
+ */
+export async function validateArtistsAgainstSpotify(
+  artistNames: string[],
+  maxConcurrent: number = 5
+): Promise<SpotifyArtist[]> {
+  const validatedArtists: SpotifyArtist[] = [];
+  const seenIds = new Set<string>();
+
+  // Process in batches to avoid rate limiting
+  for (let i = 0; i < artistNames.length; i += maxConcurrent) {
+    const batch = artistNames.slice(i, i + maxConcurrent);
+    const results = await Promise.all(
+      batch.map(name => searchArtist(name))
+    );
+
+    for (const artist of results) {
+      if (artist && !seenIds.has(artist.id)) {
+        seenIds.add(artist.id);
+        validatedArtists.push(artist);
+      }
+    }
+
+    // Small delay between batches to be nice to Spotify API
+    if (i + maxConcurrent < artistNames.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+
+  return validatedArtists;
+}

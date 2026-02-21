@@ -16,7 +16,7 @@ const badgeVariants = cva(
         // Vibe variants
         chill: "border-transparent bg-blue-500/20 text-blue-400",
         energetic: "border-transparent bg-yellow-500/20 text-yellow-400",
-        intimate: "border-transparent bg-purple-500/20 text-purple-400",
+        intimate: "border-transparent bg-blue-500/20 text-blue-400",
         festival: "border-transparent bg-orange-500/20 text-orange-400",
         // Urgency variants  
         urgent: "border-transparent bg-red-500 text-white animate-pulse",

@@ -137,7 +137,7 @@ export default function FestivalSchedulePage({
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Generating your personalized schedule...</p>
         </div>
       </div>
@@ -153,7 +153,7 @@ export default function FestivalSchedulePage({
           <p className="text-gray-400 mb-4">Connect a music service to get personalized recommendations</p>
           <Link
             href={`/festivals/${id}`}
-            className="text-purple-400 hover:text-purple-300"
+            className="text-blue-400 hover:text-blue-300"
           >
             ← Back to festival
           </Link>
@@ -196,7 +196,7 @@ export default function FestivalSchedulePage({
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Hero */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-cyan-500/30 rounded-full px-4 py-2 mb-4">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500/20 to-pink-500/20 border border-cyan-500/30 rounded-full px-4 py-2 mb-4">
             <Sparkles className="w-5 h-5 text-yellow-400" />
             <span className="text-white font-medium">Your Personalized Schedule</span>
           </div>
@@ -209,8 +209,8 @@ export default function FestivalSchedulePage({
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-xl p-4 border border-cyan-500/20">
-            <div className="flex items-center gap-2 text-purple-400 mb-1">
+          <div className="bg-gradient-to-br from-blue-500/20 to-blue-500/5 rounded-xl p-4 border border-cyan-500/20">
+            <div className="flex items-center gap-2 text-blue-400 mb-1">
               <Star className="w-4 h-4" />
               <span className="text-sm">Must-See</span>
             </div>
@@ -360,7 +360,7 @@ export default function FestivalSchedulePage({
                 onClick={() => setIncludeDiscoveries(!includeDiscoveries)}
                 className={`w-full px-4 py-2 rounded-lg border transition-colors ${
                   includeDiscoveries
-                    ? "bg-purple-500/20 border-cyan-500/50 text-purple-300"
+                    ? "bg-blue-500/20 border-cyan-500/50 text-blue-300"
                     : "bg-white/10 border-white/20 text-gray-400"
                 }`}
               >

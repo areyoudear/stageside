@@ -192,7 +192,7 @@ export default function GroupDetailPage({
   if (status === "loading" || isLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
       </div>
     );
   }
@@ -265,7 +265,7 @@ export default function GroupDetailPage({
               </span>
             </div>
 
-            <button className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors">
+            <button className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors">
               <UserPlus className="w-4 h-4" />
               Invite Friends
             </button>
@@ -290,7 +290,7 @@ export default function GroupDetailPage({
                       {matchData.group.overlapArtists.map((artist) => (
                         <span
                           key={artist}
-                          className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm"
+                          className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-sm"
                         >
                           {artist}
                         </span>
@@ -462,7 +462,7 @@ function ConcertCard({
               className="object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-purple-800 to-pink-800 flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-br from-blue-800 to-pink-800 flex items-center justify-center">
               <Music className="w-8 h-8 text-white/50" />
             </div>
           )}
@@ -519,7 +519,7 @@ function ConcertCard({
                 href={concert.ticketUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-purple-400 hover:text-purple-300 text-sm"
+                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm"
               >
                 <ExternalLink className="w-4 h-4" />
                 Get Tickets

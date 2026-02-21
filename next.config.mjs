@@ -32,6 +32,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'i.scdn.co', // Spotify artist images
       },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co', // Supabase storage (avatars, etc)
+      },
     ],
   },
 };

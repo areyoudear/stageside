@@ -33,8 +33,8 @@ export function NoMatchesCard({
   return (
     <div className="space-y-8">
       {/* No Matches Message */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/10 via-zinc-900 to-zinc-900 border border-zinc-800 p-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 via-zinc-900 to-zinc-900 border border-zinc-800 p-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
         
         <div className="relative text-center">
           <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
@@ -44,7 +44,7 @@ export function NoMatchesCard({
           <p className="text-zinc-400 max-w-md mx-auto">
             We couldn&apos;t find concerts for{" "}
             {selectedArtists.length > 0 ? (
-              <span className="text-purple-400">
+              <span className="text-blue-400">
                 {selectedArtists.slice(0, 3).map((a) => a.name).join(", ")}
                 {selectedArtists.length > 3 && ` and ${selectedArtists.length - 3} more`}
               </span>

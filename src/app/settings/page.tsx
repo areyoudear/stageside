@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Music,
@@ -57,6 +57,7 @@ const POPULAR_GENRES = [
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // State
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
@@ -90,6 +91,27 @@ export default function SettingsPage() {
       loadNotificationPreferences();
     }
   }, [status]);
+
+  // Handle post-connection sync: poll for new artists after service connection
+  useEffect(() => {
+    const connectedService = searchParams.get("connected");
+    if (connectedService && status === "authenticated") {
+      // Service just connected - sync runs async in background
+      // Poll for new artists after short delays to catch when sync completes
+      const delays = [2000, 5000, 10000]; // 2s, 5s, 10s
+      
+      delays.forEach((delay) => {
+        setTimeout(() => {
+          loadPreferences();
+        }, delay);
+      });
+
+      // Clean up URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("connected");
+      window.history.replaceState({}, "", url.pathname);
+    }
+  }, [searchParams, status]);
 
   const loadNotificationPreferences = async () => {
     setIsLoadingNotifications(true);
@@ -507,8 +529,8 @@ export default function SettingsPage() {
         {/* Favorite Artists Section */}
         <section className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-purple-500/10">
-              <Heart className="w-5 h-5 text-purple-500" />
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <Heart className="w-5 h-5 text-blue-500" />
             </div>
             <h2 className="text-lg font-semibold text-white">Favorite Artists</h2>
           </div>
@@ -687,7 +709,7 @@ export default function SettingsPage() {
                       step="10"
                       value={minMatchScore}
                       onChange={(e) => setMinMatchScore(parseInt(e.target.value))}
-                      className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                      className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     />
                     <div className="flex justify-between text-xs text-zinc-500 mt-1">
                       <span>Any match</span>

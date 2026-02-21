@@ -68,7 +68,7 @@ export function FestivalCard({ festival, showMatchDetails = false }: FestivalCar
           {/* Date & Location */}
           <div className="space-y-2 text-sm text-zinc-400">
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 flex-shrink-0 text-purple-400" />
+              <Calendar className="w-4 h-4 flex-shrink-0 text-blue-400" />
               <span>{formatDateRange(festival.dates)}</span>
             </div>
             <div className="flex items-center gap-2">

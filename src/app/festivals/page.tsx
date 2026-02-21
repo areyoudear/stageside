@@ -136,7 +136,7 @@ export default function FestivalsPage() {
 
         {/* Connect prompt if not logged in */}
         {status === "unauthenticated" && (
-          <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-cyan-500/20">
+          <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-blue-500/10 to-pink-500/10 border border-cyan-500/20">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-white mb-1">

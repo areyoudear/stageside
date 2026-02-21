@@ -14,7 +14,7 @@ export function ConcertCrowdBackground({ className = "" }: { className?: string 
       {/* Stage glow at top */}
       <div className="absolute top-0 left-0 right-0 h-[40%]">
         {/* Bright stage wash */}
-        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-cyan-500/40 via-purple-500/20 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-cyan-500/40 via-blue-500/20 to-transparent" />
         
         {/* Stage light beams - more prominent */}
         <div 
@@ -62,7 +62,7 @@ export function ConcertCrowdBackground({ className = "" }: { className?: string 
       
       {/* Atmospheric glow orbs */}
       <div className="absolute top-[15%] left-1/4 w-[500px] h-[250px] bg-cyan-500/25 rounded-full blur-[120px] animate-float-slow" />
-      <div className="absolute top-[20%] right-1/4 w-[400px] h-[200px] bg-purple-500/20 rounded-full blur-[100px] animate-float-slow" style={{ animationDelay: "-4s" }} />
+      <div className="absolute top-[20%] right-1/4 w-[400px] h-[200px] bg-blue-500/20 rounded-full blur-[100px] animate-float-slow" style={{ animationDelay: "-4s" }} />
       
       {/* CROWD SILHOUETTES - positioned to be visible behind hero text */}
       {/* The crowd takes up the bottom 60% of the hero and silhouettes start mid-way */}

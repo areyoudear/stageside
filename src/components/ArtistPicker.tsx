@@ -153,7 +153,7 @@ export function ArtistPicker({
           {selectedArtists.map((artist) => (
             <div
               key={artist.id}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-cyan-500/30 text-purple-200"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/20 border border-cyan-500/30 text-blue-200"
             >
               {artist.imageUrl ? (
                 <img
