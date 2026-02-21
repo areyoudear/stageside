@@ -7,7 +7,7 @@ import {
   MusicServicesGrid,
   MusicServiceType,
 } from "@/components/MusicServiceButton";
-import { RefreshCw, Plus, Settings, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { RefreshCw, Plus, Settings, ChevronDown, ChevronUp, Loader2, X, AlertTriangle } from "lucide-react";
 
 interface Connection {
   id: string;
@@ -35,6 +35,11 @@ export function ConnectedServicesPanel({
   const [isLoadingConnections, setIsLoadingConnections] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [disconnectDialog, setDisconnectDialog] = useState<{
+    isOpen: boolean;
+    service: MusicServiceType | null;
+    isDisconnecting: boolean;
+  }>({ isOpen: false, service: null, isDisconnecting: false });
 
   const fetchConnections = async () => {
     setIsLoadingConnections(true);
@@ -76,25 +81,48 @@ export function ConnectedServicesPanel({
     }
   };
 
-  const handleDisconnect = async (service: MusicServiceType) => {
-    if (!confirm(`Disconnect ${service}? You can reconnect anytime.`)) {
-      return;
-    }
+  const handleDisconnect = (service: MusicServiceType) => {
+    // Open the disconnect dialog instead of using confirm()
+    setDisconnectDialog({ isOpen: true, service, isDisconnecting: false });
+  };
+
+  const executeDisconnect = async (removeArtists: boolean) => {
+    const service = disconnectDialog.service;
+    if (!service) return;
+
+    setDisconnectDialog((prev) => ({ ...prev, isDisconnecting: true }));
 
     try {
       const response = await fetch("/api/music/connections", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ service }),
+        body: JSON.stringify({ service, removeArtists }),
       });
 
       if (!response.ok) throw new Error("Failed to disconnect");
 
+      const data = await response.json();
+      
+      // Close dialog
+      setDisconnectDialog({ isOpen: false, service: null, isDisconnecting: false });
+
       // Refresh connections
       await fetchConnections();
+
+      // Show feedback if artists were removed
+      if (removeArtists && data.artistsRemoved > 0) {
+        console.log(`Removed ${data.artistsRemoved} artists from ${service}`);
+      }
     } catch (err) {
       console.error("Error disconnecting:", err);
       setError("Failed to disconnect service");
+      setDisconnectDialog((prev) => ({ ...prev, isDisconnecting: false }));
+    }
+  };
+
+  const closeDisconnectDialog = () => {
+    if (!disconnectDialog.isDisconnecting) {
+      setDisconnectDialog({ isOpen: false, service: null, isDisconnecting: false });
     }
   };
 
@@ -267,6 +295,87 @@ export function ConnectedServicesPanel({
             size="sm"
             className="max-w-md mx-auto"
           />
+        </div>
+      )}
+
+      {/* Disconnect Confirmation Dialog */}
+      {disconnectDialog.isOpen && disconnectDialog.service && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={closeDisconnectDialog}
+          />
+          
+          {/* Dialog */}
+          <div className="relative bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-md mx-4 shadow-2xl">
+            {/* Close button */}
+            <button
+              onClick={closeDisconnectDialog}
+              disabled={disconnectDialog.isDisconnecting}
+              className="absolute top-4 right-4 text-zinc-500 hover:text-white disabled:opacity-50"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Icon */}
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-6 h-6 text-amber-400" />
+            </div>
+
+            {/* Title */}
+            <h3 className="text-lg font-semibold text-white text-center mb-2">
+              Disconnect {disconnectDialog.service === "youtube_music" ? "YouTube Music" : 
+                         disconnectDialog.service === "apple_music" ? "Apple Music" :
+                         disconnectDialog.service.charAt(0).toUpperCase() + disconnectDialog.service.slice(1)}?
+            </h3>
+
+            {/* Description */}
+            <p className="text-zinc-400 text-sm text-center mb-6">
+              Would you like to also remove the artists and preferences that were synced from this service?
+            </p>
+
+            {/* Options */}
+            <div className="space-y-3">
+              <Button
+                onClick={() => executeDisconnect(true)}
+                disabled={disconnectDialog.isDisconnecting}
+                variant="destructive"
+                className="w-full bg-red-600 hover:bg-red-700"
+              >
+                {disconnectDialog.isDisconnecting ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                Disconnect & Remove Artists
+              </Button>
+              
+              <Button
+                onClick={() => executeDisconnect(false)}
+                disabled={disconnectDialog.isDisconnecting}
+                variant="outline"
+                className="w-full border-zinc-600 hover:bg-zinc-800"
+              >
+                {disconnectDialog.isDisconnecting ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                Disconnect Only (Keep Artists)
+              </Button>
+
+              <Button
+                onClick={closeDisconnectDialog}
+                disabled={disconnectDialog.isDisconnecting}
+                variant="ghost"
+                className="w-full text-zinc-500 hover:text-white"
+              >
+                Cancel
+              </Button>
+            </div>
+
+            {/* Help text */}
+            <p className="text-xs text-zinc-600 text-center mt-4">
+              You can always reconnect this service later.
+            </p>
+          </div>
         </div>
       )}
     </div>
