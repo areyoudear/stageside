@@ -188,16 +188,21 @@ export async function initializeAnchorVectors(): Promise<void> {
   for (const [key, def] of Object.entries(ANCHOR_DEFINITIONS)) {
     try {
       // Check if already exists
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('embedding_anchors')
         .select('id')
         .eq('anchor_type', def.type)
         .eq('anchor_name', def.name)
-        .single();
+        .maybeSingle();  // Use maybeSingle to return null instead of error
         
       if (existing) {
         console.log(`Anchor ${key} already exists, skipping`);
         continue;
+      }
+      
+      if (checkError) {
+        console.error(`Error checking anchor ${key}:`, checkError);
+        // Continue anyway to try inserting
       }
       
       // Generate embedding from description
