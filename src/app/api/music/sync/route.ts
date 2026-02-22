@@ -18,6 +18,7 @@ import { getUserMusicProfile as getDeezerProfile } from "@/lib/deezer";
 import { getUserMusicProfile as getAppleMusicProfile, generateDeveloperToken } from "@/lib/apple-music";
 import { aggregateArtists, aggregateGenres, MusicService } from "@/lib/music-aggregator";
 import { computeUserAudioProfile } from "@/lib/audio-profiles";
+import { updateUserCoreFromSpotify } from "@/lib/embeddings/user-embeddings";
 
 interface ServiceProfile {
   service: MusicService;
@@ -187,6 +188,7 @@ export async function POST(request: NextRequest) {
 
     // Compute audio profile if Spotify was synced (for V3 matching)
     let audioProfileComputed = false;
+    let userEmbeddingComputed = false;
     const spotifyConnection = activeConnections.find(c => c.service === "spotify");
     if (spotifyConnection && syncedServices.includes("spotify")) {
       try {
@@ -202,6 +204,26 @@ export async function POST(request: NextRequest) {
         // Don't fail the sync if audio profile computation fails
         console.error("Error computing audio profile:", audioError);
       }
+      
+      // Update user taste embedding from Spotify data (for vector matching)
+      try {
+        const spotifyProfile = profiles.find(p => p.service === "spotify");
+        if (spotifyProfile && spotifyProfile.artists.length > 0) {
+          await updateUserCoreFromSpotify(
+            session.user.id,
+            spotifyProfile.artists.map(a => ({
+              name: a.name,
+              id: a.id,
+              genres: a.genres || [],
+              popularity: a.popularity || 50,
+            }))
+          );
+          userEmbeddingComputed = true;
+          console.log(`User taste embedding computed for user ${session.user.id}`);
+        }
+      } catch (embeddingError) {
+        console.error("Error computing user embedding:", embeddingError);
+      }
     }
 
     return NextResponse.json({
@@ -211,6 +233,7 @@ export async function POST(request: NextRequest) {
       artistCount: aggregatedArtists.length,
       genreCount: aggregatedGenres.length,
       audioProfileComputed, // V3 matching: whether audio profile was computed
+      userEmbeddingComputed, // Vector matching: whether user embedding was computed
       topArtists: aggregatedArtists.slice(0, 10).map((a) => ({
         name: a.name,
         sources: a.sources,
