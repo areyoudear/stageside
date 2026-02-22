@@ -8,6 +8,7 @@ import {
   updateConnectionTokens,
   setConnectionError,
   saveAggregatedArtists,
+  saveMusicProfile,
   MusicServiceType,
 } from "@/lib/supabase";
 import { getUserMusicProfile as getSpotifyProfile, refreshAccessToken as refreshSpotifyToken } from "@/lib/spotify";
@@ -164,15 +165,25 @@ export async function POST(request: NextRequest) {
     // Aggregate artists from ALL profiles (including preserved ones)
     const aggregatedArtists = aggregateArtists(profiles);
 
-    // Save to database
-    await saveAggregatedArtists(session.user.id, aggregatedArtists);
-
     // Aggregate genres for response
     const genreProfiles = profiles.map((p) => ({
       service: p.service,
       genres: p.genres,
     }));
     const aggregatedGenres = aggregateGenres(genreProfiles);
+
+    // Save to new user_artists table
+    await saveAggregatedArtists(session.user.id, aggregatedArtists);
+
+    // Also save to legacy music_profiles table for backward compatibility
+    const legacyArtists = aggregatedArtists.slice(0, 50).map((a) => ({
+      id: a.sourceIds?.[0] || a.normalizedName,
+      name: a.name,
+      genres: a.genres || [],
+      popularity: a.score,
+      image_url: a.image_url,
+    }));
+    await saveMusicProfile(session.user.id, legacyArtists, aggregatedGenres);
 
     // Compute audio profile if Spotify was synced (for V3 matching)
     let audioProfileComputed = false;
