@@ -795,6 +795,26 @@ export default function SettingsPage() {
           )}
         </section>
 
+        {/* Taste Profile Section */}
+        <section className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-white font-medium">Taste Profile</h3>
+              <p className="text-zinc-500 text-sm">
+                Update your energy, crowd size, and vibe preferences for better concert matches.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/onboarding?redo=true")}
+              className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+            >
+              <Heart className="w-4 h-4 mr-2" />
+              Update Taste
+            </Button>
+          </div>
+        </section>
+
         {/* Sign Out Section */}
         <section className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6">
           <div className="flex items-center justify-between">

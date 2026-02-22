@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
@@ -20,8 +20,12 @@ export default function OnboardingLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [isChecking, setIsChecking] = useState(true);
+  
+  // Allow re-onboarding if ?redo=true is passed
+  const isRedo = searchParams.get("redo") === "true";
 
   // Get current stage from pathname
   const currentStageIndex = STAGES.findIndex((s) => s.path === pathname);
@@ -45,7 +49,8 @@ export default function OnboardingLayout({
       const data = await res.json();
 
       // If user already completed embedding onboarding, redirect to discover
-      if (data.hasCompletedEmbeddingOnboarding) {
+      // UNLESS they're doing a redo from settings
+      if (data.hasCompletedEmbeddingOnboarding && !isRedo) {
         router.push("/discover");
         return;
       }
