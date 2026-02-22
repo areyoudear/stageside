@@ -62,6 +62,40 @@ interface SpotifyPaginatedResponse<T> {
  * @param timeRange - short_term (4 weeks), medium_term (6 months), long_term (years)
  * @param limit - Number of artists to fetch (max 50)
  */
+/**
+ * Fetch full artist details for multiple artists (up to 50 at once)
+ * This returns genres, popularity, and other details not in simplified objects
+ */
+async function getArtistsDetails(
+  accessToken: string,
+  artistIds: string[]
+): Promise<SpotifyArtist[]> {
+  if (artistIds.length === 0) return [];
+  
+  // Spotify allows max 50 IDs per request
+  const batchSize = 50;
+  const results: SpotifyArtist[] = [];
+  
+  for (let i = 0; i < artistIds.length; i += batchSize) {
+    const batch = artistIds.slice(i, i + batchSize);
+    const response = await fetch(
+      `${SPOTIFY_API_BASE}/artists?ids=${batch.join(",")}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      results.push(...(data.artists || []));
+    }
+  }
+  
+  return results;
+}
+
 export async function getTopArtists(
   accessToken: string,
   timeRange: "short_term" | "medium_term" | "long_term" = "medium_term",
@@ -83,7 +117,20 @@ export async function getTopArtists(
   }
 
   const data: SpotifyPaginatedResponse<SpotifyArtist> = await response.json();
-  return data.items;
+  const simplifiedArtists = data.items;
+  
+  // Fetch full artist details to get genres and popularity
+  const artistIds = simplifiedArtists.map(a => a.id).filter(Boolean);
+  const fullArtists = await getArtistsDetails(accessToken, artistIds);
+  
+  // Create a map for quick lookup
+  const artistMap = new Map(fullArtists.map(a => [a.id, a]));
+  
+  // Merge: keep order from top artists, enrich with full details
+  return simplifiedArtists.map(simplified => {
+    const full = artistMap.get(simplified.id);
+    return full || simplified;
+  });
 }
 
 /**
