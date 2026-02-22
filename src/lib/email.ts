@@ -158,6 +158,7 @@ interface ConcertNotificationEmailProps {
   locationName: string;
   concerts: Concert[];
   filterDescription?: string;
+  isTest?: boolean;
 }
 
 export async function sendConcertNotificationEmail({
@@ -166,6 +167,7 @@ export async function sendConcertNotificationEmail({
   locationName,
   concerts,
   filterDescription,
+  isTest = false,
 }: ConcertNotificationEmailProps) {
   if (!process.env.RESEND_API_KEY) {
     console.error("RESEND_API_KEY not configured");
@@ -207,6 +209,14 @@ export async function sendConcertNotificationEmail({
     })
     .join("");
 
+  const testBanner = isTest ? `
+        <div style="background: #fef3c7; border-bottom: 2px solid #f59e0b; padding: 12px; text-align: center;">
+          <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 500;">
+            🧪 <strong>TEST EMAIL</strong> — This is a preview of what your concert digest will look like.
+          </p>
+        </div>
+      ` : "";
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -216,6 +226,7 @@ export async function sendConcertNotificationEmail({
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; padding: 20px;">
         <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          ${testBanner}
           <!-- Header -->
           <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6); padding: 24px; text-align: center;">
             <h1 style="color: white; margin: 0; font-size: 24px;">🎵 Stageside</h1>

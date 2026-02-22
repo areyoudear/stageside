@@ -19,6 +19,7 @@ import {
   X,
   Bell,
   MapPin,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ArtistPicker } from "@/components/ArtistPicker";
@@ -83,6 +84,8 @@ export default function SettingsPage() {
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
   const [notificationsSaveStatus, setNotificationsSaveStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [testEmailStatus, setTestEmailStatus] = useState<"idle" | "sent" | "error">("idle");
 
   // Load existing preferences
   useEffect(() => {
@@ -180,6 +183,34 @@ export default function SettingsPage() {
       setNotificationsSaveStatus("error");
     } finally {
       setIsSavingNotifications(false);
+    }
+  };
+
+  const sendTestEmail = async () => {
+    setIsSendingTestEmail(true);
+    setTestEmailStatus("idle");
+
+    try {
+      const response = await fetch("/api/notifications/test-digest", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        setTestEmailStatus("sent");
+        track("test_email_sent");
+        setTimeout(() => setTestEmailStatus("idle"), 5000);
+      } else {
+        const data = await response.json();
+        console.error("Test email error:", data.error);
+        setTestEmailStatus("error");
+        setTimeout(() => setTestEmailStatus("idle"), 3000);
+      }
+    } catch (error) {
+      console.error("Error sending test email:", error);
+      setTestEmailStatus("error");
+      setTimeout(() => setTestEmailStatus("idle"), 3000);
+    } finally {
+      setIsSendingTestEmail(false);
     }
   };
 
@@ -789,6 +820,38 @@ export default function SettingsPage() {
                       ? "Error"
                       : "Save Notification Settings"}
                   </Button>
+                  
+                  {/* Send Test Email Button */}
+                  <Button
+                    onClick={sendTestEmail}
+                    disabled={isSendingTestEmail || !notificationsEnabled}
+                    variant="outline"
+                    className={`w-full mt-3 ${
+                      testEmailStatus === "sent"
+                        ? "border-green-500 text-green-400"
+                        : testEmailStatus === "error"
+                        ? "border-red-500 text-red-400"
+                        : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                    }`}
+                  >
+                    {isSendingTestEmail ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : testEmailStatus === "sent" ? (
+                      <Check className="w-4 h-4 mr-2" />
+                    ) : testEmailStatus === "error" ? (
+                      <AlertCircle className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Mail className="w-4 h-4 mr-2" />
+                    )}
+                    {testEmailStatus === "sent"
+                      ? "Test Email Sent!"
+                      : testEmailStatus === "error"
+                      ? "Failed to Send"
+                      : "Send Test Email"}
+                  </Button>
+                  <p className="text-xs text-zinc-500 mt-2 text-center">
+                    Preview what your concert digest emails will look like
+                  </p>
                 </>
               )}
             </div>
