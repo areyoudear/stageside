@@ -122,7 +122,7 @@ RETURNS TABLE(
 LANGUAGE sql
 STABLE
 AS $$
-  WITH current_user AS (
+  WITH requesting_user AS (
     SELECT core_embedding
     FROM user_taste_embeddings
     WHERE user_id = p_user_id
@@ -137,18 +137,18 @@ AS $$
     es.user_id,
     u.display_name,
     CASE 
-      WHEN t.core_embedding IS NOT NULL AND c.core_embedding IS NOT NULL 
-      THEN 1 - (t.core_embedding <=> c.core_embedding)
+      WHEN t.core_embedding IS NOT NULL AND ru.core_embedding IS NOT NULL 
+      THEN 1 - (t.core_embedding <=> ru.core_embedding)
       ELSE 0
     END as taste_similarity
   FROM event_savers es
   JOIN users u ON u.id = es.user_id
   LEFT JOIN user_taste_embeddings t ON t.user_id = es.user_id
-  CROSS JOIN current_user c
+  CROSS JOIN requesting_user ru
   ORDER BY 
     CASE 
-      WHEN t.core_embedding IS NOT NULL AND c.core_embedding IS NOT NULL 
-      THEN t.core_embedding <=> c.core_embedding
+      WHEN t.core_embedding IS NOT NULL AND ru.core_embedding IS NOT NULL 
+      THEN t.core_embedding <=> ru.core_embedding
       ELSE 999
     END
   LIMIT p_limit;
