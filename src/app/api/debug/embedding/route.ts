@@ -48,6 +48,44 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (action === 'test-anchor') {
+      // Test anchor insert
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      
+      const testDesc = 'Test anchor for debugging';
+      const embedding = await generateEmbedding(testDesc);
+      
+      const { data, error } = await supabase
+        .from('embedding_anchors')
+        .insert({
+          anchor_type: 'test',
+          anchor_name: 'debug',
+          embedding: embedding,
+          description: testDesc,
+          default_weight: 0.1,
+        })
+        .select()
+        .single();
+        
+      if (error) {
+        return NextResponse.json({
+          success: false,
+          error: error.message,
+          details: error,
+          embeddingLength: embedding.length,
+        });
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: { id: data.id, hasEmbedding: !!data.embedding },
+      });
+    }
+
     if (action === 'test-artist') {
       // Test artist embedding
       const name = artistName || 'The Weeknd';
