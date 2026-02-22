@@ -15,9 +15,30 @@ import {
   Music,
   User,
   Sparkles,
+  Link2,
+  Music2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/useDebounce";
+
+// Music service icons
+const SpotifyIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+  </svg>
+);
+
+const AppleMusicIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+    <path d="M23.997 6.124c0-.738-.065-1.47-.24-2.19a4.99 4.99 0 0 0-.853-1.766 4.99 4.99 0 0 0-1.64-1.303 5.08 5.08 0 0 0-2.19-.49c-.062-.003-.107-.008-.16-.01H5.09c-.058.002-.11.007-.165.01a5.08 5.08 0 0 0-2.19.49 4.99 4.99 0 0 0-1.64 1.303 4.99 4.99 0 0 0-.853 1.766c-.175.72-.24 1.452-.24 2.19v11.752c0 .738.065 1.47.24 2.19.154.64.416 1.24.853 1.766a4.99 4.99 0 0 0 1.64 1.303c.654.327 1.385.5 2.19.49.055.002.107.007.165.01h13.824c.053-.003.099-.008.154-.01a5.08 5.08 0 0 0 2.19-.49 4.99 4.99 0 0 0 1.64-1.303 4.99 4.99 0 0 0 .853-1.766c.175-.72.24-1.452.24-2.19V6.124zm-6.607 4.932l.003 5.969c0 .582-.087 1.123-.28 1.617-.194.493-.472.914-.82 1.263-.348.35-.766.62-1.253.81-.487.19-1.015.286-1.584.286-.57 0-1.097-.095-1.584-.286a3.7 3.7 0 0 1-1.253-.81 3.68 3.68 0 0 1-.82-1.263 4.11 4.11 0 0 1-.28-1.617c0-.583.094-1.123.28-1.617.186-.494.472-.914.82-1.263.348-.35.766-.62 1.253-.81.487-.19 1.015-.286 1.584-.286.384 0 .753.05 1.105.15V7.347l-5.357 1.014v7.664c0 .582-.087 1.123-.28 1.617-.194.493-.472.914-.82 1.263-.348.35-.766.62-1.253.81-.487.19-1.015.286-1.584.286-.57 0-1.097-.095-1.584-.286a3.7 3.7 0 0 1-1.253-.81 3.68 3.68 0 0 1-.82-1.263 4.11 4.11 0 0 1-.28-1.617c0-.583.094-1.123.28-1.617.186-.494.472-.914.82-1.263.348-.35.766-.62 1.253-.81.487-.19 1.015-.286 1.584-.286.384 0 .753.05 1.105.15V5.333l7.357-1.396v7.12z"/>
+  </svg>
+);
+
+const YouTubeMusicIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+    <path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm0 19.104c-3.924 0-7.104-3.18-7.104-7.104S8.076 4.896 12 4.896s7.104 3.18 7.104 7.104-3.18 7.104-7.104 7.104zm0-13.332c-3.432 0-6.228 2.796-6.228 6.228S8.568 18.228 12 18.228s6.228-2.796 6.228-6.228S15.432 5.772 12 5.772zM9.684 15.54V8.46L15.816 12l-6.132 3.54z"/>
+  </svg>
+);
 
 interface Artist {
   id: string;
@@ -39,8 +60,74 @@ export default function ArtistsPage() {
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [importMode, setImportMode] = useState<"choose" | "manual" | "importing">("choose");
+  const [isConnecting, setIsConnecting] = useState(false);
   
   const debouncedQuery = useDebounce(query, 300);
+
+  // Check if already has artists imported (e.g., from a previous connection)
+  useEffect(() => {
+    const checkExistingArtists = async () => {
+      try {
+        const res = await fetch("/api/user/artists");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.artists && data.artists.length > 0) {
+            // User already has imported artists, load them
+            setSelectedArtists(data.artists.slice(0, MAX_ARTISTS).map((a: { spotify_id: string; artist_name: string; image_url: string; genres: string[] }) => ({
+              id: a.spotify_id || a.artist_name,
+              name: a.artist_name,
+              imageUrl: a.image_url,
+              genres: a.genres || [],
+            })));
+            setImportMode("manual"); // Go straight to manual editing
+          }
+        }
+      } catch {
+        // Ignore errors, just proceed with manual mode
+      }
+    };
+    checkExistingArtists();
+  }, []);
+
+  const connectMusicService = async (service: "spotify" | "apple" | "youtube") => {
+    setIsConnecting(true);
+    // Redirect to the OAuth flow with a return URL
+    const returnUrl = encodeURIComponent("/onboarding/artists?imported=true");
+    window.location.href = `/api/music/connect/${service}?returnTo=${returnUrl}`;
+  };
+
+  // Handle return from OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("imported") === "true") {
+      setImportMode("importing");
+      // Fetch the imported artists
+      const fetchImported = async () => {
+        try {
+          const res = await fetch("/api/user/artists");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.artists && data.artists.length > 0) {
+              setSelectedArtists(data.artists.slice(0, MAX_ARTISTS).map((a: { spotify_id: string; artist_name: string; image_url: string; genres: string[] }) => ({
+                id: a.spotify_id || a.artist_name,
+                name: a.artist_name,
+                imageUrl: a.image_url,
+                genres: a.genres || [],
+              })));
+            }
+          }
+        } catch {
+          // Ignore errors
+        } finally {
+          setImportMode("manual");
+          // Clean up URL
+          window.history.replaceState({}, "", "/onboarding/artists");
+        }
+      };
+      fetchImported();
+    }
+  }, []);
 
   // Load saved artists
   useEffect(() => {
@@ -141,7 +228,7 @@ export default function ArtistsPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-10"
+        className="text-center mb-8"
       >
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-pink-500/20 to-orange-500/20 mb-6">
           <Music className="w-10 h-10 text-pink-400" />
@@ -150,11 +237,107 @@ export default function ArtistsPage() {
           Who do you love?
         </h1>
         <p className="text-zinc-400 text-lg">
-          Add at least {MIN_ARTISTS} artists you'd see live
+          {importMode === "choose" 
+            ? "Import from your music library or add manually"
+            : `Add at least ${MIN_ARTISTS} artists you'd see live`}
         </p>
       </motion.div>
 
-      {/* Progress Card */}
+      {/* Import Options - Only show when choosing */}
+      {importMode === "choose" && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-3 mb-8"
+        >
+          {/* Spotify */}
+          <button
+            onClick={() => connectMusicService("spotify")}
+            disabled={isConnecting}
+            className="w-full p-4 rounded-xl bg-[#1DB954]/10 border border-[#1DB954]/30 hover:border-[#1DB954]/60 hover:bg-[#1DB954]/20 transition-all flex items-center gap-4 group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-[#1DB954]/20 flex items-center justify-center text-[#1DB954] group-hover:scale-110 transition-transform">
+              <SpotifyIcon />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-white">Import from Spotify</p>
+              <p className="text-sm text-zinc-400">Connect your account to import top artists</p>
+            </div>
+            <Link2 className="w-5 h-5 text-zinc-500 group-hover:text-[#1DB954] transition-colors" />
+          </button>
+
+          {/* Apple Music */}
+          <button
+            onClick={() => connectMusicService("apple")}
+            disabled={isConnecting}
+            className="w-full p-4 rounded-xl bg-[#FA243C]/10 border border-[#FA243C]/30 hover:border-[#FA243C]/60 hover:bg-[#FA243C]/20 transition-all flex items-center gap-4 group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-[#FA243C]/20 flex items-center justify-center text-[#FA243C] group-hover:scale-110 transition-transform">
+              <AppleMusicIcon />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-white">Import from Apple Music</p>
+              <p className="text-sm text-zinc-400">Connect to import your library</p>
+            </div>
+            <Link2 className="w-5 h-5 text-zinc-500 group-hover:text-[#FA243C] transition-colors" />
+          </button>
+
+          {/* YouTube Music */}
+          <button
+            onClick={() => connectMusicService("youtube")}
+            disabled={isConnecting}
+            className="w-full p-4 rounded-xl bg-[#FF0000]/10 border border-[#FF0000]/30 hover:border-[#FF0000]/60 hover:bg-[#FF0000]/20 transition-all flex items-center gap-4 group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-[#FF0000]/20 flex items-center justify-center text-[#FF0000] group-hover:scale-110 transition-transform">
+              <YouTubeMusicIcon />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-white">Import from YouTube Music</p>
+              <p className="text-sm text-zinc-400">Connect your Google account</p>
+            </div>
+            <Link2 className="w-5 h-5 text-zinc-500 group-hover:text-[#FF0000] transition-colors" />
+          </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-4 py-3">
+            <div className="flex-1 h-px bg-zinc-800" />
+            <span className="text-sm text-zinc-500">or</span>
+            <div className="flex-1 h-px bg-zinc-800" />
+          </div>
+
+          {/* Manual option */}
+          <button
+            onClick={() => setImportMode("manual")}
+            className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800/50 transition-all flex items-center gap-4 group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:scale-110 transition-transform">
+              <Search className="w-6 h-6" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-white">Add artists manually</p>
+              <p className="text-sm text-zinc-400">Search and add artists one by one</p>
+            </div>
+            <ArrowRight className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors" />
+          </button>
+        </motion.div>
+      )}
+
+      {/* Importing state */}
+      {importMode === "importing" && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-16"
+        >
+          <Loader2 className="w-10 h-10 text-cyan-500 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-400">Importing your artists...</p>
+        </motion.div>
+      )}
+
+      {/* Progress Card - Only show in manual mode */}
+      {importMode === "manual" && (
+      <>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -369,7 +552,7 @@ export default function ArtistsPage() {
       </motion.div>
 
       {/* Suggestions */}
-      {selectedArtists.length < 3 && (
+      {selectedArtists.length < 3 && selectedArtists.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -384,6 +567,8 @@ export default function ArtistsPage() {
             </span>
           </p>
         </motion.div>
+      )}
+      </>
       )}
 
       {/* Navigation Footer */}
