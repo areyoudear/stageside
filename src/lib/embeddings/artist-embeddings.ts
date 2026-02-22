@@ -7,7 +7,6 @@
  * - Venue types, energy levels, crowd intensity
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { 
   ArtistMetadata, 
@@ -22,17 +21,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-// Anthropic client for metadata normalization
-let _anthropic: Anthropic | null = null;
-function getAnthropic(): Anthropic {
-  if (!_anthropic) {
-    _anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  return _anthropic;
-}
 
 /**
  * Normalize artist name for consistent lookups
@@ -59,79 +47,75 @@ export interface RawArtistData {
 }
 
 /**
- * Use LLM to normalize and enrich artist metadata
- * This creates a structured representation for embedding
+ * Normalize artist metadata for embedding
+ * Uses simple heuristics instead of LLM (faster, no API dependency)
+ * LLM enrichment can be added later as a background job
  */
 async function normalizeArtistMetadata(raw: RawArtistData): Promise<ArtistMetadata> {
-  const prompt = `You are analyzing an artist for a live music discovery app. Based on the provided data, infer their live performance characteristics.
-
-Artist: ${raw.name}
-Genres: ${raw.genres?.join(', ') || 'Unknown'}
-Related Artists: ${raw.relatedArtists?.slice(0, 5).join(', ') || 'Unknown'}
-Bio: ${raw.bio?.slice(0, 500) || 'No bio available'}
-Popularity (0-100): ${raw.popularity ?? 'Unknown'}
-
-Respond with a JSON object (no markdown, just JSON):
-{
-  "genres": ["primary genre", "secondary genres..."],
-  "relatedArtists": ["similar artist names for embedding context..."],
-  "bioSummary": "1-2 sentence summary focusing on live performance style",
-  "venueTypes": ["club" | "theater" | "arena" | "festival" | "stadium"],
-  "energyLevel": "low" | "medium" | "high" | "extreme",
-  "crowdIntensity": "intimate" | "moderate" | "intense" | "chaotic",
-  "productionScale": "minimal" | "standard" | "elaborate" | "spectacular",
-  "mainstreamLevel": "underground" | "indie" | "mainstream" | "superstar",
-  "danceability": "low" | "medium" | "high",
-  "culturalRegion": "region or null if global",
-  "languageBias": ["primary languages in music or empty array"]
-}`;
-
-  try {
-    const response = await getAnthropic().messages.create({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 500,
-      messages: [{ role: 'user', content: prompt }],
-    });
-    
-    const textBlock = response.content[0];
-    const text = textBlock.type === 'text' ? textBlock.text : '';
-    
-    // Parse JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in response');
+  // Infer venue types from popularity
+  let venueTypes: ArtistMetadata['venueTypes'] = ['theater'];
+  let mainstreamLevel: ArtistMetadata['mainstreamLevel'] = 'indie';
+  
+  if (raw.popularity !== undefined) {
+    if (raw.popularity >= 80) {
+      venueTypes = ['arena', 'stadium', 'festival'];
+      mainstreamLevel = 'superstar';
+    } else if (raw.popularity >= 60) {
+      venueTypes = ['theater', 'arena', 'festival'];
+      mainstreamLevel = 'mainstream';
+    } else if (raw.popularity >= 40) {
+      venueTypes = ['club', 'theater'];
+      mainstreamLevel = 'indie';
+    } else {
+      venueTypes = ['club'];
+      mainstreamLevel = 'underground';
     }
-    
-    const parsed = JSON.parse(jsonMatch[0]);
-    
-    return {
-      genres: parsed.genres || raw.genres || [],
-      relatedArtists: parsed.relatedArtists || raw.relatedArtists || [],
-      bioSummary: parsed.bioSummary,
-      venueTypes: parsed.venueTypes || ['theater'],
-      energyLevel: parsed.energyLevel || 'medium',
-      crowdIntensity: parsed.crowdIntensity || 'moderate',
-      productionScale: parsed.productionScale || 'standard',
-      mainstreamLevel: parsed.mainstreamLevel || 'indie',
-      danceability: parsed.danceability || 'medium',
-      culturalRegion: parsed.culturalRegion || undefined,
-      languageBias: parsed.languageBias || [],
-    };
-  } catch (error) {
-    console.error('Error normalizing artist metadata:', error);
-    
-    // Fallback to basic metadata
-    return {
-      genres: raw.genres || [],
-      relatedArtists: raw.relatedArtists || [],
-      venueTypes: ['theater'],
-      energyLevel: 'medium',
-      crowdIntensity: 'moderate',
-      productionScale: 'standard',
-      mainstreamLevel: 'indie',
-      danceability: 'medium',
-    };
   }
+  
+  // Infer energy/danceability from genres
+  const genres = raw.genres || [];
+  const genreString = genres.join(' ').toLowerCase();
+  
+  let energyLevel: ArtistMetadata['energyLevel'] = 'medium';
+  let danceability: ArtistMetadata['danceability'] = 'medium';
+  let crowdIntensity: ArtistMetadata['crowdIntensity'] = 'moderate';
+  
+  if (genreString.includes('metal') || genreString.includes('punk') || genreString.includes('hardcore')) {
+    energyLevel = 'extreme';
+    crowdIntensity = 'chaotic';
+    danceability = 'low';
+  } else if (genreString.includes('edm') || genreString.includes('house') || genreString.includes('techno') || genreString.includes('dance')) {
+    energyLevel = 'high';
+    crowdIntensity = 'intense';
+    danceability = 'high';
+  } else if (genreString.includes('hip hop') || genreString.includes('rap') || genreString.includes('trap')) {
+    energyLevel = 'high';
+    crowdIntensity = 'intense';
+    danceability = 'high';
+  } else if (genreString.includes('jazz') || genreString.includes('classical') || genreString.includes('ambient')) {
+    energyLevel = 'low';
+    crowdIntensity = 'intimate';
+    danceability = 'low';
+  } else if (genreString.includes('rock') || genreString.includes('alternative')) {
+    energyLevel = 'high';
+    crowdIntensity = 'moderate';
+    danceability = 'medium';
+  } else if (genreString.includes('pop') || genreString.includes('r&b')) {
+    energyLevel = 'medium';
+    crowdIntensity = 'moderate';
+    danceability = 'high';
+  }
+  
+  return {
+    genres: genres,
+    relatedArtists: raw.relatedArtists || [],
+    venueTypes,
+    energyLevel,
+    crowdIntensity,
+    productionScale: mainstreamLevel === 'superstar' ? 'spectacular' : mainstreamLevel === 'mainstream' ? 'elaborate' : 'standard',
+    mainstreamLevel,
+    danceability,
+  };
 }
 
 /**
