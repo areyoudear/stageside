@@ -229,8 +229,8 @@ export default function DashboardPage() {
         endDate: dateRange.endDate.toISOString().split("T")[0],
       });
 
-      // Use matches endpoint if authenticated for personalized results
-      const endpoint = session ? "/api/matches" : "/api/concerts";
+      // Use vector matches endpoint if authenticated for personalized results
+      const endpoint = session ? "/api/matches/events" : "/api/concerts";
       const response = await fetch(`${endpoint}?${params.toString()}`);
 
       if (!response.ok) {
