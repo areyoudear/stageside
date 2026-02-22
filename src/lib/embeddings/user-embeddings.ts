@@ -31,7 +31,8 @@ import {
   scaleVector,
   normalizeVector,
   interpolateVectors,
-  zeroVector 
+  zeroVector,
+  parseVectorFromDb 
 } from './embedding-service';
 
 const supabase = createClient(
@@ -288,9 +289,9 @@ export async function getOrCreateUserEmbedding(
   return {
     id: data.id,
     userId: data.user_id,
-    coreEmbedding: data.core_embedding,
+    coreEmbedding: parseVectorFromDb(data.core_embedding),
     coreUpdatedAt: data.core_updated_at ? new Date(data.core_updated_at) : undefined,
-    sessionEmbedding: data.session_embedding,
+    sessionEmbedding: parseVectorFromDb(data.session_embedding),
     sessionUpdatedAt: data.session_updated_at ? new Date(data.session_updated_at) : undefined,
     sessionDecayHours: data.session_decay_hours,
     onboardingType: data.onboarding_type,
@@ -337,9 +338,9 @@ export async function updateUserCoreFromSpotify(
   return {
     id: data.id,
     userId: data.user_id,
-    coreEmbedding: data.core_embedding,
+    coreEmbedding: parseVectorFromDb(data.core_embedding),
     coreUpdatedAt: new Date(data.core_updated_at),
-    sessionEmbedding: data.session_embedding,
+    sessionEmbedding: parseVectorFromDb(data.session_embedding),
     sessionUpdatedAt: data.session_updated_at ? new Date(data.session_updated_at) : undefined,
     sessionDecayHours: data.session_decay_hours,
     onboardingType: data.onboarding_type,
@@ -382,9 +383,9 @@ export async function updateUserCoreFromOnboarding(
   return {
     id: data.id,
     userId: data.user_id,
-    coreEmbedding: data.core_embedding,
+    coreEmbedding: parseVectorFromDb(data.core_embedding),
     coreUpdatedAt: new Date(data.core_updated_at),
-    sessionEmbedding: data.session_embedding,
+    sessionEmbedding: parseVectorFromDb(data.session_embedding),
     sessionUpdatedAt: data.session_updated_at ? new Date(data.session_updated_at) : undefined,
     sessionDecayHours: data.session_decay_hours,
     onboardingType: data.onboarding_type,

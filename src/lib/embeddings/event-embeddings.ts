@@ -23,7 +23,8 @@ import {
 import { 
   weightedAverageVectors, 
   averageVectors,
-  getEmbeddingConfig 
+  getEmbeddingConfig,
+  parseVectorFromDb 
 } from './embedding-service';
 
 const supabase = createClient(
@@ -144,21 +145,24 @@ export async function getOrCreateEventEmbedding(
     .single();
     
   if (existing && existing.embedding) {
-    return {
-      id: existing.id,
-      externalId: existing.external_id,
-      source: existing.source,
-      name: existing.name,
-      venueName: existing.venue_name,
-      city: existing.city,
-      date: existing.date ? new Date(existing.date) : undefined,
-      lineup: existing.lineup,
-      lineupArtistIds: existing.lineup_artist_ids,
-      embedding: existing.embedding,
-      embeddingMethod: existing.embedding_method,
-      embeddingVersion: existing.embedding_version,
-      lastEmbeddedAt: new Date(existing.last_embedded_at),
-    };
+    const embedding = parseVectorFromDb(existing.embedding);
+    if (embedding) {
+      return {
+        id: existing.id,
+        externalId: existing.external_id,
+        source: existing.source,
+        name: existing.name,
+        venueName: existing.venue_name,
+        city: existing.city,
+        date: existing.date ? new Date(existing.date) : undefined,
+        lineup: existing.lineup,
+        lineupArtistIds: existing.lineup_artist_ids,
+        embedding,
+        embeddingMethod: existing.embedding_method,
+        embeddingVersion: existing.embedding_version,
+        lastEmbeddedAt: new Date(existing.last_embedded_at),
+      };
+    }
   }
   
   // Compute embedding from lineup
