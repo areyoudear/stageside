@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { searchAllConcertSources, type ConcertSource } from "@/lib/concert-aggregator";
-import { getUnifiedMusicProfile, getRelatedArtists } from "@/lib/supabase";
+import { getUnifiedMusicProfile, getRelatedArtists, getMusicConnection } from "@/lib/supabase";
 import { 
   calculatePreciseMatchScore, 
   generateVibeTags,
@@ -87,11 +87,16 @@ export async function GET(request: NextRequest) {
     // Calculate match scores if user is authenticated
     let concertsWithScores = result.concerts;
     
+    let spotifyToken: string | undefined;
+    
     if (session?.user?.id) {
-      const [profile, relatedArtistsData] = await Promise.all([
+      const [profile, relatedArtistsData, spotifyConnection] = await Promise.all([
         getUnifiedMusicProfile(session.user.id),
         getRelatedArtists(session.user.id).catch(() => []),
+        getMusicConnection(session.user.id, "spotify").catch(() => null),
       ]);
+      
+      spotifyToken = spotifyConnection?.access_token;
       
       if (profile) {
         // Build user profile for precision matching
@@ -148,7 +153,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Enrich concerts with audio previews (top 30)
-    const enrichedConcerts = await enrichConcertsWithPreviews(concertsWithScores, 30);
+    // User's Spotify token required for preview URLs since Spotify API change
+    const enrichedConcerts = await enrichConcertsWithPreviews(concertsWithScores, 30, spotifyToken);
     
     // Categorize by match type (use type assertion for enhanced concerts)
     type EnhancedConcert = typeof enrichedConcerts[number] & { matchType?: string };

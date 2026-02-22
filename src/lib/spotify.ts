@@ -491,14 +491,17 @@ export interface ArtistPreviewInfo {
 
 /**
  * Get artist's top track with preview URL
- * Uses client credentials flow (no user auth needed)
+ * Uses user access token (required since Spotify locked down client credentials)
+ * Falls back to client credentials for non-preview data
  */
 export async function getArtistTopTrackPreview(
   artistId: string,
-  market: string = "US"
+  market: string = "US",
+  userAccessToken?: string
 ): Promise<ArtistPreviewInfo | null> {
   try {
-    const token = await getClientCredentialsToken();
+    // Prefer user token (required for preview URLs since Spotify API change)
+    const token = userAccessToken || await getClientCredentialsToken();
     if (!token) return null;
 
     // Get artist's top tracks
@@ -512,7 +515,12 @@ export async function getArtistTopTrackPreview(
     );
 
     if (!response.ok) {
-      console.error(`Failed to fetch top tracks for artist ${artistId}`);
+      // If using user token fails, log but don't spam console
+      if (response.status === 403 && !userAccessToken) {
+        // Client credentials no longer works - this is expected
+        return null;
+      }
+      console.error(`Failed to fetch top tracks for artist ${artistId}: ${response.status}`);
       return null;
     }
 

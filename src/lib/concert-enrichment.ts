@@ -17,10 +17,15 @@ export type EnrichedConcert<T extends Concert = Concert> = T & {
  * Enrich concerts with audio preview data
  * First checks cache, then fetches from Spotify if needed
  * Preserves all original concert properties including matchType, etc.
+ * 
+ * @param concerts - Array of concerts to enrich
+ * @param maxToEnrich - Max number of artists to fetch previews for
+ * @param userSpotifyToken - User's Spotify access token (required for preview URLs since API change)
  */
 export async function enrichConcertsWithPreviews<T extends Concert>(
   concerts: T[],
-  maxToEnrich: number = 50
+  maxToEnrich: number = 50,
+  userSpotifyToken?: string
 ): Promise<EnrichedConcert<T>[]> {
   if (concerts.length === 0) return [];
   
@@ -54,9 +59,10 @@ export async function enrichConcertsWithPreviews<T extends Concert>(
   );
   
   // Fetch missing profiles from Spotify (limited to avoid rate limits)
+  // NOTE: User token required for preview URLs since Spotify API change (2024)
   const newProfiles: Array<Omit<ArtistAudioProfile, "id" | "computed_at">> = [];
   
-  if (missingArtists.length > 0) {
+  if (missingArtists.length > 0 && userSpotifyToken) {
     // Limit concurrent fetches
     const toFetch = missingArtists.slice(0, 20);
     
@@ -66,8 +72,8 @@ export async function enrichConcertsWithPreviews<T extends Concert>(
         const artist = await searchArtist(artistName);
         if (!artist) return null;
         
-        // Get preview info
-        const previewInfo = await getArtistTopTrackPreview(artist.id);
+        // Get preview info (using user token for preview URLs)
+        const previewInfo = await getArtistTopTrackPreview(artist.id, "US", userSpotifyToken);
         
         return {
           spotify_id: artist.id,

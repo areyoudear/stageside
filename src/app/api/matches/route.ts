@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { searchConcerts } from "@/lib/ticketmaster";
-import { getMusicProfile, getSavedConcerts, getUnifiedMusicProfile, getRelatedArtists } from "@/lib/supabase";
+import { getMusicProfile, getSavedConcerts, getUnifiedMusicProfile, getRelatedArtists, getMusicConnection } from "@/lib/supabase";
 import { 
   calculatePreciseMatchScore, 
   formatMatchScore, 
@@ -73,12 +73,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch user's music profile, related artists, and saved concerts in parallel
-    const [unifiedProfile, legacyProfile, relatedArtistsData, savedConcertIds, concertsResult] = await Promise.all([
+    // Fetch user's music profile, related artists, saved concerts, and Spotify token in parallel
+    const [unifiedProfile, legacyProfile, relatedArtistsData, savedConcertIds, spotifyConnection, concertsResult] = await Promise.all([
       getUnifiedMusicProfile(session.user.id),
       getMusicProfile(session.user.id),
       getRelatedArtists(session.user.id).catch(() => []),
       getSavedConcerts(session.user.id),
+      getMusicConnection(session.user.id, "spotify").catch(() => null),
       searchConcerts({
         city,
         latLong,
@@ -184,7 +185,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Enrich top concerts with audio previews (limit to top 30 to save API calls)
-    const enrichedConcerts = await enrichConcertsWithPreviews(matchedConcerts, 30);
+    // User's Spotify token required for preview URLs since Spotify API change
+    const spotifyToken = spotifyConnection?.access_token;
+    const enrichedConcerts = await enrichConcertsWithPreviews(matchedConcerts, 30, spotifyToken);
 
     // Categorize matches by type
     const mustSee = enrichedConcerts.filter((c) => c.matchType === "must-see");
