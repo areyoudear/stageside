@@ -153,8 +153,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Enrich concerts with audio previews (top 30)
-    // User's Spotify token required for preview URLs since Spotify API change
-    const enrichedConcerts = await enrichConcertsWithPreviews(concertsWithScores, 30, spotifyToken);
+    // Uses iTunes Search API (free, no auth required)
+    const enrichedConcerts = await enrichConcertsWithPreviews(concertsWithScores, 30);
     
     // Categorize by match type (use type assertion for enhanced concerts)
     type EnhancedConcert = typeof enrichedConcerts[number] & { matchType?: string };

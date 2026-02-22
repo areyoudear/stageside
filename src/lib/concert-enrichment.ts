@@ -1,10 +1,12 @@
 /**
  * Concert Enrichment - Add audio previews and additional metadata to concerts
+ * 
+ * Uses iTunes Search API for previews (free, no auth required)
  */
 
 import { Concert } from "./ticketmaster";
 import { getArtistAudioProfiles, saveArtistAudioProfiles, ArtistAudioProfile } from "./supabase";
-import { searchArtist, getArtistTopTrackPreview } from "./spotify";
+import { getArtistTopTrackPreview } from "./itunes";
 
 // Extended concert with preview data - preserves all original properties
 export type EnrichedConcert<T extends Concert = Concert> = T & {
@@ -15,17 +17,15 @@ export type EnrichedConcert<T extends Concert = Concert> = T & {
 
 /**
  * Enrich concerts with audio preview data
- * First checks cache, then fetches from Spotify if needed
- * Preserves all original concert properties including matchType, etc.
+ * Uses iTunes Search API (free, no auth required)
+ * First checks cache, then fetches from iTunes if needed
  * 
  * @param concerts - Array of concerts to enrich
  * @param maxToEnrich - Max number of artists to fetch previews for
- * @param userSpotifyToken - User's Spotify access token (required for preview URLs since API change)
  */
 export async function enrichConcertsWithPreviews<T extends Concert>(
   concerts: T[],
-  maxToEnrich: number = 50,
-  userSpotifyToken?: string
+  maxToEnrich: number = 50
 ): Promise<EnrichedConcert<T>[]> {
   if (concerts.length === 0) return [];
   
@@ -58,32 +58,28 @@ export async function enrichConcertsWithPreviews<T extends Concert>(
     name => !cachedProfiles.has(name.toLowerCase())
   );
   
-  // Fetch missing profiles from Spotify (limited to avoid rate limits)
-  // NOTE: User token required for preview URLs since Spotify API change (2024)
+  // Fetch missing profiles from iTunes (free, no auth required)
   const newProfiles: Array<Omit<ArtistAudioProfile, "id" | "computed_at">> = [];
   
-  if (missingArtists.length > 0 && userSpotifyToken) {
+  if (missingArtists.length > 0) {
     // Limit concurrent fetches
     const toFetch = missingArtists.slice(0, 20);
     
     const fetchPromises = toFetch.map(async (artistName) => {
       try {
-        // Search for artist
-        const artist = await searchArtist(artistName);
-        if (!artist) return null;
-        
-        // Get preview info (using user token for preview URLs)
-        const previewInfo = await getArtistTopTrackPreview(artist.id, "US", userSpotifyToken);
+        // Get preview info from iTunes
+        const previewInfo = await getArtistTopTrackPreview(artistName);
+        if (!previewInfo) return null;
         
         return {
-          spotify_id: artist.id,
+          spotify_id: previewInfo.artistId, // Using iTunes artist ID
           artist_name: artistName,
           avg_energy: null,
           avg_valence: null,
           avg_tempo: null,
-          top_track_preview_url: previewInfo?.previewUrl || null,
-          top_track_name: previewInfo?.trackName || null,
-          highlight_start_ms: 30000, // Default: start at 30s
+          top_track_preview_url: previewInfo.previewUrl || null,
+          top_track_name: previewInfo.trackName || null,
+          highlight_start_ms: 0, // iTunes previews are already 30s highlights
           live_style: null,
         };
       } catch (error) {
@@ -122,7 +118,7 @@ export async function enrichConcertsWithPreviews<T extends Concert>(
         ...concert,
         previewUrl: profile.top_track_preview_url,
         topTrackName: profile.top_track_name || undefined,
-        highlightStartMs: profile.highlight_start_ms || 30000,
+        highlightStartMs: profile.highlight_start_ms || 0,
       };
     }
     

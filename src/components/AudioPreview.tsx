@@ -17,11 +17,11 @@ interface AudioPreviewProps {
 /**
  * Audio Preview Component
  * 
- * Plays 30-second Spotify preview clips inline in concert cards.
+ * Plays 30-second preview clips inline in concert cards.
+ * Uses iTunes Search API for previews (free, no auth required).
  * Features:
  * - Play/pause toggle
  * - Progress bar
- * - Auto-seek to highlight (skip boring intro)
  * - Singleton playback (only one plays at a time)
  * - Fade in/out transitions
  */

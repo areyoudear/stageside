@@ -185,9 +185,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Enrich top concerts with audio previews (limit to top 30 to save API calls)
-    // User's Spotify token required for preview URLs since Spotify API change
-    const spotifyToken = spotifyConnection?.access_token;
-    const enrichedConcerts = await enrichConcertsWithPreviews(matchedConcerts, 30, spotifyToken);
+    // Uses iTunes Search API (free, no auth required)
+    const enrichedConcerts = await enrichConcertsWithPreviews(matchedConcerts, 30);
 
     // Categorize matches by type
     const mustSee = enrichedConcerts.filter((c) => c.matchType === "must-see");
