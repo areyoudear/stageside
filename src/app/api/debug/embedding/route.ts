@@ -48,6 +48,43 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (action === 'batch-anchors') {
+      // Batch initialize all anchors
+      const { createClient } = await import('@supabase/supabase-js');
+      const { ANCHOR_DEFINITIONS } = await import('@/lib/embeddings/anchor-vectors');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      
+      // Delete all existing
+      await supabase.from('embedding_anchors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // Generate all embeddings in batch
+      const defs = Object.entries(ANCHOR_DEFINITIONS);
+      const descriptions = defs.map(([, def]) => def.description);
+      
+      const { generateEmbeddings } = await import('@/lib/embeddings/embedding-service');
+      const embeddings = await generateEmbeddings(descriptions);
+      
+      // Insert all at once
+      const rows = defs.map(([key, def], i) => ({
+        anchor_type: def.type,
+        anchor_name: def.name,
+        embedding: embeddings[i],
+        description: def.description,
+        default_weight: 0.2,
+      }));
+      
+      const { error } = await supabase.from('embedding_anchors').insert(rows);
+      
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message });
+      }
+      
+      return NextResponse.json({ success: true, count: rows.length });
+    }
+
     if (action === 'test-anchor') {
       // Test anchor insert
       const { createClient } = await import('@supabase/supabase-js');
