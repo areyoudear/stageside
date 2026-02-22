@@ -99,6 +99,10 @@ export interface Concert {
     currency: string;
   };
   genres: string[];
+  // Audio preview data
+  previewUrl?: string | null;
+  topTrackName?: string;
+  highlightStartMs?: number;
   // Venue size: intimate (<1000), medium (1000-5000), large (5000-20000), arena (20000+)
   venueSize?: "intimate" | "medium" | "large" | "arena" | "festival";
   // Distance from search location (in miles, calculated after fetch)

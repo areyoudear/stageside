@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
+import { calculateBatchTasteCompatibility } from "@/lib/taste-compatibility";
 
 /**
  * GET /api/friends
@@ -84,12 +85,23 @@ export async function GET() {
       });
     }
 
-    // Transform friendships
-    const friends = friendships
-      ?.filter((f) => f.status === "accepted")
-      .map((f) => {
+    // Get accepted friend IDs
+    const acceptedFriendships = friendships?.filter((f) => f.status === "accepted") || [];
+    const friendIds = acceptedFriendships.map((f) => 
+      f.requester_id === userId ? f.addressee_id : f.requester_id
+    );
+
+    // Calculate taste compatibility for all friends at once
+    const tasteCompatibilityMap = friendIds.length > 0 
+      ? await calculateBatchTasteCompatibility(userId, friendIds)
+      : new Map();
+
+    // Transform friendships with taste compatibility
+    const friends = acceptedFriendships.map((f) => {
         const friendId = f.requester_id === userId ? f.addressee_id : f.requester_id;
         const friend = usersMap[friendId];
+        const tasteCompat = tasteCompatibilityMap.get(friendId);
+        
         return {
           friendshipId: f.id,
           id: friendId,
@@ -97,8 +109,13 @@ export async function GET() {
           username: friend?.username,
           avatarUrl: friend?.avatar_url,
           since: f.created_at,
+          tasteCompatibility: tasteCompat?.score || 0,
+          tasteLabel: tasteCompat?.label || "Unknown",
+          sharedArtists: tasteCompat?.sharedArtists.slice(0, 5) || [],
         };
-      }) || [];
+      })
+      // Sort friends by taste compatibility (highest first)
+      .sort((a, b) => (b.tasteCompatibility || 0) - (a.tasteCompatibility || 0));
 
     // Pending requests (where user is addressee)
     const pendingRequests = friendships

@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { searchConcerts, Concert } from "@/lib/ticketmaster";
+import { searchConcerts } from "@/lib/ticketmaster";
 import { getMusicProfile, getSavedConcerts, getUnifiedMusicProfile, getRelatedArtists } from "@/lib/supabase";
-import { calculateMatchScore, formatMatchScore, generateVibeTags, UserProfile } from "@/lib/matching";
+import { 
+  calculatePreciseMatchScore, 
+  formatMatchScore, 
+  generateVibeTags, 
+  type UserProfile,
+  type UserAudioProfile,
+  type ArtistAudioProfile,
+  type PreciseMatchResult,
+} from "@/lib/matching";
+import { enrichConcertsWithPreviews } from "@/lib/concert-enrichment";
 
 /**
  * GET /api/matches
- * Get personalized concert recommendations based on user's music taste
+ * Get personalized concert recommendations with precision scoring
  *
  * Query params:
  * - city: City name (optional if latLong provided)
@@ -116,24 +125,38 @@ export async function GET(request: NextRequest) {
       topArtists: musicProfile.topArtists.map((a, index) => ({
         name: a.name,
         rank: index + 1,
+        genres: a.genres,
       })),
       relatedArtists: relatedArtistsData.map((r) => ({
         name: r.artist_name,
         relatedTo: r.related_to,
+        similarity: (r.popularity || 50) / 100, // Convert popularity to similarity
       })),
       recentlyPlayed: musicProfile.recentArtists || [],
       topGenres: musicProfile.topGenres,
     };
 
-    // Calculate match scores for each concert using new algorithm
+    // TODO: Fetch user audio profile from database when available
+    const userAudioProfile: UserAudioProfile | null = null;
+    
+    // TODO: Fetch artist audio profiles from database/cache when available
+    const artistAudioProfiles = new Map<string, ArtistAudioProfile>();
+    
+    // TODO: Fetch social signals when available
+    const socialSignals = { friendsInterested: 0, friendsGoing: 0 };
+
+    // Calculate match scores for each concert using precision algorithm
     const matchedConcerts = concertsResult.concerts.map((concert) => {
-      const matchResult = calculateMatchScore(
+      const matchResult: PreciseMatchResult = calculatePreciseMatchScore(
         concert.artists,
         concert.genres,
-        userProfile
+        userProfile,
+        userAudioProfile,
+        artistAudioProfiles,
+        socialSignals
       );
 
-      // Format score for display (0-100 scale)
+      // Score is already 0-100, just format it
       const displayScore = formatMatchScore(matchResult.score);
       
       // Generate vibe tags
@@ -146,12 +169,13 @@ export async function GET(request: NextRequest) {
         matchReasons: matchResult.reasons,
         matchType: matchResult.matchType,
         matchConfidence: matchResult.confidence,
+        scoreBreakdown: matchResult.breakdown,
         vibeTags,
         isSaved: savedConcertIds.includes(concert.id),
       };
     });
 
-    // Sort by raw score (highest first), then by date for ties
+    // Sort by score (highest first), then by date for ties
     matchedConcerts.sort((a, b) => {
       if (b.rawScore !== a.rawScore) {
         return b.rawScore - a.rawScore;
@@ -159,19 +183,22 @@ export async function GET(request: NextRequest) {
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
 
-    // Categorize matches
-    const mustSee = matchedConcerts.filter((c) => c.matchType === "direct-artist");
-    const forYou = matchedConcerts.filter((c) => 
-      c.matchType === "related-artist" || c.matchType === "recently-played"
-    );
-    const vibeMatch = matchedConcerts.filter((c) => c.matchType === "genre");
+    // Enrich top concerts with audio previews (limit to top 30 to save API calls)
+    const enrichedConcerts = await enrichConcertsWithPreviews(matchedConcerts, 30);
+
+    // Categorize matches by type
+    const mustSee = enrichedConcerts.filter((c) => c.matchType === "must-see");
+    const forYou = enrichedConcerts.filter((c) => c.matchType === "for-you");
+    const vibeMatch = enrichedConcerts.filter((c) => c.matchType === "vibe-match");
+    const discovery = enrichedConcerts.filter((c) => c.matchType === "discovery");
 
     return NextResponse.json({
-      concerts: matchedConcerts,
+      concerts: enrichedConcerts,
       categories: {
         mustSee: mustSee.length,
         forYou: forYou.length,
         vibeMatch: vibeMatch.length,
+        discovery: discovery.length,
       },
       totalElements: concertsResult.totalElements,
       totalPages: concertsResult.totalPages,

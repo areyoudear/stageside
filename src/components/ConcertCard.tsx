@@ -26,20 +26,39 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, daysUntil, cn } from "@/lib/utils";
 import { TicketSourcesDropdown, TicketSourcesInline } from "@/components/TicketSourcesDropdown";
+import { AudioPreview } from "@/components/AudioPreview";
 import { track } from "@/lib/analytics";
 import type { Concert } from "@/lib/ticketmaster";
+import type { DeduplicatedConcert, TicketSource } from "@/lib/concert-dedup";
+import { 
+  generateVibeTags, 
+  getVibeDescription, 
+  type VibeResult, 
+  type ArtistAudioProfile 
+} from "@/lib/vibe-tags";
 
-// Vibe types based on genre
+// Vibe types based on genre (legacy, kept for backward compatibility)
 type VibeType = "chill" | "energetic" | "intimate" | "festival" | "diverse";
 
 interface FriendInterest {
   id: string;
   name: string;
   status: "interested" | "going";
+  tasteCompatibility?: number;
+  tasteLabel?: string;
+  sharedArtists?: string[];
+  imageUrl?: string | null;
 }
 
+// Extended concert type that may include deduplication data
+type ConcertWithSources = Concert & {
+  sources?: TicketSource[];
+  artistAudioProfile?: ArtistAudioProfile | null;
+  vibeResult?: VibeResult;
+};
+
 interface ConcertCardProps {
-  concert: Concert;
+  concert: Concert | ConcertWithSources;
   onSave?: (concertId: string) => void;
   onUnsave?: (concertId: string) => void;
   onGoing?: (concertId: string) => void;
@@ -50,6 +69,8 @@ interface ConcertCardProps {
   isAuthenticated?: boolean;
   isDemo?: boolean;
   hasProfile?: boolean;
+  // Optional audio profile for enhanced vibe tags
+  artistAudioProfile?: ArtistAudioProfile | null;
 }
 
 // Map genres to vibes with colors
@@ -122,6 +143,68 @@ function getUrgency(daysLeft: number): { show: boolean; label: string; color: st
   return null;
 }
 
+/**
+ * Get contextual urgency message based on concert and user context
+ * Replaces generic "Tickets selling fast!" with personalized messages
+ */
+interface ContextualUrgencyContext {
+  venueSize?: string;
+  matchScore?: number;
+  matchReasons?: string[];
+  genres?: string[];
+  isLastShow?: boolean;
+  friendsGoing?: number;
+  savedSimilarCount?: number;
+}
+
+function getContextualUrgency(
+  daysLeft: number,
+  context: ContextualUrgencyContext
+): string | null {
+  const { venueSize, matchScore, genres, isLastShow, friendsGoing, savedSimilarCount } = context;
+  
+  // Priority 1: Last show urgency
+  if (isLastShow) {
+    return "Last show of their tour — no second chances";
+  }
+  
+  // Priority 2: Friends going
+  if (friendsGoing && friendsGoing >= 2) {
+    return `${friendsGoing} friends going — don't miss out!`;
+  }
+  
+  // Priority 3: High match + small venue
+  if (matchScore && matchScore >= 80 && venueSize === "intimate") {
+    return "This venue typically sells out for artists matching your taste";
+  }
+  
+  // Priority 4: Saved similar artists
+  if (savedSimilarCount && savedSimilarCount >= 2) {
+    return `You've saved ${savedSimilarCount} similar artists. This one is actually touring.`;
+  }
+  
+  // Priority 5: Genre rarity (if we could track this)
+  if (genres && genres.length > 0) {
+    const rareGenres = ["jazz", "classical", "bluegrass", "folk", "metal"];
+    const hasRareGenre = genres.some(g => 
+      rareGenres.some(r => g.toLowerCase().includes(r))
+    );
+    if (hasRareGenre) {
+      const matchedGenre = genres.find(g => 
+        rareGenres.some(r => g.toLowerCase().includes(r))
+      );
+      return `${matchedGenre} shows are rare in your area`;
+    }
+  }
+  
+  // Priority 6: Time-based urgency for good matches
+  if (daysLeft <= 7 && matchScore && matchScore >= 70) {
+    return "High match, happening soon";
+  }
+  
+  return null;
+}
+
 // Get match label based on score
 function getMatchLabel(score: number): { label: string; sublabel: string } {
   if (score >= 90) return { label: "Perfect", sublabel: "Your artist" };
@@ -141,8 +224,8 @@ function MatchScoreBadge({ score, isPerfect, matchReasons, onTooltipHover, hasPr
 }) {
   const matchLabel = getMatchLabel(score);
   
-  // No profile - show CTA
-  if (!hasProfile || score === 0) {
+  // No profile - show CTA to connect music service
+  if (!hasProfile) {
     return (
       <a 
         href="/settings" 
@@ -210,6 +293,7 @@ export function ConcertCard({
   interestStatus,
   onInterestChange,
   friendsInterested = [],
+  artistAudioProfile,
 }: ConcertCardProps) {
   const [isSaved, setIsSaved] = useState(concert.isSaved || false);
   const [isGoing, setIsGoing] = useState(false);
@@ -278,6 +362,21 @@ export function ConcertCard({
   const daysLeft = daysUntil(concert.date);
   const vibe = useMemo(() => getVibe(concert.genres), [concert.genres]);
   const urgency = useMemo(() => getUrgency(daysLeft), [daysLeft]);
+  
+  // Enhanced vibe tags from audio features (when available)
+  const concertExt = concert as ConcertWithSources;
+  const audioProfile = artistAudioProfile || concertExt.artistAudioProfile || null;
+  const enhancedVibeResult = useMemo(() => {
+    // Use pre-computed vibe if available on the concert
+    if (concertExt.vibeResult) {
+      return concertExt.vibeResult;
+    }
+    // Otherwise compute from audio profile and genres
+    return generateVibeTags(audioProfile, concert.genres, undefined);
+  }, [audioProfile, concert.genres, concertExt.vibeResult]);
+  
+  // Check if concert has multiple ticket sources
+  const ticketSources: TicketSource[] = concertExt.sources || [];
 
   const handleSaveToggle = () => {
     const artistName = concert.artists.join(", ");
@@ -495,16 +594,32 @@ export function ConcertCard({
           </button>
         </div>
 
-        {/* Vibe indicator pill */}
-        <div className="absolute bottom-3 left-3">
-          <div className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md",
-            "bg-black/40 border border-white/10",
-            vibe.color
-          )}>
-            <vibe.icon className="w-3.5 h-3.5" />
-            <span>{vibe.label}</span>
+        {/* Enhanced Vibe Tags */}
+        <div className="absolute bottom-3 left-3 flex flex-wrap gap-1.5 max-w-[60%]">
+          {/* Primary vibe tag with emoji */}
+          <div 
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md cursor-help",
+              enhancedVibeResult.bgColor,
+              "border",
+              enhancedVibeResult.borderColor,
+              enhancedVibeResult.color
+            )}
+            title={getVibeDescription(enhancedVibeResult.primary)}
+          >
+            <span>{enhancedVibeResult.emoji}</span>
+            <span className="truncate max-w-[120px]">{enhancedVibeResult.primary}</span>
           </div>
+          
+          {/* Secondary vibe tag (if available) */}
+          {enhancedVibeResult.secondary && (
+            <div 
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium backdrop-blur-md bg-black/30 text-zinc-300 border border-white/10"
+              title={getVibeDescription(enhancedVibeResult.secondary)}
+            >
+              <span className="truncate max-w-[80px]">{enhancedVibeResult.secondary}</span>
+            </div>
+          )}
         </div>
 
         {/* Match Score Badge - Always visible on image */}
@@ -618,6 +733,16 @@ export function ConcertCard({
           </div>
         )}
 
+        {/* Audio Preview - Sample the artist's music */}
+        {concert.previewUrl && concert.topTrackName && (
+          <AudioPreview
+            previewUrl={concert.previewUrl}
+            trackName={concert.topTrackName}
+            artistName={concert.artists[0]}
+            highlightStartMs={concert.highlightStartMs}
+          />
+        )}
+
         {/* Genre tags - Only show on hover */}
         {concert.genres.length > 0 && isHovered && (
           <div className="flex flex-wrap gap-1.5 animate-fade-in">
@@ -632,24 +757,75 @@ export function ConcertCard({
           </div>
         )}
 
-        {/* Friends Interested Section */}
+        {/* Friends Interested Section - Enhanced with taste compatibility */}
         {friendsInterested.length > 0 && (
-          <div className="flex items-center gap-2 py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <Users className="w-4 h-4 text-blue-400 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              {friendsGoing.length > 0 && (
-                <p className="text-xs text-blue-300">
-                  <span className="font-medium">{friendsGoing.map(f => f.name).join(", ")}</span>
-                  {friendsGoing.length === 1 ? " is" : " are"} going
-                </p>
-              )}
-              {friendsInterestedOnly.length > 0 && (
-                <p className="text-xs text-blue-400">
-                  <span className="font-medium">{friendsInterestedOnly.map(f => f.name).join(", ")}</span>
-                  {friendsInterestedOnly.length === 1 ? " is" : " are"} interested
-                </p>
-              )}
+          <div className="space-y-2 py-2 px-3 bg-gradient-to-r from-blue-500/10 via-purple-500/5 to-blue-500/10 rounded-lg border border-blue-500/20">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-blue-400 flex-shrink-0" />
+              <span className="text-xs font-semibold text-blue-300">
+                👥 {friendsInterested.length} friend{friendsInterested.length > 1 ? "s" : ""} interested
+              </span>
             </div>
+            
+            {/* Show top friend with highest taste compatibility */}
+            {(() => {
+              const topFriend = [...friendsGoing, ...friendsInterestedOnly]
+                .sort((a, b) => (b.tasteCompatibility || 0) - (a.tasteCompatibility || 0))[0];
+              
+              if (topFriend && topFriend.tasteCompatibility && topFriend.tasteCompatibility > 0) {
+                return (
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-[10px] text-white font-bold flex-shrink-0">
+                      {topFriend.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-white truncate">{topFriend.name}</span>
+                        <span className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
+                          topFriend.tasteCompatibility >= 70 
+                            ? "bg-green-500/20 text-green-400" 
+                            : "bg-blue-500/20 text-blue-400"
+                        )}>
+                          {topFriend.tasteCompatibility}% match
+                        </span>
+                        <span className="text-[10px] text-zinc-500">
+                          {topFriend.status === "going" ? "is going" : "interested"}
+                        </span>
+                      </div>
+                      {topFriend.sharedArtists && topFriend.sharedArtists.length > 0 && (
+                        <p className="text-[10px] text-zinc-500 truncate">
+                          Both love {topFriend.sharedArtists.slice(0, 2).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            
+            {/* Simple list for others */}
+            {friendsInterested.length > 1 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {[...friendsGoing, ...friendsInterestedOnly]
+                  .sort((a, b) => (b.tasteCompatibility || 0) - (a.tasteCompatibility || 0))
+                  .slice(1, 4)
+                  .map(friend => (
+                    <span 
+                      key={friend.id}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800/50 text-zinc-400"
+                    >
+                      {friend.name} {friend.status === "going" ? "✓" : ""}
+                    </span>
+                  ))}
+                {friendsInterested.length > 4 && (
+                  <span className="text-[10px] text-zinc-500">
+                    +{friendsInterested.length - 4} more
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -697,6 +873,48 @@ export function ConcertCard({
             <TicketSourcesInline concert={concert} />
           </div>
         </div>
+        
+        {/* Multiple Ticket Sources (from deduplication) */}
+        {ticketSources.length > 1 && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            <span className="text-xs text-zinc-500 w-full">Compare prices:</span>
+            {ticketSources.map((source, idx) => (
+              <a 
+                key={`${source.source}-${idx}`}
+                href={source.ticketUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => track('ticket_source_clicked', {
+                  concert_id: concert.id,
+                  source: source.source,
+                  price: source.price?.min,
+                })}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
+                  "bg-zinc-800/70 hover:bg-zinc-700 border border-zinc-700/50 hover:border-zinc-600",
+                  source.source === "ticketmaster" && "hover:border-blue-500/50",
+                  source.source === "seatgeek" && "hover:border-green-500/50",
+                  source.source === "bandsintown" && "hover:border-pink-500/50"
+                )}
+              >
+                <span className={cn(
+                  "capitalize",
+                  source.source === "ticketmaster" && "text-blue-400",
+                  source.source === "seatgeek" && "text-green-400",
+                  source.source === "bandsintown" && "text-pink-400"
+                )}>
+                  {source.source}
+                </span>
+                {source.price && (
+                  <span className="text-zinc-300">
+                    ${source.price.min}
+                  </span>
+                )}
+                <ExternalLink className="w-3 h-3 text-zinc-500" />
+              </a>
+            ))}
+          </div>
+        )}
 
         {/* Action Button - Standardized CTAs */}
         {isDemo ? (

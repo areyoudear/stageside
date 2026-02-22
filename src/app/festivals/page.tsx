@@ -11,6 +11,7 @@ import {
   FestivalCard,
   FestivalCardSkeleton,
 } from "@/components/festivals";
+import { toast } from "sonner";
 import type { FestivalWithMatch } from "@/lib/festival-types";
 
 const GENRE_FILTERS = [
@@ -41,11 +42,15 @@ export default function FestivalsPage() {
     setIsLoading(true);
     try {
       const response = await fetch("/api/festivals?upcoming=true&limit=30");
+      if (!response.ok) {
+        throw new Error("Failed to fetch festivals");
+      }
       const data = await response.json();
       setFestivals(data.festivals || []);
       setPersonalized(data.personalized || false);
     } catch (error) {
       console.error("Error fetching festivals:", error);
+      toast.error("Failed to load festivals. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -83,35 +88,35 @@ export default function FestivalsPage() {
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-lg border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <Link href="/" className="flex items-center gap-2 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                 <Music className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-white">Stageside</span>
+              <span className="text-lg sm:text-xl font-bold text-white hidden xs:inline">Stageside</span>
             </Link>
 
-            {/* Mode tabs */}
-            <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
+            {/* Mode tabs - scrollable on mobile */}
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-zinc-800/50 rounded-lg p-0.5 sm:p-1 overflow-x-auto max-w-[60%] sm:max-w-none">
               <Link
                 href="/dashboard"
-                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors"
+                className="px-2.5 sm:px-4 py-2 sm:py-1.5 rounded-md text-xs sm:text-sm text-zinc-400 hover:text-white transition-colors whitespace-nowrap min-h-[40px] sm:min-h-0 flex items-center"
               >
                 Concerts
               </Link>
-              <span className="px-4 py-1.5 rounded-md text-sm bg-cyan-600 text-white">
+              <span className="px-2.5 sm:px-4 py-2 sm:py-1.5 rounded-md text-xs sm:text-sm bg-cyan-600 text-white whitespace-nowrap min-h-[40px] sm:min-h-0 flex items-center">
                 Festivals
               </span>
               <Link
                 href="/saved"
-                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+                className="px-2.5 sm:px-4 py-2 sm:py-1.5 rounded-md text-xs sm:text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap min-h-[40px] sm:min-h-0"
               >
                 <Bookmark className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Saved</span>
               </Link>
               <Link
                 href="/friends"
-                className="px-4 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+                className="px-2.5 sm:px-4 py-2 sm:py-1.5 rounded-md text-xs sm:text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap min-h-[40px] sm:min-h-0"
               >
                 <Users className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Friends</span>
@@ -166,16 +171,16 @@ export default function FestivalsPage() {
               />
             </div>
 
-            {/* Genre filter */}
-            <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+            {/* Genre filter - scrollable with good touch targets */}
+            <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0">
               {GENRE_FILTERS.map((genre) => (
                 <button
                   key={genre}
                   onClick={() => setSelectedGenre(genre)}
-                  className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
+                  className={`px-4 py-2 sm:py-1.5 rounded-full text-sm whitespace-nowrap transition-colors min-h-[44px] sm:min-h-0 touch-manipulation ${
                     selectedGenre === genre
                       ? "bg-cyan-600 text-white"
-                      : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                      : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 active:bg-zinc-600"
                   }`}
                 >
                   {genre}
@@ -187,7 +192,7 @@ export default function FestivalsPage() {
 
         {isLoading ? (
           // Loading state
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {[...Array(6)].map((_, i) => (
               <FestivalCardSkeleton key={i} />
             ))}
@@ -217,7 +222,7 @@ export default function FestivalsPage() {
                     ⭐ Your Top Matches
                   </h2>
                 </div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {topMatches.map((festival) => (
                     <FestivalCard
                       key={festival.id}
@@ -237,7 +242,7 @@ export default function FestivalsPage() {
                     🔥 Popular Festivals
                   </h2>
                 </div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {popularFestivals.map((festival) => (
                     <FestivalCard
                       key={festival.id}
@@ -256,7 +261,7 @@ export default function FestivalsPage() {
                   📅 Upcoming Festivals
                 </h2>
               </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                 {upcomingFestivals.map((festival) => (
                   <FestivalCard
                     key={festival.id}

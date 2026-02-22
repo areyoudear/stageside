@@ -2,10 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
+import { calculateBatchTasteCompatibility } from "@/lib/taste-compatibility";
+
+/**
+ * Enhanced friend interest data with taste compatibility
+ */
+interface EnhancedFriendInfo {
+  id: string;
+  name: string;
+  username: string;
+  imageUrl: string | null;
+  tasteCompatibility: number;
+  tasteLabel: string;
+  sharedArtists: string[];
+  status: "interested" | "going";
+}
+
+interface ConcertFriendsData {
+  interested: EnhancedFriendInfo[];
+  going: EnhancedFriendInfo[];
+}
 
 /**
  * GET /api/friends/interests
- * Get all concert interests from user's friends
+ * Get all concert interests from user's friends with taste compatibility scores
  * Returns a map of concertId -> array of friends interested/going
  */
 export async function GET(request: NextRequest) {
@@ -53,7 +73,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch interests" }, { status: 500 });
     }
 
-    // Get friend user details separately
+    // Get friend user details
     const { data: friendUsers, error: usersError } = await adminClient
       .from("users")
       .select("id, display_name, username, image_url")
@@ -67,11 +87,11 @@ export async function GET(request: NextRequest) {
       (friendUsers || []).map((u) => [u.id, u])
     );
 
-    // Group by concert_id
-    const interestsByConvert: Record<string, {
-      interested: Array<{ id: string; name: string; username: string; imageUrl: string | null }>;
-      going: Array<{ id: string; name: string; username: string; imageUrl: string | null }>;
-    }> = {};
+    // Calculate taste compatibility for all friends in batch
+    const tasteCompatibilityMap = await calculateBatchTasteCompatibility(userId, friendIds);
+
+    // Group by concert_id with enhanced friend data
+    const interestsByConvert: Record<string, ConcertFriendsData> = {};
 
     const concertIdsInterested = new Set<string>();
     const concertIdsGoing = new Set<string>();
@@ -83,21 +103,33 @@ export async function GET(request: NextRequest) {
       }
 
       const user = friendUserMap.get(interest.user_id);
-      const friendInfo = {
+      const tasteCompat = tasteCompatibilityMap.get(interest.user_id);
+      
+      const enhancedFriendInfo: EnhancedFriendInfo = {
         id: interest.user_id,
         name: user?.display_name || user?.username || "Unknown",
         username: user?.username || "",
         imageUrl: user?.image_url || null,
+        tasteCompatibility: tasteCompat?.score || 0,
+        tasteLabel: tasteCompat?.label || "Unknown",
+        sharedArtists: tasteCompat?.sharedArtists.slice(0, 5) || [],
+        status: interest.status as "interested" | "going",
       };
 
       if (interest.status === "interested") {
-        interestsByConvert[concertId].interested.push(friendInfo);
+        interestsByConvert[concertId].interested.push(enhancedFriendInfo);
         concertIdsInterested.add(concertId);
       } else if (interest.status === "going") {
-        interestsByConvert[concertId].going.push(friendInfo);
+        interestsByConvert[concertId].going.push(enhancedFriendInfo);
         concertIdsGoing.add(concertId);
       }
     }
+
+    // Sort friends by taste compatibility within each concert
+    Object.values(interestsByConvert).forEach(data => {
+      data.interested.sort((a, b) => b.tasteCompatibility - a.tasteCompatibility);
+      data.going.sort((a, b) => b.tasteCompatibility - a.tasteCompatibility);
+    });
 
     return NextResponse.json({
       interests: interestsByConvert,

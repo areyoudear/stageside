@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getAggregatedArtists, getMusicProfile } from "@/lib/supabase";
+import {
+  getAggregatedArtists,
+  getMusicProfile,
+  getUserItinerary,
+  saveUserItinerary,
+  deleteUserItinerary,
+} from "@/lib/supabase";
 import {
   getFestival,
   getFestivalLineup,
@@ -12,7 +18,7 @@ import type { FestivalArtistMatch } from "@/lib/festival-types";
 
 /**
  * GET /api/festivals/[id]/itinerary
- * Generate a smart itinerary for the user
+ * Get user's itinerary - returns saved version if exists, otherwise generates new
  */
 export async function GET(
   request: NextRequest,
@@ -31,16 +37,39 @@ export async function GET(
     const { id: festivalId } = await params;
     const { searchParams } = new URL(request.url);
 
-    // Options from query params
-    const maxPerDay = parseInt(searchParams.get("maxPerDay") || "8");
-    const includeDiscoveries = searchParams.get("discoveries") !== "false";
-    const restBreakMinutes = parseInt(searchParams.get("restBreak") || "90");
+    // Check if user wants to force regeneration
+    const forceRegenerate = searchParams.get("regenerate") === "true";
 
-    // Get festival and lineup
+    // Get festival info first
     const festival = await getFestival(festivalId);
     if (!festival) {
       return NextResponse.json({ error: "Festival not found" }, { status: 404 });
     }
+
+    // Check for saved itinerary (unless forcing regeneration)
+    if (!forceRegenerate) {
+      const savedItinerary = await getUserItinerary(session.user.id, festivalId);
+      if (savedItinerary) {
+        return NextResponse.json({
+          festival: {
+            id: festival.id,
+            name: festival.name,
+            dates: festival.dates,
+            location: festival.location,
+          },
+          itinerary: savedItinerary.itinerary,
+          settings: savedItinerary.settings,
+          isSaved: true,
+          savedAt: savedItinerary.updated_at,
+          stats: calculateStats(savedItinerary.itinerary),
+        });
+      }
+    }
+
+    // Options from query params
+    const maxPerDay = parseInt(searchParams.get("maxPerDay") || "8");
+    const includeDiscoveries = searchParams.get("discoveries") !== "false";
+    const restBreakMinutes = parseInt(searchParams.get("restBreak") || "90");
 
     const lineup = await getFestivalLineup(festivalId);
     if (lineup.length === 0) {
@@ -95,6 +124,12 @@ export async function GET(
         location: festival.location,
       },
       itinerary,
+      settings: {
+        maxPerDay,
+        restBreak: restBreakMinutes,
+        includeDiscoveries,
+      },
+      isSaved: false,
       stats: {
         totalArtists: lineup.length,
         scheduledArtists: itinerary.days.reduce((sum, d) => sum + d.slots.length, 0),
@@ -113,7 +148,7 @@ export async function GET(
 
 /**
  * POST /api/festivals/[id]/itinerary
- * Update itinerary (swap artists, etc.)
+ * Save user's custom itinerary
  */
 export async function POST(
   request: NextRequest,
@@ -129,12 +164,40 @@ export async function POST(
     const { id: festivalId } = await params;
     const body = await request.json();
 
-    // TODO: Implement saving user's custom itinerary
-    // For now, just acknowledge the request
+    const { itinerary, settings } = body;
+
+    if (!itinerary) {
+      return NextResponse.json(
+        { error: "Itinerary data is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify festival exists
+    const festival = await getFestival(festivalId);
+    if (!festival) {
+      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+    }
+
+    // Save the itinerary
+    const saved = await saveUserItinerary(
+      session.user.id,
+      festivalId,
+      itinerary,
+      settings
+    );
+
+    if (!saved) {
+      return NextResponse.json(
+        { error: "Failed to save itinerary" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Itinerary preferences saved",
+      message: "Itinerary saved successfully",
+      savedAt: saved.updated_at,
     });
   } catch (error) {
     console.error("Error saving itinerary:", error);
@@ -143,4 +206,76 @@ export async function POST(
       { status: 500 }
     );
   }
+}
+
+/**
+ * DELETE /api/festivals/[id]/itinerary
+ * Delete saved itinerary (reset to AI-generated)
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    const { id: festivalId } = await params;
+
+    const deleted = await deleteUserItinerary(session.user.id, festivalId);
+
+    if (!deleted) {
+      return NextResponse.json(
+        { error: "Failed to reset itinerary" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Itinerary reset to AI suggestions",
+    });
+  } catch (error) {
+    console.error("Error resetting itinerary:", error);
+    return NextResponse.json(
+      { error: "Failed to reset itinerary" },
+      { status: 500 }
+    );
+  }
+}
+
+// Helper to calculate stats from saved itinerary
+function calculateStats(itinerary: unknown): {
+  totalArtists: number;
+  scheduledArtists: number;
+  mustSeeCount: number;
+  conflictCount: number;
+} {
+  // Type guard for itinerary structure
+  const it = itinerary as {
+    days?: Array<{
+      slots?: Array<unknown>;
+      mustSeeCount?: number;
+    }>;
+    conflicts?: Array<unknown>;
+  };
+
+  if (!it?.days) {
+    return {
+      totalArtists: 0,
+      scheduledArtists: 0,
+      mustSeeCount: 0,
+      conflictCount: 0,
+    };
+  }
+
+  return {
+    totalArtists: 0, // We don't store total lineup in saved itinerary
+    scheduledArtists: it.days.reduce((sum, d) => sum + (d.slots?.length || 0), 0),
+    mustSeeCount: it.days.reduce((sum, d) => sum + (d.mustSeeCount || 0), 0),
+    conflictCount: it.conflicts?.length || 0,
+  };
 }

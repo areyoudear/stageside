@@ -24,6 +24,28 @@ export interface SpotifyTrack {
     name: string;
     images: { url: string; height: number; width: number }[];
   };
+  preview_url?: string | null;
+}
+
+/**
+ * Spotify Audio Features for a track
+ * All values are 0-1 unless noted otherwise
+ */
+export interface SpotifyAudioFeatures {
+  id: string;
+  danceability: number;      // 0-1: How suitable for dancing
+  energy: number;            // 0-1: Intensity and activity
+  valence: number;           // 0-1: Musical positivity (happy vs sad)
+  tempo: number;             // BPM (typically 50-200)
+  acousticness: number;      // 0-1: Acoustic vs electronic
+  instrumentalness: number;  // 0-1: No vocals vs vocal
+  liveness: number;          // 0-1: Live audience presence
+  speechiness: number;       // 0-1: Spoken word content
+  key: number;               // 0-11 (pitch class notation)
+  mode: number;              // 0 = minor, 1 = major
+  time_signature: number;    // 3-7 (beats per measure)
+  duration_ms: number;
+  loudness: number;          // -60 to 0 dB
 }
 
 interface SpotifyPaginatedResponse<T> {
@@ -453,4 +475,280 @@ export async function validateArtistsAgainstSpotify(
   }
 
   return validatedArtists;
+}
+
+// ============================================
+// AUDIO PREVIEW FUNCTIONS
+// ============================================
+
+export interface ArtistPreviewInfo {
+  artistId: string;
+  artistName: string;
+  previewUrl: string | null;
+  trackName: string | null;
+  trackId: string | null;
+}
+
+/**
+ * Get artist's top track with preview URL
+ * Uses client credentials flow (no user auth needed)
+ */
+export async function getArtistTopTrackPreview(
+  artistId: string,
+  market: string = "US"
+): Promise<ArtistPreviewInfo | null> {
+  try {
+    const token = await getClientCredentialsToken();
+    if (!token) return null;
+
+    // Get artist's top tracks
+    const response = await fetch(
+      `${SPOTIFY_API_BASE}/artists/${artistId}/top-tracks?market=${market}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Failed to fetch top tracks for artist ${artistId}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const tracks = data.tracks || [];
+
+    // Find the first track with a preview URL
+    for (const track of tracks) {
+      if (track.preview_url) {
+        return {
+          artistId,
+          artistName: track.artists?.[0]?.name || "",
+          previewUrl: track.preview_url,
+          trackName: track.name,
+          trackId: track.id,
+        };
+      }
+    }
+
+    // No preview available
+    return {
+      artistId,
+      artistName: tracks[0]?.artists?.[0]?.name || "",
+      previewUrl: null,
+      trackName: tracks[0]?.name || null,
+      trackId: tracks[0]?.id || null,
+    };
+  } catch (error) {
+    console.error(`Error getting preview for artist ${artistId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get previews for multiple artists
+ * Batched to avoid rate limiting
+ */
+export async function getArtistsTopTrackPreviews(
+  artistIds: string[],
+  maxConcurrent: number = 5
+): Promise<Map<string, ArtistPreviewInfo>> {
+  const results = new Map<string, ArtistPreviewInfo>();
+
+  // Process in batches
+  for (let i = 0; i < artistIds.length; i += maxConcurrent) {
+    const batch = artistIds.slice(i, i + maxConcurrent);
+    const batchResults = await Promise.all(
+      batch.map(id => getArtistTopTrackPreview(id))
+    );
+
+    for (const result of batchResults) {
+      if (result) {
+        results.set(result.artistId, result);
+      }
+    }
+
+    // Small delay between batches
+    if (i + maxConcurrent < artistIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Search for artist and get their preview in one call
+ */
+export async function searchArtistWithPreview(
+  artistName: string
+): Promise<(SpotifyArtist & { previewInfo?: ArtistPreviewInfo }) | null> {
+  const artist = await searchArtist(artistName);
+  if (!artist) return null;
+
+  const previewInfo = await getArtistTopTrackPreview(artist.id);
+  return {
+    ...artist,
+    previewInfo: previewInfo || undefined,
+  };
+}
+
+// =============================================================================
+// AUDIO FEATURES API (V3 Matching)
+// =============================================================================
+
+/**
+ * Fetch audio features for multiple tracks (max 100 per request)
+ * @param trackIds - Array of Spotify track IDs
+ * @param accessToken - User or client credentials token
+ */
+export async function getAudioFeaturesForTracks(
+  trackIds: string[],
+  accessToken: string
+): Promise<SpotifyAudioFeatures[]> {
+  if (trackIds.length === 0) return [];
+  
+  // Spotify allows max 100 tracks per request
+  const features: SpotifyAudioFeatures[] = [];
+  const batchSize = 100;
+  
+  for (let i = 0; i < trackIds.length; i += batchSize) {
+    const batch = trackIds.slice(i, i + batchSize);
+    const ids = batch.join(',');
+    
+    const response = await fetch(
+      `${SPOTIFY_API_BASE}/audio-features?ids=${ids}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch audio features: ${response.status}`);
+      continue;
+    }
+    
+    const data = await response.json();
+    // Filter out null entries (tracks without audio features)
+    const validFeatures = (data.audio_features || []).filter(
+      (f: SpotifyAudioFeatures | null) => f !== null
+    );
+    features.push(...validFeatures);
+    
+    // Small delay between batches
+    if (i + batchSize < trackIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+  
+  return features;
+}
+
+/**
+ * Get an artist's top tracks in a specific market
+ * @param artistId - Spotify artist ID
+ * @param accessToken - Access token (user or client credentials)
+ * @param market - ISO 3166-1 alpha-2 country code (default: US)
+ */
+export async function getArtistTopTracks(
+  artistId: string,
+  accessToken: string,
+  market: string = 'US'
+): Promise<SpotifyTrack[]> {
+  const response = await fetch(
+    `${SPOTIFY_API_BASE}/artists/${artistId}/top-tracks?market=${market}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  
+  if (!response.ok) {
+    console.error(`Failed to fetch top tracks for artist ${artistId}: ${response.status}`);
+    return [];
+  }
+  
+  const data = await response.json();
+  return data.tracks || [];
+}
+
+/**
+ * Get detailed artist information including genres and popularity
+ * @param artistId - Spotify artist ID
+ * @param accessToken - Access token (user or client credentials)
+ */
+export async function getArtistInfo(
+  artistId: string,
+  accessToken: string
+): Promise<SpotifyArtist | null> {
+  const response = await fetch(
+    `${SPOTIFY_API_BASE}/artists/${artistId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  
+  if (!response.ok) {
+    console.error(`Failed to fetch artist info for ${artistId}: ${response.status}`);
+    return null;
+  }
+  
+  return response.json();
+}
+
+/**
+ * Get multiple artists' information in a single request (max 50)
+ * @param artistIds - Array of Spotify artist IDs
+ * @param accessToken - Access token
+ */
+export async function getArtistsInfo(
+  artistIds: string[],
+  accessToken: string
+): Promise<SpotifyArtist[]> {
+  if (artistIds.length === 0) return [];
+  
+  const artists: SpotifyArtist[] = [];
+  const batchSize = 50;
+  
+  for (let i = 0; i < artistIds.length; i += batchSize) {
+    const batch = artistIds.slice(i, i + batchSize);
+    const ids = batch.join(',');
+    
+    const response = await fetch(
+      `${SPOTIFY_API_BASE}/artists?ids=${ids}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch artists: ${response.status}`);
+      continue;
+    }
+    
+    const data = await response.json();
+    artists.push(...(data.artists || []).filter((a: SpotifyArtist | null) => a !== null));
+    
+    if (i + batchSize < artistIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+  
+  return artists;
+}
+
+/**
+ * Get a client credentials token for API calls without user context
+ * Exposed for use by audio-profiles.ts
+ */
+export async function getSpotifyClientToken(): Promise<string | null> {
+  return getClientCredentialsToken();
 }

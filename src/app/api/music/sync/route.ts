@@ -15,6 +15,7 @@ import { getUserMusicProfile as getTidalProfile } from "@/lib/tidal";
 import { getUserMusicProfile as getDeezerProfile } from "@/lib/deezer";
 import { getUserMusicProfile as getAppleMusicProfile, generateDeveloperToken } from "@/lib/apple-music";
 import { aggregateArtists, aggregateGenres, MusicService } from "@/lib/music-aggregator";
+import { computeUserAudioProfile } from "@/lib/audio-profiles";
 
 interface ServiceProfile {
   service: MusicService;
@@ -145,12 +146,32 @@ export async function POST(request: NextRequest) {
     }));
     const aggregatedGenres = aggregateGenres(genreProfiles);
 
+    // Compute audio profile if Spotify was synced (for V3 matching)
+    let audioProfileComputed = false;
+    const spotifyConnection = activeConnections.find(c => c.service === "spotify");
+    if (spotifyConnection && syncedServices.includes("spotify")) {
+      try {
+        const audioProfile = await computeUserAudioProfile(
+          session.user.id,
+          spotifyConnection.access_token
+        );
+        if (audioProfile) {
+          audioProfileComputed = true;
+          console.log(`Audio profile computed for user ${session.user.id}: ${audioProfile.trackCount} tracks analyzed`);
+        }
+      } catch (audioError) {
+        // Don't fail the sync if audio profile computation fails
+        console.error("Error computing audio profile:", audioError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       syncedServices, // Only services that were actually synced this request
       totalServices: profiles.map((p) => p.service), // All services included in aggregation
       artistCount: aggregatedArtists.length,
       genreCount: aggregatedGenres.length,
+      audioProfileComputed, // V3 matching: whether audio profile was computed
       topArtists: aggregatedArtists.slice(0, 10).map((a) => ({
         name: a.name,
         sources: a.sources,

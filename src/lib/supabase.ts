@@ -614,10 +614,25 @@ export async function getUnifiedMusicProfile(userId: string): Promise<{
     return null;
   }
 
-  // Get aggregated artists
+  // Get aggregated artists from new system
   const artists = await getAggregatedArtists(userId);
 
+  // If no artists in new system, fall back to legacy profile
   if (artists.length === 0) {
+    const legacyProfile = await getMusicProfile(userId);
+    if (legacyProfile && legacyProfile.top_artists?.length > 0) {
+      return {
+        topArtists: legacyProfile.top_artists.map((a) => ({
+          name: a.name,
+          genres: a.genres || [],
+          sources: ["spotify" as MusicServiceType],
+          score: a.popularity || 50,
+        })),
+        topGenres: legacyProfile.top_genres || [],
+        connectedServices: activeConnections.map((c) => c.service),
+        recentArtists: [],
+      };
+    }
     return null;
   }
 
@@ -711,4 +726,285 @@ export async function getRelatedArtists(userId: string): Promise<RelatedArtistDa
   }
 
   return data as RelatedArtistData[];
+}
+
+// ============================================
+// USER FESTIVAL ITINERARIES
+// ============================================
+
+export interface UserItinerary {
+  id: string;
+  user_id: string;
+  festival_id: string;
+  itinerary: unknown; // GeneratedItinerary JSON
+  settings: {
+    maxPerDay?: number;
+    restBreak?: number;
+    includeDiscoveries?: boolean;
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Get user's saved itinerary for a festival
+ */
+export async function getUserItinerary(
+  userId: string,
+  festivalId: string
+): Promise<UserItinerary | null> {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("user_festival_itineraries")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("festival_id", festivalId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // Not found
+    console.error("Error fetching user itinerary:", error);
+    return null;
+  }
+
+  return data as UserItinerary;
+}
+
+/**
+ * Save or update user's itinerary for a festival
+ */
+export async function saveUserItinerary(
+  userId: string,
+  festivalId: string,
+  itinerary: unknown,
+  settings?: {
+    maxPerDay?: number;
+    restBreak?: number;
+    includeDiscoveries?: boolean;
+  }
+): Promise<UserItinerary | null> {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("user_festival_itineraries")
+    .upsert(
+      {
+        user_id: userId,
+        festival_id: festivalId,
+        itinerary,
+        settings: settings || null,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "user_id,festival_id",
+      }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error saving user itinerary:", error);
+    return null;
+  }
+
+  return data as UserItinerary;
+}
+
+/**
+ * Delete user's saved itinerary for a festival (reset to AI-generated)
+ */
+export async function deleteUserItinerary(
+  userId: string,
+  festivalId: string
+): Promise<boolean> {
+  const adminClient = createAdminClient();
+
+  const { error } = await adminClient
+    .from("user_festival_itineraries")
+    .delete()
+    .eq("user_id", userId)
+    .eq("festival_id", festivalId);
+
+  if (error) {
+    console.error("Error deleting user itinerary:", error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get all saved itineraries for a user
+ */
+export async function getAllUserItineraries(userId: string): Promise<UserItinerary[]> {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("user_festival_itineraries")
+    .select("*")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching user itineraries:", error);
+    return [];
+  }
+
+  return data as UserItinerary[];
+}
+
+// ============================================
+// ARTIST AUDIO PROFILES (for audio previews)
+// ============================================
+
+export interface ArtistAudioProfile {
+  id: string;
+  spotify_id: string;
+  artist_name: string;
+  avg_energy: number | null;
+  avg_valence: number | null;
+  avg_tempo: number | null;
+  top_track_preview_url: string | null;
+  top_track_name: string | null;
+  highlight_start_ms: number | null;
+  live_style: string | null;
+  computed_at: string;
+}
+
+/**
+ * Get artist audio profile by Spotify ID
+ */
+export async function getArtistAudioProfile(
+  spotifyId: string
+): Promise<ArtistAudioProfile | null> {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("artist_audio_profiles")
+    .select("*")
+    .eq("spotify_id", spotifyId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // Not found
+    // Table might not exist yet, don't log error
+    return null;
+  }
+
+  return data as ArtistAudioProfile;
+}
+
+/**
+ * Get artist audio profile by name (case-insensitive)
+ */
+export async function getArtistAudioProfileByName(
+  artistName: string
+): Promise<ArtistAudioProfile | null> {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("artist_audio_profiles")
+    .select("*")
+    .ilike("artist_name", artistName)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // Not found
+    return null;
+  }
+
+  return data as ArtistAudioProfile;
+}
+
+/**
+ * Get audio profiles for multiple artists by name
+ */
+export async function getArtistAudioProfiles(
+  artistNames: string[]
+): Promise<Map<string, ArtistAudioProfile>> {
+  if (artistNames.length === 0) return new Map();
+  
+  const adminClient = createAdminClient();
+  
+  // Normalize names for comparison
+  const normalizedNames = artistNames.map(name => name.toLowerCase());
+  
+  const { data, error } = await adminClient
+    .from("artist_audio_profiles")
+    .select("*")
+    .in("artist_name", artistNames);
+
+  if (error) {
+    console.error("Error fetching artist audio profiles:", error);
+    return new Map();
+  }
+
+  // Create lookup map by normalized name
+  const profileMap = new Map<string, ArtistAudioProfile>();
+  for (const profile of (data || [])) {
+    profileMap.set(profile.artist_name.toLowerCase(), profile as ArtistAudioProfile);
+  }
+
+  return profileMap;
+}
+
+/**
+ * Save or update artist audio profile
+ */
+export async function saveArtistAudioProfile(
+  profile: Omit<ArtistAudioProfile, "id" | "computed_at">
+): Promise<ArtistAudioProfile | null> {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("artist_audio_profiles")
+    .upsert(
+      {
+        ...profile,
+        computed_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "spotify_id",
+      }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error saving artist audio profile:", error);
+    return null;
+  }
+
+  return data as ArtistAudioProfile;
+}
+
+/**
+ * Batch save artist audio profiles
+ */
+export async function saveArtistAudioProfiles(
+  profiles: Array<Omit<ArtistAudioProfile, "id" | "computed_at">>
+): Promise<boolean> {
+  if (profiles.length === 0) return true;
+  
+  const adminClient = createAdminClient();
+
+  const { error } = await adminClient
+    .from("artist_audio_profiles")
+    .upsert(
+      profiles.map(profile => ({
+        ...profile,
+        computed_at: new Date().toISOString(),
+      })),
+      {
+        onConflict: "spotify_id",
+      }
+    );
+
+  if (error) {
+    console.error("Error saving artist audio profiles:", error);
+    return false;
+  }
+
+  return true;
 }

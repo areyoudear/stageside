@@ -13,9 +13,13 @@ import {
   Music,
   Star,
   Sparkles,
+  Copy,
+  Check,
+  Link as LinkIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Festival, FestivalArtistMatch, ScheduleConflict } from "@/lib/festival-types";
 import { detectConflicts } from "@/lib/festivals";
 
@@ -35,6 +39,104 @@ export function AgendaView({
   onShare,
 }: AgendaViewProps) {
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Generate text version of agenda
+  const generateAgendaText = () => {
+    const artistsByDay = artists.reduce((acc, artist) => {
+      const day = artist.day || "Unscheduled";
+      if (!acc[day]) acc[day] = [];
+      acc[day].push(artist);
+      return acc;
+    }, {} as Record<string, FestivalArtistMatch[]>);
+
+    // Sort artists within each day by time
+    Object.keys(artistsByDay).forEach((day) => {
+      artistsByDay[day].sort((a, b) => {
+        if (!a.start_time) return 1;
+        if (!b.start_time) return -1;
+        return a.start_time.localeCompare(b.start_time);
+      });
+    });
+
+    let text = `🎪 My ${festival.name} Agenda\n\n`;
+
+    const dayOrder = ["Friday", "Saturday", "Sunday", "Monday", "Unscheduled"];
+    const sortedDays = Object.keys(artistsByDay).sort(
+      (a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b)
+    );
+
+    sortedDays.forEach((day) => {
+      text += `📅 ${day}\n`;
+      artistsByDay[day].forEach((artist) => {
+        const time = artist.start_time ? formatTime(artist.start_time) : "TBD";
+        const stage = artist.stage ? ` @ ${artist.stage}` : "";
+        text += `• ${time} - ${artist.artist_name}${stage}\n`;
+      });
+      text += "\n";
+    });
+
+    text += `\n✨ ${artists.length} artists • Built with Stageside`;
+
+    return text;
+  };
+
+  // Copy agenda as text
+  const handleCopyText = async () => {
+    try {
+      const text = generateAgendaText();
+      await navigator.clipboard.writeText(text);
+      setCopiedText(true);
+      toast.success("Agenda copied to clipboard!");
+      setTimeout(() => setCopiedText(false), 2000);
+    } catch (error) {
+      toast.error("Failed to copy. Please try again.");
+    }
+    setShowExportMenu(false);
+  };
+
+  // Share via Web Share API or fallback
+  const handleShare = async () => {
+    const text = generateAgendaText();
+    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+
+    // Check if Web Share API is available (mainly mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `My ${festival.name} Agenda`,
+          text: text,
+          url: shareUrl,
+        });
+        toast.success("Shared successfully!");
+      } catch (error) {
+        // User cancelled or share failed
+        if ((error as Error).name !== "AbortError") {
+          // Fallback to copy link
+          handleCopyLink();
+        }
+      }
+    } else {
+      // Fallback: copy the agenda text
+      handleCopyText();
+    }
+    setShowExportMenu(false);
+  };
+
+  // Copy link to agenda
+  const handleCopyLink = async () => {
+    try {
+      const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedLink(true);
+      toast.success("Link copied to clipboard!");
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch (error) {
+      toast.error("Failed to copy link. Please try again.");
+    }
+    setShowExportMenu(false);
+  };
 
   // Group artists by day
   const artistsByDay = artists.reduce((acc, artist) => {
@@ -98,51 +200,68 @@ export function AgendaView({
           </div>
 
           <div className="flex gap-2">
-            {onShare && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onShare}
-                className="text-zinc-400"
-              >
-                <Share2 className="w-4 h-4 mr-2" />
-                Share
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShare}
+              className="text-zinc-400 hover:text-white"
+            >
+              <Share2 className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Share</span>
+            </Button>
             <div className="relative">
               <Button
                 size="sm"
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 className="bg-cyan-600 hover:bg-cyan-700"
               >
-                <Download className="w-4 h-4 mr-2" />
-                Export
+                <Download className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Export</span>
               </Button>
 
               {showExportMenu && (
-                <div className="absolute right-0 top-full mt-2 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-10 min-w-[180px]">
-                  <button
-                    onClick={() => {
-                      onExportCalendar();
-                      setShowExportMenu(false);
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 rounded-t-lg"
-                  >
-                    📅 Add to Calendar (.ics)
-                  </button>
-                  <button
+                <>
+                  {/* Backdrop to close menu */}
+                  <div
+                    className="fixed inset-0 z-10"
                     onClick={() => setShowExportMenu(false)}
-                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800"
-                  >
-                    📋 Copy as Text
-                  </button>
-                  <button
-                    onClick={() => setShowExportMenu(false)}
-                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 rounded-b-lg"
-                  >
-                    🖼️ Save as Image
-                  </button>
-                </div>
+                  />
+                  <div className="absolute right-0 top-full mt-2 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 min-w-[200px]">
+                    <button
+                      onClick={() => {
+                        onExportCalendar();
+                        setShowExportMenu(false);
+                        toast.success("Calendar file downloaded!");
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-800 rounded-t-lg flex items-center gap-3 transition-colors"
+                    >
+                      <Calendar className="w-4 h-4 text-blue-400" />
+                      Add to Calendar (.ics)
+                    </button>
+                    <button
+                      onClick={handleCopyText}
+                      className="w-full px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-3 transition-colors"
+                    >
+                      {copiedText ? (
+                        <Check className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-purple-400" />
+                      )}
+                      {copiedText ? "Copied!" : "Copy as Text"}
+                    </button>
+                    <button
+                      onClick={handleCopyLink}
+                      className="w-full px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-800 rounded-b-lg flex items-center gap-3 transition-colors"
+                    >
+                      {copiedLink ? (
+                        <Check className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <LinkIcon className="w-4 h-4 text-cyan-400" />
+                      )}
+                      {copiedLink ? "Copied!" : "Copy Link"}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>

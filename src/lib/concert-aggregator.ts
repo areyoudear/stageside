@@ -5,15 +5,25 @@
  * - SeatGeek (secondary market, good prices)
  * - Bandsintown (indie coverage, artist-centric)
  * 
- * Handles deduplication and merging of results.
+ * Handles deduplication and merging of results using the
+ * enhanced deduplication system.
  */
 
 import { searchConcerts as searchTicketmaster, type Concert } from "./ticketmaster";
 import { searchSeatGeekAsUnified, type SeatGeekSearchParams } from "./seatgeek";
 import { searchBandsintownForArtists } from "./bandsintown";
+import { 
+  deduplicateConcerts, 
+  type DeduplicatedConcert, 
+  type TicketSource 
+} from "./concert-dedup";
 
 export type ConcertSource = "ticketmaster" | "seatgeek" | "bandsintown";
 
+// Re-export types from concert-dedup for convenience
+export type { DeduplicatedConcert, TicketSource };
+
+// Legacy interface for backward compatibility
 export interface AggregatedConcert extends Concert {
   sources: ConcertSource[];
   alternateUrls?: { source: ConcertSource; url: string }[];
@@ -39,6 +49,15 @@ interface AggregatorResult {
   concerts: AggregatedConcert[];
   totalBySource: Record<ConcertSource, number>;
   searchedSources: ConcertSource[];
+}
+
+// Enhanced result with deduplicated concerts
+export interface EnhancedAggregatorResult {
+  concerts: DeduplicatedConcert[];
+  totalBySource: Record<ConcertSource, number>;
+  searchedSources: ConcertSource[];
+  totalBeforeDedup: number;
+  totalAfterDedup: number;
 }
 
 /**
@@ -213,62 +232,148 @@ export async function searchAllConcertSources(
   
   await Promise.all(searchPromises);
   
-  // Merge and deduplicate results
-  const mergedConcerts: AggregatedConcert[] = [];
+  // Build source map for deduplication
+  const sourceMap = new Map<string, ConcertSource>();
+  const allConcerts: Concert[] = [];
   
-  // Process Ticketmaster first (highest quality data)
-  const tmResults = results.find(r => r.source === "ticketmaster");
-  if (tmResults) {
-    tmResults.concerts.forEach(concert => {
-      const aggregated: AggregatedConcert = {
-        ...concert,
-        sources: ["ticketmaster"],
-        bestPrice: concert.priceRange ? {
-          min: concert.priceRange.min,
-          max: concert.priceRange.max,
-          source: "ticketmaster",
-        } : undefined,
-      };
-      mergedConcerts.push(aggregated);
-    });
-  }
-  
-  // Process other sources and merge duplicates
   for (const { source, concerts } of results) {
-    if (source === "ticketmaster") continue;
-    
     for (const concert of concerts) {
-      const existingIndex = mergedConcerts.findIndex(existing => 
-        isSameConcert(existing, concert)
-      );
-      
-      if (existingIndex >= 0) {
-        // Merge with existing
-        mergedConcerts[existingIndex] = mergeConcerts(
-          mergedConcerts[existingIndex],
-          concert,
-          source
-        );
-      } else {
-        // Add as new
-        const aggregated: AggregatedConcert = {
-          ...concert,
-          sources: [source],
-          bestPrice: concert.priceRange ? {
-            min: concert.priceRange.min,
-            max: concert.priceRange.max,
-            source,
-          } : undefined,
-        };
-        mergedConcerts.push(aggregated);
-      }
+      sourceMap.set(concert.id, source);
+      allConcerts.push(concert);
     }
   }
+  
+  // Use enhanced deduplication
+  const deduplicated = deduplicateConcerts(allConcerts, sourceMap);
+  
+  // Convert to legacy AggregatedConcert format for backward compatibility
+  const mergedConcerts: AggregatedConcert[] = deduplicated.map(dedup => ({
+    ...dedup,
+    // Convert TicketSource[] to ConcertSource[] for legacy interface
+    sources: dedup.sources.map(s => s.source),
+    alternateUrls: dedup.sources.slice(1).map(s => ({
+      source: s.source,
+      url: s.ticketUrl,
+    })),
+    bestPrice: dedup.bestPrice ? {
+      min: dedup.bestPrice.min,
+      max: dedup.bestPrice.max,
+      source: dedup.bestPrice.source,
+    } : undefined,
+  }));
   
   return {
     concerts: mergedConcerts,
     totalBySource,
     searchedSources: enabledSources,
+  };
+}
+
+/**
+ * Enhanced search that returns fully deduplicated concerts with all source info
+ */
+export async function searchAllConcertSourcesEnhanced(
+  params: AggregatorSearchParams
+): Promise<EnhancedAggregatorResult> {
+  const enabledSources = params.sources || getEnabledSources();
+  const results: { source: ConcertSource; concerts: Concert[] }[] = [];
+  const totalBySource: Record<ConcertSource, number> = {
+    ticketmaster: 0,
+    seatgeek: 0,
+    bandsintown: 0,
+  };
+  
+  // Build search params for each source
+  const ticketmasterParams = {
+    city: params.city,
+    latLong: params.lat && params.lng ? `${params.lat},${params.lng}` : undefined,
+    radius: params.radiusMiles || 50,
+    startDate: params.dateFrom ? `${params.dateFrom}T00:00:00Z` : undefined,
+    endDate: params.dateTo ? `${params.dateTo}T23:59:59Z` : undefined,
+    size: 100,
+  };
+  
+  const seatgeekParams: SeatGeekSearchParams = {
+    lat: params.lat,
+    lon: params.lng,
+    city: params.city,
+    range: `${params.radiusMiles || 50}mi`,
+    dateFrom: params.dateFrom,
+    dateTo: params.dateTo,
+    perPage: 100,
+  };
+  
+  // Execute searches in parallel
+  const searchPromises: Promise<void>[] = [];
+  
+  if (enabledSources.includes("ticketmaster")) {
+    searchPromises.push(
+      searchTicketmaster(ticketmasterParams)
+        .then(result => {
+          results.push({ source: "ticketmaster", concerts: result.concerts });
+          totalBySource.ticketmaster = result.totalElements;
+        })
+        .catch(error => {
+          console.error("Ticketmaster search failed:", error);
+        })
+    );
+  }
+  
+  if (enabledSources.includes("seatgeek")) {
+    searchPromises.push(
+      searchSeatGeekAsUnified(seatgeekParams)
+        .then(result => {
+          results.push({ source: "seatgeek", concerts: result.concerts });
+          totalBySource.seatgeek = result.total;
+        })
+        .catch(error => {
+          console.error("SeatGeek search failed:", error);
+        })
+    );
+  }
+  
+  if (enabledSources.includes("bandsintown") && params.artistNames?.length) {
+    searchPromises.push(
+      searchBandsintownForArtists(params.artistNames, {
+        lat: params.lat,
+        lng: params.lng,
+        radiusMiles: params.radiusMiles,
+        dateFrom: params.dateFrom,
+        dateTo: params.dateTo,
+        maxArtists: 30,
+      })
+        .then(result => {
+          results.push({ source: "bandsintown", concerts: result.concerts });
+          totalBySource.bandsintown = result.concerts.length;
+        })
+        .catch(error => {
+          console.error("Bandsintown search failed:", error);
+        })
+    );
+  }
+  
+  await Promise.all(searchPromises);
+  
+  // Build source map for deduplication
+  const sourceMap = new Map<string, ConcertSource>();
+  const allConcerts: Concert[] = [];
+  
+  for (const { source, concerts } of results) {
+    for (const concert of concerts) {
+      sourceMap.set(concert.id, source);
+      allConcerts.push(concert);
+    }
+  }
+  
+  // Use enhanced deduplication
+  const deduplicated = deduplicateConcerts(allConcerts, sourceMap);
+  
+  return {
+    concerts: deduplicated,
+    totalBySource,
+    searchedSources: enabledSources,
+    totalBeforeDedup: allConcerts.length,
+    totalAfterDedup: deduplicated.length,
   };
 }
 

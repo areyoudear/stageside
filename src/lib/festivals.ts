@@ -540,25 +540,112 @@ export async function removeFromAgenda(
 // ============================================
 
 /**
+ * Get timezone identifier for a city/state
+ * Returns IANA timezone string (e.g., "America/Los_Angeles")
+ */
+function getTimezoneForLocation(city: string, state?: string): string {
+  // Common US festival locations
+  const locationTimezones: Record<string, string> = {
+    // California
+    'los angeles': 'America/Los_Angeles',
+    'san francisco': 'America/Los_Angeles',
+    'indio': 'America/Los_Angeles', // Coachella
+    'oakland': 'America/Los_Angeles',
+    'san diego': 'America/Los_Angeles',
+    // Texas
+    'austin': 'America/Chicago',
+    'dallas': 'America/Chicago',
+    'houston': 'America/Chicago',
+    // Illinois
+    'chicago': 'America/Chicago',
+    // Tennessee
+    'nashville': 'America/Chicago',
+    'manchester': 'America/Chicago', // Bonnaroo
+    // New York
+    'new york': 'America/New_York',
+    'nyc': 'America/New_York',
+    'brooklyn': 'America/New_York',
+    // Florida
+    'miami': 'America/New_York',
+    'orlando': 'America/New_York',
+    // Georgia
+    'atlanta': 'America/New_York',
+    // Colorado
+    'denver': 'America/Denver',
+    // Nevada
+    'las vegas': 'America/Los_Angeles',
+    // Washington
+    'seattle': 'America/Los_Angeles',
+    // Arizona
+    'phoenix': 'America/Phoenix',
+    // UK
+    'london': 'Europe/London',
+    'glastonbury': 'Europe/London',
+    // Europe
+    'amsterdam': 'Europe/Amsterdam',
+    'berlin': 'Europe/Berlin',
+    'barcelona': 'Europe/Madrid',
+  };
+
+  const cityLower = city.toLowerCase();
+  if (locationTimezones[cityLower]) {
+    return locationTimezones[cityLower];
+  }
+
+  // State-based fallback for US
+  if (state) {
+    const stateTimezones: Record<string, string> = {
+      'ca': 'America/Los_Angeles', 'california': 'America/Los_Angeles',
+      'wa': 'America/Los_Angeles', 'washington': 'America/Los_Angeles',
+      'or': 'America/Los_Angeles', 'oregon': 'America/Los_Angeles',
+      'nv': 'America/Los_Angeles', 'nevada': 'America/Los_Angeles',
+      'tx': 'America/Chicago', 'texas': 'America/Chicago',
+      'il': 'America/Chicago', 'illinois': 'America/Chicago',
+      'tn': 'America/Chicago', 'tennessee': 'America/Chicago',
+      'ny': 'America/New_York', 'new york': 'America/New_York',
+      'fl': 'America/New_York', 'florida': 'America/New_York',
+      'ga': 'America/New_York', 'georgia': 'America/New_York',
+      'co': 'America/Denver', 'colorado': 'America/Denver',
+      'az': 'America/Phoenix', 'arizona': 'America/Phoenix',
+    };
+    
+    const stateLower = state.toLowerCase();
+    if (stateTimezones[stateLower]) {
+      return stateTimezones[stateLower];
+    }
+  }
+
+  // Default to America/Los_Angeles for US festivals
+  return 'America/Los_Angeles';
+}
+
+/**
  * Generate ICS calendar file content
  */
 export function generateICS(
   festival: Festival,
   agenda: FestivalArtistMatch[]
 ): string {
+  const timezone = getTimezoneForLocation(festival.location.city, festival.location.state);
+  
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//Stageside//Festival Planner//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
+    `X-WR-CALNAME:${escapeICSText(festival.name)} Schedule`,
+    `X-WR-TIMEZONE:${timezone}`,
   ];
+  
+  // Add timezone definition
+  lines.push(...getTimezoneDefinition(timezone));
   
   for (const artist of agenda) {
     if (!artist.start_time || !artist.day) continue;
     
     // Build date from day name and festival dates
-    const startDate = getDateFromDayName(artist.day, festival.dates.start);
+    const startDate = getDateFromDayName(artist.day, festival.dates.start, festival.dates.end);
     if (!startDate) continue;
     
     const [startHour, startMin] = artist.start_time.split(':').map(Number);
@@ -568,22 +655,47 @@ export function generateICS(
     if (artist.end_time) {
       const [endHour, endMin] = artist.end_time.split(':').map(Number);
       endDate.setHours(endHour, endMin, 0, 0);
+      // Handle sets that cross midnight
+      if (endDate < startDate) {
+        endDate.setDate(endDate.getDate() + 1);
+      }
     } else {
       endDate.setMinutes(endDate.getMinutes() + 60); // Default 1 hour
     }
     
-    const uid = `${festival.id}-${artist.id}@setlist.app`;
-    const dtStart = formatICSDate(startDate);
-    const dtEnd = formatICSDate(endDate);
+    const uid = `${festival.id}-${artist.id}@stageside.app`;
+    const dtStart = formatICSDateLocal(startDate, timezone);
+    const dtEnd = formatICSDateLocal(endDate, timezone);
+    const dtStamp = formatICSDateUTC(new Date());
+    
+    const location = [
+      artist.stage,
+      festival.location.venue,
+      festival.name,
+    ].filter(Boolean).join(' - ');
+    
+    const description = [
+      artist.matchReason ? `🎵 ${artist.matchReason}` : null,
+      `Festival: ${festival.name}`,
+      artist.stage ? `Stage: ${artist.stage}` : null,
+      festival.website_url ? `More info: ${festival.website_url}` : null,
+    ].filter(Boolean).join('\\n');
     
     lines.push(
       'BEGIN:VEVENT',
       `UID:${uid}`,
-      `DTSTART:${dtStart}`,
-      `DTEND:${dtEnd}`,
-      `SUMMARY:${artist.artist_name}`,
-      `LOCATION:${artist.stage || festival.location.venue || festival.name}`,
-      `DESCRIPTION:${artist.matchReason || ''} - ${festival.name}`,
+      `DTSTAMP:${dtStamp}`,
+      `DTSTART;TZID=${timezone}:${dtStart}`,
+      `DTEND;TZID=${timezone}:${dtEnd}`,
+      `SUMMARY:${escapeICSText(artist.artist_name)}`,
+      `LOCATION:${escapeICSText(location)}`,
+      `DESCRIPTION:${description}`,
+      // Add 30-minute reminder
+      'BEGIN:VALARM',
+      'TRIGGER:-PT30M',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${escapeICSText(artist.artist_name)} starts in 30 minutes!`,
+      'END:VALARM',
       'END:VEVENT'
     );
   }
@@ -592,29 +704,187 @@ export function generateICS(
   return lines.join('\r\n');
 }
 
-function getDateFromDayName(dayName: string, festivalStart: string): Date | null {
+/**
+ * Get the date for a given day name within festival date range
+ * Handles multi-week festivals and edge cases
+ */
+function getDateFromDayName(dayName: string, festivalStart: string, festivalEnd: string): Date | null {
   const dayMap: Record<string, number> = {
     'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
     'thursday': 4, 'friday': 5, 'saturday': 6,
+    // Handle common variations
+    'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6,
+    // Handle "Day 1", "Day 2" format
+    'day 1': -1, 'day 2': -2, 'day 3': -3, 'day 4': -4,
   };
   
-  const targetDay = dayMap[dayName.toLowerCase()];
+  const normalizedDayName = dayName.toLowerCase().trim();
+  const targetDay = dayMap[normalizedDayName];
+  
+  // Handle "Day N" format
+  if (targetDay !== undefined && targetDay < 0) {
+    const dayNumber = Math.abs(targetDay) - 1; // 0-indexed
+    const start = new Date(festivalStart + 'T00:00:00');
+    const result = new Date(start);
+    result.setDate(result.getDate() + dayNumber);
+    return result;
+  }
+  
   if (targetDay === undefined) return null;
   
-  const start = new Date(festivalStart);
-  const startDay = start.getDay();
+  // Parse dates as local dates (not UTC)
+  const start = new Date(festivalStart + 'T00:00:00');
+  const end = new Date(festivalEnd + 'T23:59:59');
   
-  // Find the date that matches the day name
-  let diff = targetDay - startDay;
-  if (diff < 0) diff += 7;
+  // Iterate through festival dates to find matching day
+  const current = new Date(start);
+  while (current <= end) {
+    if (current.getDay() === targetDay) {
+      return new Date(current);
+    }
+    current.setDate(current.getDate() + 1);
+  }
   
-  const result = new Date(start);
-  result.setDate(result.getDate() + diff);
-  return result;
+  // If not found within range, check if it's just before (setup day)
+  // or just after (final day extending past midnight)
+  const beforeStart = new Date(start);
+  beforeStart.setDate(beforeStart.getDate() - 1);
+  if (beforeStart.getDay() === targetDay) {
+    return beforeStart;
+  }
+  
+  const afterEnd = new Date(end);
+  afterEnd.setDate(afterEnd.getDate() + 1);
+  if (afterEnd.getDay() === targetDay) {
+    return afterEnd;
+  }
+  
+  return null;
 }
 
-function formatICSDate(date: Date): string {
+/**
+ * Format date for ICS in local time (without timezone suffix)
+ */
+function formatICSDateLocal(date: Date, _timezone: string): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+  return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+}
+
+/**
+ * Format date for ICS in UTC
+ */
+function formatICSDateUTC(date: Date): string {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+
+/**
+ * Escape special characters in ICS text fields
+ */
+function escapeICSText(text: string): string {
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n');
+}
+
+/**
+ * Get timezone definition for ICS file
+ * Returns basic VTIMEZONE component for common timezones
+ */
+function getTimezoneDefinition(timezone: string): string[] {
+  // Simplified timezone definitions - most calendar apps handle these automatically
+  // but including them improves compatibility
+  const definitions: Record<string, string[]> = {
+    'America/Los_Angeles': [
+      'BEGIN:VTIMEZONE',
+      'TZID:America/Los_Angeles',
+      'X-LIC-LOCATION:America/Los_Angeles',
+      'BEGIN:DAYLIGHT',
+      'TZOFFSETFROM:-0800',
+      'TZOFFSETTO:-0700',
+      'TZNAME:PDT',
+      'DTSTART:19700308T020000',
+      'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
+      'END:DAYLIGHT',
+      'BEGIN:STANDARD',
+      'TZOFFSETFROM:-0700',
+      'TZOFFSETTO:-0800',
+      'TZNAME:PST',
+      'DTSTART:19701101T020000',
+      'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+      'END:STANDARD',
+      'END:VTIMEZONE',
+    ],
+    'America/Chicago': [
+      'BEGIN:VTIMEZONE',
+      'TZID:America/Chicago',
+      'X-LIC-LOCATION:America/Chicago',
+      'BEGIN:DAYLIGHT',
+      'TZOFFSETFROM:-0600',
+      'TZOFFSETTO:-0500',
+      'TZNAME:CDT',
+      'DTSTART:19700308T020000',
+      'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
+      'END:DAYLIGHT',
+      'BEGIN:STANDARD',
+      'TZOFFSETFROM:-0500',
+      'TZOFFSETTO:-0600',
+      'TZNAME:CST',
+      'DTSTART:19701101T020000',
+      'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+      'END:STANDARD',
+      'END:VTIMEZONE',
+    ],
+    'America/New_York': [
+      'BEGIN:VTIMEZONE',
+      'TZID:America/New_York',
+      'X-LIC-LOCATION:America/New_York',
+      'BEGIN:DAYLIGHT',
+      'TZOFFSETFROM:-0500',
+      'TZOFFSETTO:-0400',
+      'TZNAME:EDT',
+      'DTSTART:19700308T020000',
+      'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
+      'END:DAYLIGHT',
+      'BEGIN:STANDARD',
+      'TZOFFSETFROM:-0400',
+      'TZOFFSETTO:-0500',
+      'TZNAME:EST',
+      'DTSTART:19701101T020000',
+      'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+      'END:STANDARD',
+      'END:VTIMEZONE',
+    ],
+    'America/Denver': [
+      'BEGIN:VTIMEZONE',
+      'TZID:America/Denver',
+      'X-LIC-LOCATION:America/Denver',
+      'BEGIN:DAYLIGHT',
+      'TZOFFSETFROM:-0700',
+      'TZOFFSETTO:-0600',
+      'TZNAME:MDT',
+      'DTSTART:19700308T020000',
+      'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
+      'END:DAYLIGHT',
+      'BEGIN:STANDARD',
+      'TZOFFSETFROM:-0600',
+      'TZOFFSETTO:-0700',
+      'TZNAME:MST',
+      'DTSTART:19701101T020000',
+      'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+      'END:STANDARD',
+      'END:VTIMEZONE',
+    ],
+  };
+  
+  return definitions[timezone] || definitions['America/Los_Angeles'];
 }
 
 // ============================================
@@ -826,7 +1096,7 @@ export function generateSmartItinerary(
 
     generatedDays.push({
       dayName,
-      date: getDayDate(dayName, festival.dates.start),
+      date: getDayDate(dayName, festival.dates.start, festival.dates.end),
       slots: daySlots,
       totalScore: dayScore,
       mustSeeCount,
@@ -859,8 +1129,8 @@ export function generateSmartItinerary(
   };
 }
 
-function getDayDate(dayName: string, festivalStart: string): string {
-  const date = getDateFromDayName(dayName, festivalStart);
+function getDayDate(dayName: string, festivalStart: string, festivalEnd?: string): string {
+  const date = getDateFromDayName(dayName, festivalStart, festivalEnd || festivalStart);
   return date?.toISOString().split('T')[0] || '';
 }
 
@@ -1198,7 +1468,7 @@ export function generateGroupFestivalItinerary(
 
     generatedDays.push({
       dayName,
-      date: getDayDate(dayName, festival.dates.start),
+      date: getDayDate(dayName, festival.dates.start, festival.dates.end),
       slots: daySlots,
       groupScore: dayGroupScore,
       consensusCount: daySlots.filter(s => s.decidedBy === 'consensus').length,

@@ -27,6 +27,7 @@ import {
   ArtistCard,
   ArtistCardSkeleton,
 } from "@/components/festivals";
+import { toast } from "sonner";
 import type { FestivalWithMatch, FestivalArtistMatch, ScheduleDay } from "@/lib/festival-types";
 
 interface FestivalDetailPageProps {
@@ -55,6 +56,11 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
     try {
       const response = await fetch(`/api/festivals/${id}`);
       if (!response.ok) {
+        if (response.status === 404) {
+          toast.error("Festival not found");
+        } else {
+          toast.error("Failed to load festival details");
+        }
         router.push("/festivals");
         return;
       }
@@ -64,6 +70,7 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
       setUserAgenda(data.userAgenda || []);
     } catch (error) {
       console.error("Error fetching festival:", error);
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -122,8 +129,43 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
+        {/* Navigation skeleton */}
+        <nav className="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-lg border-b border-zinc-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="w-32 h-4 bg-zinc-800 rounded animate-pulse" />
+              <div className="w-24 h-8 bg-zinc-800 rounded animate-pulse" />
+            </div>
+          </div>
+        </nav>
+
+        {/* Hero skeleton */}
+        <div className="relative">
+          <div className="h-80 bg-zinc-900/50" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/80 to-zinc-950" />
+          <div className="absolute bottom-0 left-0 right-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="h-12 bg-zinc-800 rounded animate-pulse w-64 mb-4" />
+            <div className="flex gap-4 mb-6">
+              <div className="h-4 bg-zinc-800 rounded animate-pulse w-32" />
+              <div className="h-4 bg-zinc-800 rounded animate-pulse w-40" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-10 bg-zinc-800 rounded animate-pulse w-40" />
+              <div className="h-10 bg-zinc-800 rounded animate-pulse w-32" />
+            </div>
+          </div>
+        </div>
+
+        {/* Lineup skeleton */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="h-6 bg-zinc-800 rounded animate-pulse w-48 mb-4" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            {[...Array(12)].map((_, i) => (
+              <ArtistCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </main>
     );
   }
@@ -307,95 +349,148 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
 
         {/* Full Lineup */}
         <section>
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
-            <h2 className="text-xl font-semibold text-white">
-              Full Lineup ({lineup.length} artists)
-            </h2>
-
-            <div className="flex items-center gap-2">
-              {/* Filter */}
-              <div className="flex bg-zinc-800 rounded-lg p-1">
-                <button
-                  onClick={() => setFilter("all")}
-                  className={`px-3 py-1 rounded text-sm ${
-                    filter === "all"
-                      ? "bg-zinc-700 text-white"
-                      : "text-zinc-400"
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setFilter("matches")}
-                  className={`px-3 py-1 rounded text-sm ${
-                    filter === "matches"
-                      ? "bg-zinc-700 text-white"
-                      : "text-zinc-400"
-                  }`}
-                >
-                  Matches
-                </button>
-                <button
-                  onClick={() => setFilter("discoveries")}
-                  className={`px-3 py-1 rounded text-sm ${
-                    filter === "discoveries"
-                      ? "bg-zinc-700 text-white"
-                      : "text-zinc-400"
-                  }`}
-                >
-                  Discoveries
-                </button>
+          {lineup.length === 0 ? (
+            /* Empty lineup state */
+            <div className="text-center py-16 px-4">
+              <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-6">
+                <Calendar className="w-10 h-10 text-zinc-700" />
               </div>
-
-              {/* View mode */}
-              <div className="flex bg-zinc-800 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`p-1.5 rounded ${
-                    viewMode === "grid" ? "bg-zinc-700" : ""
-                  }`}
-                >
-                  <Grid className="w-4 h-4 text-zinc-400" />
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`p-1.5 rounded ${
-                    viewMode === "list" ? "bg-zinc-700" : ""
-                  }`}
-                >
-                  <List className="w-4 h-4 text-zinc-400" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {viewMode === "grid" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              {filteredLineup.map((artist) => (
-                <ArtistCard
-                  key={artist.id}
-                  artist={artist}
-                  isInAgenda={userAgenda.includes(artist.id)}
-                  onToggleAgenda={toggleAgenda}
-                  showScheduleInfo
-                />
-              ))}
+              <h2 className="text-xl font-semibold text-white mb-3">
+                Lineup Coming Soon!
+              </h2>
+              <p className="text-zinc-500 max-w-md mx-auto mb-6">
+                The official lineup hasn&apos;t been announced yet. Check back closer to the festival date for artist details and personalized recommendations.
+              </p>
+              {!session && (
+                <div className="bg-gradient-to-r from-cyan-500/10 to-pink-500/10 border border-cyan-500/20 rounded-xl p-4 max-w-md mx-auto">
+                  <p className="text-sm text-zinc-400 mb-3">
+                    Connect Spotify now to get personalized matches when the lineup drops!
+                  </p>
+                  <SpotifyConnectButton />
+                </div>
+              )}
             </div>
           ) : (
-            <div className="space-y-2">
-              {filteredLineup.map((artist) => (
-                <ArtistCard
-                  key={artist.id}
-                  artist={artist}
-                  isInAgenda={userAgenda.includes(artist.id)}
-                  onToggleAgenda={toggleAgenda}
-                  showScheduleInfo
-                  compact
-                />
-              ))}
-            </div>
+            <>
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+                <h2 className="text-xl font-semibold text-white">
+                  Full Lineup ({lineup.length} artists)
+                </h2>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Filter - scrollable on mobile */}
+                  <div className="flex bg-zinc-800 rounded-lg p-1 overflow-x-auto">
+                    <button
+                      onClick={() => setFilter("all")}
+                      className={`px-3 py-1.5 rounded text-sm whitespace-nowrap min-w-[44px] ${
+                        filter === "all"
+                          ? "bg-zinc-700 text-white"
+                          : "text-zinc-400"
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setFilter("matches")}
+                      className={`px-3 py-1.5 rounded text-sm whitespace-nowrap min-w-[44px] ${
+                        filter === "matches"
+                          ? "bg-zinc-700 text-white"
+                          : "text-zinc-400"
+                      }`}
+                    >
+                      Matches
+                    </button>
+                    <button
+                      onClick={() => setFilter("discoveries")}
+                      className={`px-3 py-1.5 rounded text-sm whitespace-nowrap min-w-[44px] ${
+                        filter === "discoveries"
+                          ? "bg-zinc-700 text-white"
+                          : "text-zinc-400"
+                      }`}
+                    >
+                      Discoveries
+                    </button>
+                  </div>
+
+                  {/* View mode */}
+                  <div className="flex bg-zinc-800 rounded-lg p-1">
+                    <button
+                      onClick={() => setViewMode("grid")}
+                      className={`p-2 rounded min-w-[44px] min-h-[44px] flex items-center justify-center ${
+                        viewMode === "grid" ? "bg-zinc-700" : ""
+                      }`}
+                    >
+                      <Grid className="w-4 h-4 text-zinc-400" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode("list")}
+                      className={`p-2 rounded min-w-[44px] min-h-[44px] flex items-center justify-center ${
+                        viewMode === "list" ? "bg-zinc-700" : ""
+                      }`}
+                    >
+                      <List className="w-4 h-4 text-zinc-400" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {filteredLineup.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-zinc-500">
+                    No artists match this filter.{" "}
+                    <button
+                      onClick={() => setFilter("all")}
+                      className="text-cyan-400 hover:text-cyan-300"
+                    >
+                      Show all artists
+                    </button>
+                  </p>
+                </div>
+              ) : viewMode === "grid" ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+                  {filteredLineup.map((artist) => (
+                    <ArtistCard
+                      key={artist.id}
+                      artist={artist}
+                      isInAgenda={userAgenda.includes(artist.id)}
+                      onToggleAgenda={toggleAgenda}
+                      showScheduleInfo
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredLineup.map((artist) => (
+                    <ArtistCard
+                      key={artist.id}
+                      artist={artist}
+                      isInAgenda={userAgenda.includes(artist.id)}
+                      onToggleAgenda={toggleAgenda}
+                      showScheduleInfo
+                      compact
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </section>
+
+        {/* Connect prompt for non-logged in users viewing lineup */}
+        {lineup.length > 0 && !session && (
+          <section className="mt-12 text-center">
+            <div className="bg-gradient-to-r from-cyan-500/10 to-pink-500/10 border border-cyan-500/20 rounded-2xl p-6 max-w-lg mx-auto">
+              <Sparkles className="w-8 h-8 text-yellow-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Get Personalized Recommendations
+              </h3>
+              <p className="text-sm text-zinc-400 mb-4">
+                Connect Spotify to see which artists match your music taste and discover new favorites.
+              </p>
+              <SpotifyConnectButton />
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );

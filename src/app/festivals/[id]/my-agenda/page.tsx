@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Grid, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
 import { AgendaView } from "@/components/festivals";
+import { toast } from "sonner";
 import type { FestivalWithMatch, FestivalArtistMatch } from "@/lib/festival-types";
 
 interface AgendaPageProps {
@@ -41,6 +42,7 @@ export default function AgendaPage({ params }: AgendaPageProps) {
       // Fetch festival and lineup
       const festivalResponse = await fetch(`/api/festivals/${id}`);
       if (!festivalResponse.ok) {
+        toast.error("Failed to load agenda");
         router.push("/festivals");
         return;
       }
@@ -50,6 +52,7 @@ export default function AgendaPage({ params }: AgendaPageProps) {
       setUserAgenda(festivalData.userAgenda || []);
     } catch (error) {
       console.error("Error fetching agenda:", error);
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -62,18 +65,26 @@ export default function AgendaPage({ params }: AgendaPageProps) {
 
   const removeFromAgenda = async (artistId: string) => {
     // Optimistic update
+    const previousAgenda = [...userAgenda];
     setUserAgenda(userAgenda.filter((id) => id !== artistId));
 
     try {
-      await fetch(`/api/festivals/${id}/agenda`, {
+      const response = await fetch(`/api/festivals/${id}/agenda`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ artistId }),
       });
+      
+      if (!response.ok) {
+        throw new Error("Failed to remove");
+      }
+      
+      toast.success("Removed from agenda");
     } catch (error) {
       console.error("Error removing from agenda:", error);
       // Revert on error
-      setUserAgenda([...userAgenda, artistId]);
+      setUserAgenda(previousAgenda);
+      toast.error("Failed to remove artist. Please try again.");
     }
   };
 
@@ -93,16 +104,75 @@ export default function AgendaPage({ params }: AgendaPageProps) {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
+        toast.success("Calendar exported!");
+      } else {
+        throw new Error("Export failed");
       }
     } catch (error) {
       console.error("Error exporting calendar:", error);
+      toast.error("Failed to export calendar. Please try again.");
     }
   };
 
   if (status === "loading" || isLoading) {
     return (
-      <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
+        {/* Navigation skeleton */}
+        <nav className="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-lg border-b border-zinc-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="w-20 h-4 bg-zinc-800 rounded animate-pulse" />
+              <div className="w-24 h-5 bg-zinc-800 rounded animate-pulse" />
+              <div className="w-20 h-8 bg-zinc-800 rounded animate-pulse" />
+            </div>
+          </div>
+        </nav>
+
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Summary card skeleton */}
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-4 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="w-48 h-6 bg-zinc-800 rounded animate-pulse mb-2" />
+                <div className="w-32 h-4 bg-zinc-800 rounded animate-pulse" />
+              </div>
+              <div className="flex gap-2">
+                <div className="w-20 h-8 bg-zinc-800 rounded animate-pulse" />
+                <div className="w-20 h-8 bg-zinc-800 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-zinc-800">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="text-center">
+                  <div className="w-10 h-8 bg-zinc-800 rounded mx-auto mb-1 animate-pulse" />
+                  <div className="w-16 h-3 bg-zinc-800 rounded mx-auto animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Day section skeletons */}
+          {[...Array(2)].map((_, dayIdx) => (
+            <div key={dayIdx} className="mb-6">
+              <div className="w-24 h-4 bg-zinc-800 rounded animate-pulse mb-3" />
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-4 p-3 rounded-lg border border-zinc-800 bg-zinc-900/50"
+                  >
+                    <div className="w-14 h-14 rounded-lg bg-zinc-800 animate-pulse" />
+                    <div className="flex-1">
+                      <div className="w-32 h-5 bg-zinc-800 rounded animate-pulse mb-2" />
+                      <div className="w-48 h-4 bg-zinc-800 rounded animate-pulse" />
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-zinc-800 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </main>
     );
   }

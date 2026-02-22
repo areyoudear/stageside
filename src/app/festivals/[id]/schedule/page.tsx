@@ -1,29 +1,30 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowLeft,
-  Calendar,
   Clock,
-  MapPin,
   Sparkles,
   Star,
   ChevronDown,
   ChevronUp,
   RefreshCw,
   Download,
-  Share2,
   Loader2,
   Music,
   AlertTriangle,
   CheckCircle,
   Zap,
   Coffee,
+  Save,
+  RotateCcw,
+  Check,
+  Calendar,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface ItinerarySlot {
   artist: {
@@ -70,6 +71,12 @@ interface FestivalInfo {
   location: { city: string; state?: string };
 }
 
+interface ItinerarySettings {
+  maxPerDay: number;
+  restBreak: number;
+  includeDiscoveries: boolean;
+}
+
 export default function FestivalSchedulePage({
   params,
 }: {
@@ -86,10 +93,24 @@ export default function FestivalSchedulePage({
   const [activeDay, setActiveDay] = useState(0);
   const [showConflicts, setShowConflicts] = useState(false);
 
+  // Save state
+  const [isSaved, setIsSaved] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  // Error state
+  const [error, setError] = useState<{ type: 'notFound' | 'noMusic' | 'generic'; message?: string } | null>(null);
+
   // Settings
   const [maxPerDay, setMaxPerDay] = useState(8);
   const [includeDiscoveries, setIncludeDiscoveries] = useState(true);
   const [restBreak, setRestBreak] = useState(90);
+
+  // Track original settings to detect changes
+  const [originalSettings, setOriginalSettings] = useState<ItinerarySettings | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -99,65 +120,356 @@ export default function FestivalSchedulePage({
     }
   }, [status, id, router]);
 
-  const fetchItinerary = async () => {
+  // Detect changes to settings
+  useEffect(() => {
+    if (originalSettings) {
+      const changed = 
+        maxPerDay !== originalSettings.maxPerDay ||
+        restBreak !== originalSettings.restBreak ||
+        includeDiscoveries !== originalSettings.includeDiscoveries;
+      setHasChanges(changed);
+    }
+  }, [maxPerDay, restBreak, includeDiscoveries, originalSettings]);
+
+  const fetchItinerary = useCallback(async (regenerate = false) => {
     setIsLoading(true);
+    setError(null);
     try {
-      const params = new URLSearchParams({
+      const queryParams = new URLSearchParams({
         maxPerDay: maxPerDay.toString(),
         discoveries: includeDiscoveries.toString(),
         restBreak: restBreak.toString(),
       });
+      
+      if (regenerate) {
+        queryParams.set("regenerate", "true");
+      }
 
-      const res = await fetch(`/api/festivals/${id}/itinerary?${params}`);
+      const res = await fetch(`/api/festivals/${id}/itinerary?${queryParams}`);
       if (!res.ok) {
         if (res.status === 401) {
           router.push(`/login?callbackUrl=/festivals/${id}/schedule`);
           return;
         }
-        throw new Error("Failed to fetch itinerary");
+        if (res.status === 404) {
+          setError({ type: 'notFound', message: 'Festival not found' });
+          return;
+        }
+        // Check if user has no music connected
+        const errorData = await res.json().catch(() => ({}));
+        if (errorData.error?.includes('music') || errorData.error?.includes('connect')) {
+          setError({ type: 'noMusic', message: errorData.error });
+          return;
+        }
+        throw new Error(errorData.error || "Failed to fetch itinerary");
       }
 
       const data = await res.json();
+      
+      // Check if user has no music data
+      if (!data.itinerary || (data.itinerary.days?.length === 0 && data.noMusicData)) {
+        setError({ type: 'noMusic', message: 'Connect a music service to get personalized recommendations' });
+        setFestival(data.festival);
+        return;
+      }
+      
       setFestival(data.festival);
       setItinerary(data.itinerary);
-    } catch (error) {
-      console.error("Error fetching itinerary:", error);
+      setIsSaved(data.isSaved || false);
+      setSavedAt(data.savedAt || null);
+      
+      // Set settings from response
+      if (data.settings) {
+        setMaxPerDay(data.settings.maxPerDay || 8);
+        setRestBreak(data.settings.restBreak || 90);
+        setIncludeDiscoveries(data.settings.includeDiscoveries !== false);
+        setOriginalSettings({
+          maxPerDay: data.settings.maxPerDay || 8,
+          restBreak: data.settings.restBreak || 90,
+          includeDiscoveries: data.settings.includeDiscoveries !== false,
+        });
+      } else {
+        setOriginalSettings({ maxPerDay, restBreak, includeDiscoveries });
+      }
+      
+      setHasChanges(false);
+    } catch (err) {
+      console.error("Error fetching itinerary:", err);
+      setError({ type: 'generic', message: err instanceof Error ? err.message : 'Failed to load schedule' });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id, maxPerDay, includeDiscoveries, restBreak, router]);
 
   const regenerate = async () => {
     setIsRegenerating(true);
-    await fetchItinerary();
-    setIsRegenerating(false);
+    setHasChanges(false);
+    
+    try {
+      const queryParams = new URLSearchParams({
+        maxPerDay: maxPerDay.toString(),
+        discoveries: includeDiscoveries.toString(),
+        restBreak: restBreak.toString(),
+        regenerate: "true",
+      });
+
+      const res = await fetch(`/api/festivals/${id}/itinerary?${queryParams}`);
+      if (!res.ok) throw new Error("Failed to regenerate");
+
+      const data = await res.json();
+      setItinerary(data.itinerary);
+      setIsSaved(false);
+      setSavedAt(null);
+      setOriginalSettings({ maxPerDay, restBreak, includeDiscoveries });
+      setHasChanges(true); // Mark as changed since we regenerated
+      toast.success("Schedule regenerated!");
+    } catch (error) {
+      console.error("Error regenerating:", error);
+      toast.error("Failed to regenerate schedule. Please try again.");
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  const saveItinerary = async () => {
+    if (!itinerary) return;
+    
+    setIsSaving(true);
+    setSaveSuccess(false);
+    
+    try {
+      const res = await fetch(`/api/festivals/${id}/itinerary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itinerary,
+          settings: {
+            maxPerDay,
+            restBreak,
+            includeDiscoveries,
+          },
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to save");
+
+      const data = await res.json();
+      setIsSaved(true);
+      setSavedAt(data.savedAt);
+      setHasChanges(false);
+      setOriginalSettings({ maxPerDay, restBreak, includeDiscoveries });
+      setSaveSuccess(true);
+      toast.success("Schedule saved!");
+      
+      // Hide success indicator after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error("Error saving itinerary:", error);
+      toast.error("Failed to save schedule. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const resetItinerary = async () => {
+    setIsResetting(true);
+    
+    try {
+      // Delete saved itinerary
+      await fetch(`/api/festivals/${id}/itinerary`, {
+        method: "DELETE",
+      });
+
+      // Regenerate fresh
+      await fetchItinerary(true);
+      setIsSaved(false);
+      setSavedAt(null);
+      toast.success("Schedule reset to AI suggestions!");
+    } catch (error) {
+      console.error("Error resetting itinerary:", error);
+      toast.error("Failed to reset schedule. Please try again.");
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   if (status === "loading" || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Generating your personalized schedule...</p>
-        </div>
+      <div className="min-h-screen bg-gray-950">
+        {/* Skeleton header */}
+        <nav className="border-b border-white/10 bg-gray-950/80 backdrop-blur-lg sticky top-0 z-50">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="h-5 w-40 bg-white/10 rounded animate-pulse" />
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-24 bg-white/10 rounded animate-pulse" />
+              <div className="h-8 w-20 bg-white/10 rounded animate-pulse" />
+            </div>
+          </div>
+        </nav>
+        
+        <main className="max-w-6xl mx-auto px-4 py-8">
+          {/* Skeleton hero */}
+          <div className="text-center mb-8">
+            <div className="h-10 w-64 bg-white/10 rounded-full mx-auto mb-4 animate-pulse" />
+            <div className="h-8 w-48 bg-white/10 rounded mx-auto mb-2 animate-pulse" />
+            <div className="h-4 w-32 bg-white/10 rounded mx-auto animate-pulse" />
+          </div>
+          
+          {/* Loading indicator */}
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="relative">
+              <Loader2 className="w-16 h-16 text-cyan-500 animate-spin" />
+              <Sparkles className="w-6 h-6 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
+            </div>
+            <p className="text-white font-medium mt-6">Generating your personalized schedule...</p>
+            <p className="text-gray-500 text-sm mt-2">Analyzing your music taste and optimizing set times</p>
+          </div>
+          
+          {/* Skeleton stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white/5 rounded-xl p-4 border border-white/10 animate-pulse">
+                <div className="h-4 w-16 bg-white/10 rounded mb-2" />
+                <div className="h-8 w-12 bg-white/10 rounded" />
+              </div>
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Error states
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-950">
+        <nav className="border-b border-white/10 bg-gray-950/80 backdrop-blur-lg sticky top-0 z-50">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <Link
+              href="/festivals"
+              className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back to festivals
+            </Link>
+          </div>
+        </nav>
+        
+        <main className="max-w-6xl mx-auto px-4 py-16">
+          <div className="max-w-md mx-auto text-center">
+            {error.type === 'notFound' ? (
+              <div className="bg-red-500/10 rounded-2xl p-8 border border-red-500/20">
+                <AlertTriangle className="w-16 h-16 text-red-400/60 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-3">Festival Not Found</h2>
+                <p className="text-gray-400 mb-6">
+                  This festival doesn&apos;t exist or may have been removed.
+                </p>
+                <Link
+                  href="/festivals"
+                  className="block w-full bg-white/10 text-white px-6 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors"
+                >
+                  Browse All Festivals
+                </Link>
+              </div>
+            ) : error.type === 'noMusic' ? (
+              <div className="bg-gradient-to-br from-blue-500/20 to-purple-500/10 rounded-2xl p-8 border border-white/10">
+                <Music className="w-16 h-16 text-blue-400/60 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-3">Connect Your Music</h2>
+                <p className="text-gray-400 mb-6">
+                  To generate a personalized schedule, we need to know your music taste. 
+                  Connect Spotify or Apple Music to get started.
+                </p>
+                <div className="space-y-3">
+                  <Link
+                    href="/connect"
+                    className="block w-full bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity"
+                  >
+                    Connect Music Service
+                  </Link>
+                  <Link
+                    href={`/festivals/${id}`}
+                    className="block w-full bg-white/10 text-white px-6 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors"
+                  >
+                    Browse Festival Manually
+                  </Link>
+                </div>
+                <p className="text-gray-500 text-sm mt-6">
+                  Your music data is only used to match artists and is never shared.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white/5 rounded-2xl p-8 border border-white/10">
+                <AlertTriangle className="w-16 h-16 text-yellow-400/60 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-3">Something Went Wrong</h2>
+                <p className="text-gray-400 mb-6">
+                  {error.message || 'We couldn\'t load the schedule. Please try again.'}
+                </p>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      setError(null);
+                      fetchItinerary();
+                    }}
+                    className="block w-full bg-cyan-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-cyan-700 transition-colors"
+                  >
+                    Try Again
+                  </button>
+                  <Link
+                    href={`/festivals/${id}`}
+                    className="block w-full bg-white/10 text-white px-6 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors"
+                  >
+                    Back to Festival
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
     );
   }
 
   if (!itinerary || !festival) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <Music className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-white mb-2">No schedule available</h2>
-          <p className="text-gray-400 mb-4">Connect a music service to get personalized recommendations</p>
-          <Link
-            href={`/festivals/${id}`}
-            className="text-blue-400 hover:text-blue-300"
-          >
-            ← Back to festival
-          </Link>
-        </div>
+      <div className="min-h-screen bg-gray-950">
+        <nav className="border-b border-white/10 bg-gray-950/80 backdrop-blur-lg sticky top-0 z-50">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <Link
+              href="/festivals"
+              className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back to festivals
+            </Link>
+          </div>
+        </nav>
+        
+        <main className="max-w-6xl mx-auto px-4 py-16">
+          <div className="max-w-md mx-auto text-center">
+            <div className="bg-zinc-900/50 rounded-2xl p-8 border border-zinc-800">
+              <Calendar className="w-16 h-16 mx-auto mb-4 text-zinc-600" />
+              <h2 className="text-2xl font-bold text-white mb-3">Schedule Coming Soon</h2>
+              <p className="text-gray-400 mb-6">
+                The lineup for this festival hasn&apos;t been announced yet.
+                Check back closer to the festival date for personalized recommendations.
+              </p>
+              <div className="space-y-3">
+                <Link
+                  href={`/festivals/${id}`}
+                  className="block w-full bg-cyan-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-cyan-700 transition-colors"
+                >
+                  Browse Festival Details
+                </Link>
+                <Link
+                  href="/festivals"
+                  className="block w-full bg-white/10 text-white px-6 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors"
+                >
+                  Explore Other Festivals
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -177,17 +489,69 @@ export default function FestivalSchedulePage({
             Back to {festival.name}
           </Link>
           <div className="flex items-center gap-3">
+            {/* Save indicator */}
+            {isSaved && savedAt && !hasChanges && (
+              <span className="text-gray-500 text-sm hidden sm:block">
+                Saved {new Date(savedAt).toLocaleDateString()}
+              </span>
+            )}
+            
+            {/* Reset button - only show if saved */}
+            {isSaved && (
+              <button
+                onClick={resetItinerary}
+                disabled={isResetting}
+                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                title="Reset to AI suggestions"
+              >
+                <RotateCcw className={`w-4 h-4 ${isResetting ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            )}
+
+            {/* Regenerate button */}
             <button
               onClick={regenerate}
               disabled={isRegenerating}
               className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
             >
               <RefreshCw className={`w-4 h-4 ${isRegenerating ? "animate-spin" : ""}`} />
-              Regenerate
+              <span className="hidden sm:inline">Regenerate</span>
             </button>
+
+            {/* Save button */}
+            <button
+              onClick={saveItinerary}
+              disabled={isSaving || (!hasChanges && isSaved)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                saveSuccess
+                  ? "bg-green-500/20 text-green-400 border border-green-500/50"
+                  : hasChanges || !isSaved
+                    ? "bg-blue-500 hover:bg-blue-600 text-white"
+                    : "bg-white/10 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              {saveSuccess ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Saved!
+                </>
+              ) : isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save
+                </>
+              )}
+            </button>
+
             <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors text-white">
               <Download className="w-4 h-4" />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </button>
           </div>
         </div>
@@ -198,7 +562,14 @@ export default function FestivalSchedulePage({
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500/20 to-pink-500/20 border border-cyan-500/30 rounded-full px-4 py-2 mb-4">
             <Sparkles className="w-5 h-5 text-yellow-400" />
-            <span className="text-white font-medium">Your Personalized Schedule</span>
+            <span className="text-white font-medium">
+              {isSaved ? "Your Saved Schedule" : "Your Personalized Schedule"}
+            </span>
+            {hasChanges && (
+              <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full ml-2">
+                Unsaved changes
+              </span>
+            )}
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">{festival.name}</h1>
           <p className="text-gray-400">
@@ -368,13 +739,24 @@ export default function FestivalSchedulePage({
               </button>
             </div>
           </div>
-          <button
-            onClick={regenerate}
-            disabled={isRegenerating}
-            className="mt-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {isRegenerating ? "Regenerating..." : "Apply Changes"}
-          </button>
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={regenerate}
+              disabled={isRegenerating}
+              className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {isRegenerating ? "Regenerating..." : "Apply & Regenerate"}
+            </button>
+            {hasChanges && (
+              <button
+                onClick={saveItinerary}
+                disabled={isSaving}
+                className="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              >
+                {isSaving ? "Saving..." : "Save Current"}
+              </button>
+            )}
+          </div>
         </div>
       </main>
     </div>

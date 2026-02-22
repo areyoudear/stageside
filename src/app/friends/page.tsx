@@ -32,6 +32,9 @@ interface Friend {
   username?: string;
   avatarUrl?: string;
   since?: string;
+  tasteCompatibility?: number;
+  tasteLabel?: string;
+  sharedArtists?: string[];
 }
 
 interface PendingRequest {
@@ -564,49 +567,77 @@ export default function FriendsPage() {
               {friends.map((friend) => (
                 <div
                   key={friend.friendshipId}
-                  className="flex items-center justify-between bg-zinc-800/50 rounded-lg p-3 hover:bg-zinc-800/80 transition-colors group"
+                  className="bg-zinc-800/50 rounded-lg p-3 hover:bg-zinc-800/80 transition-colors group"
                 >
-                  <Link
-                    href={`/friends/${friend.id}`}
-                    className="flex items-center gap-3 flex-1 min-w-0"
-                  >
-                    {friend.avatarUrl ? (
-                      <Image
-                        src={friend.avatarUrl}
-                        alt={friend.name}
-                        width={40}
-                        height={40}
-                        className="w-10 h-10 rounded-full object-cover border border-zinc-700"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
-                        {friend.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-white font-medium truncate">{friend.name}</p>
-                      {friend.username && (
-                        <p className="text-sm text-zinc-500 truncate">@{friend.username}</p>
+                  <div className="flex items-center justify-between">
+                    <Link
+                      href={`/friends/${friend.id}`}
+                      className="flex items-center gap-3 flex-1 min-w-0"
+                    >
+                      {friend.avatarUrl ? (
+                        <Image
+                          src={friend.avatarUrl}
+                          alt={friend.name}
+                          width={40}
+                          height={40}
+                          className="w-10 h-10 rounded-full object-cover border border-zinc-700"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                          {friend.name.charAt(0).toUpperCase()}
+                        </div>
                       )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-white font-medium truncate">{friend.name}</p>
+                          {/* Taste Compatibility Badge */}
+                          {friend.tasteCompatibility !== undefined && friend.tasteCompatibility > 0 && (
+                            <span className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0",
+                              friend.tasteCompatibility >= 70 
+                                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                                : friend.tasteCompatibility >= 50
+                                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                                : "bg-zinc-700/50 text-zinc-400"
+                            )}>
+                              {friend.tasteCompatibility}% match
+                            </span>
+                          )}
+                        </div>
+                        {friend.username && (
+                          <p className="text-sm text-zinc-500 truncate">@{friend.username}</p>
+                        )}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0" />
+                    </Link>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        removeFriend(friend.friendshipId, friend.name);
+                      }}
+                      disabled={actionLoading === friend.friendshipId}
+                      className="text-zinc-500 hover:text-red-400 ml-2"
+                    >
+                      {actionLoading === friend.friendshipId ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <X className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {/* Shared Artists */}
+                  {friend.sharedArtists && friend.sharedArtists.length > 0 && (
+                    <div className="mt-2 ml-[52px]">
+                      <p className="text-xs text-zinc-500">
+                        <Music className="w-3 h-3 inline mr-1" />
+                        Shared favorites: {friend.sharedArtists.slice(0, 3).join(", ")}
+                        {friend.sharedArtists.length > 3 && ` +${friend.sharedArtists.length - 3} more`}
+                      </p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0" />
-                  </Link>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      removeFriend(friend.friendshipId, friend.name);
-                    }}
-                    disabled={actionLoading === friend.friendshipId}
-                    className="text-zinc-500 hover:text-red-400 ml-2"
-                  >
-                    {actionLoading === friend.friendshipId ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <X className="w-4 h-4" />
-                    )}
-                  </Button>
+                  )}
                 </div>
               ))}
             </div>

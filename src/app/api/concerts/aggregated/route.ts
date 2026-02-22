@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { searchAllConcertSources, type ConcertSource } from "@/lib/concert-aggregator";
-import { getUnifiedMusicProfile } from "@/lib/supabase";
-import { calculateMatchScore } from "@/lib/utils";
+import { getUnifiedMusicProfile, getRelatedArtists } from "@/lib/supabase";
+import { 
+  calculatePreciseMatchScore, 
+  generateVibeTags,
+  type UserProfile,
+  type UserAudioProfile,
+  type ArtistAudioProfile,
+} from "@/lib/matching";
+import { enrichConcertsWithPreviews } from "@/lib/concert-enrichment";
 
 /**
  * GET /api/concerts/aggregated
- * Search concerts across multiple ticket sources (Ticketmaster, SeatGeek, Bandsintown)
+ * Search concerts across multiple ticket sources with precision matching
  * 
  * Query params:
  * - lat: Latitude
@@ -46,15 +53,14 @@ export async function GET(request: NextRequest) {
     
     // Get user's artists for Bandsintown search (if authenticated)
     let artistNames: string[] | undefined;
-    if (includeArtistSearch) {
-      const session = await getServerSession(authOptions);
-      if (session?.user?.id) {
-        const profile = await getUnifiedMusicProfile(session.user.id);
-        if (profile?.topArtists) {
-          artistNames = profile.topArtists.slice(0, 30).map(a => 
-            typeof a === "string" ? a : a.name
-          );
-        }
+    const session = await getServerSession(authOptions);
+    
+    if (includeArtistSearch && session?.user?.id) {
+      const profile = await getUnifiedMusicProfile(session.user.id);
+      if (profile?.topArtists) {
+        artistNames = profile.topArtists.slice(0, 30).map(a => 
+          typeof a === "string" ? a : a.name
+        );
       }
     }
     
@@ -80,28 +86,54 @@ export async function GET(request: NextRequest) {
     
     // Calculate match scores if user is authenticated
     let concertsWithScores = result.concerts;
-    const session = await getServerSession(authOptions);
     
     if (session?.user?.id) {
-      const profile = await getUnifiedMusicProfile(session.user.id);
+      const [profile, relatedArtistsData] = await Promise.all([
+        getUnifiedMusicProfile(session.user.id),
+        getRelatedArtists(session.user.id).catch(() => []),
+      ]);
       
       if (profile) {
-        const userArtistNames = profile.topArtists.map(a => 
-          typeof a === "string" ? a : a.name
-        );
-        const userGenres = profile.topGenres || [];
+        // Build user profile for precision matching
+        const userProfile: UserProfile = {
+          topArtists: profile.topArtists.map((a, index) => ({
+            name: typeof a === "string" ? a : a.name,
+            rank: index + 1,
+            genres: typeof a === "string" ? [] : (a.genres || []),
+          })),
+          relatedArtists: relatedArtistsData.map((r) => ({
+            name: r.artist_name,
+            relatedTo: r.related_to,
+            similarity: (r.popularity || 50) / 100,
+          })),
+          topGenres: profile.topGenres || [],
+          recentlyPlayed: [],
+        };
+        
+        // TODO: Fetch audio profiles when available
+        const userAudioProfile: UserAudioProfile | null = null;
+        const artistAudioProfiles = new Map<string, ArtistAudioProfile>();
         
         concertsWithScores = result.concerts.map(concert => {
-          const matchResult = calculateMatchScore(
+          const matchResult = calculatePreciseMatchScore(
             concert.artists,
             concert.genres,
-            userArtistNames,
-            userGenres
+            userProfile,
+            userAudioProfile,
+            artistAudioProfiles,
+            { friendsInterested: 0, friendsGoing: 0 }
           );
+          
+          const vibeTags = generateVibeTags(matchResult.matchType, concert.genres);
+          
           return {
             ...concert,
             matchScore: matchResult.score,
             matchReasons: matchResult.reasons,
+            matchType: matchResult.matchType,
+            matchConfidence: matchResult.confidence,
+            scoreBreakdown: matchResult.breakdown,
+            vibeTags,
           };
         });
         
@@ -115,8 +147,21 @@ export async function GET(request: NextRequest) {
       }
     }
     
+    // Enrich concerts with audio previews (top 30)
+    const enrichedConcerts = await enrichConcertsWithPreviews(concertsWithScores, 30);
+    
+    // Categorize by match type (use type assertion for enhanced concerts)
+    type EnhancedConcert = typeof enrichedConcerts[number] & { matchType?: string };
+    const categories = {
+      mustSee: enrichedConcerts.filter(c => (c as EnhancedConcert).matchType === "must-see").length,
+      forYou: enrichedConcerts.filter(c => (c as EnhancedConcert).matchType === "for-you").length,
+      vibeMatch: enrichedConcerts.filter(c => (c as EnhancedConcert).matchType === "vibe-match").length,
+      discovery: enrichedConcerts.filter(c => (c as EnhancedConcert).matchType === "discovery").length,
+    };
+    
     return NextResponse.json({
-      concerts: concertsWithScores,
+      concerts: enrichedConcerts,
+      categories,
       meta: {
         totalConcerts: result.concerts.length,
         bySource: result.totalBySource,
