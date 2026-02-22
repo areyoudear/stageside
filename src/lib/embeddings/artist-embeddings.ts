@@ -14,7 +14,7 @@ import {
   EmbeddingVector,
   EMBEDDING_DIMENSIONS 
 } from './types';
-import { generateEmbedding, getEmbeddingConfig } from './embedding-service';
+import { generateEmbedding, getEmbeddingConfig, parseVectorFromDb } from './embedding-service';
 
 // Supabase client
 const supabase = createClient(
@@ -171,18 +171,21 @@ export async function getOrCreateArtistEmbedding(
     .single();
     
   if (existing && existing.embedding) {
-    return {
-      id: existing.id,
-      spotifyId: existing.spotify_id,
-      name: existing.name,
-      normalizedName: existing.normalized_name,
-      embedding: existing.embedding,
-      metadata: existing.metadata,
-      embeddingInput: existing.embedding_input,
-      embeddingModel: existing.embedding_model,
-      embeddingVersion: existing.embedding_version,
-      lastEmbeddedAt: new Date(existing.last_embedded_at),
-    };
+    const embedding = parseVectorFromDb(existing.embedding);
+    if (embedding) {
+      return {
+        id: existing.id,
+        spotifyId: existing.spotify_id,
+        name: existing.name,
+        normalizedName: existing.normalized_name,
+        embedding,
+        metadata: existing.metadata,
+        embeddingInput: existing.embedding_input,
+        embeddingModel: existing.embedding_model,
+        embeddingVersion: existing.embedding_version,
+        lastEmbeddedAt: new Date(existing.last_embedded_at),
+      };
+    }
   }
   
   // Normalize metadata via LLM

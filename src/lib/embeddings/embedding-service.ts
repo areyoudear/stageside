@@ -16,6 +16,24 @@ import {
 const embeddingCache = new Map<string, EmbeddingVector>();
 
 /**
+ * Parse pgvector string to number array
+ * pgvector returns "[0.1,0.2,...]" as string
+ */
+export function parseVectorFromDb(vector: unknown): EmbeddingVector | null {
+  if (!vector) return null;
+  if (Array.isArray(vector)) return vector as EmbeddingVector;
+  if (typeof vector === 'string') {
+    try {
+      return JSON.parse(vector) as EmbeddingVector;
+    } catch {
+      console.error('Failed to parse vector string:', vector.slice(0, 50));
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
  * Get current embedding configuration
  */
 export function getEmbeddingConfig(): EmbeddingConfig {

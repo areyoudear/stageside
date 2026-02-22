@@ -22,7 +22,8 @@ import {
   interpolateVectors, 
   weightedAverageVectors,
   normalizeVector,
-  zeroVector 
+  zeroVector,
+  parseVectorFromDb 
 } from './embedding-service';
 
 const supabase = createClient(
@@ -151,11 +152,13 @@ export async function getAnchorVectors(): Promise<Map<string, EmbeddingAnchor>> 
   const anchors = new Map<string, EmbeddingAnchor>();
   for (const row of data) {
     const key = `${row.anchor_type}_${row.anchor_name}`;
+    // Parse pgvector string to array
+    const embedding = parseVectorFromDb(row.embedding);
     anchors.set(key, {
       id: row.id,
       anchorType: row.anchor_type,
       anchorName: row.anchor_name,
-      embedding: row.embedding,
+      embedding,
       defaultWeight: row.default_weight,
       description: row.description,
     });
