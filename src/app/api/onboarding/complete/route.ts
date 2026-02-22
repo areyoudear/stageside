@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { OnboardingData } from "@/lib/embeddings/types";
 import { updateUserCoreFromOnboarding } from "@/lib/embeddings/user-embeddings";
+import { createAdminClient } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,21 +26,45 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create user embedding from onboarding data
-    const userTaste = await updateUserCoreFromOnboarding(
-      session.user.id,
-      body
-    );
+    // Try to create user embedding from onboarding data
+    // If embedding generation fails, still mark onboarding as complete
+    let userTaste = null;
+    let embeddingError = null;
+    
+    try {
+      userTaste = await updateUserCoreFromOnboarding(
+        session.user.id,
+        body
+      );
+    } catch (error) {
+      console.error("Error generating embedding (will retry later):", error);
+      embeddingError = error instanceof Error ? error.message : "Unknown error";
+      
+      // Still save the onboarding data so user can continue
+      const supabase = createAdminClient();
+      await supabase
+        .from('user_taste_embeddings')
+        .upsert({
+          user_id: session.user.id,
+          onboarding_type: 'manual',
+          onboarding_data: body,
+          onboarding_completed_at: new Date().toISOString(),
+          embedding_version: 1,
+        }, {
+          onConflict: 'user_id',
+        });
+    }
     
     return NextResponse.json({
       success: true,
-      onboardingType: userTaste.onboardingType,
-      embeddingVersion: userTaste.embeddingVersion,
+      onboardingType: userTaste?.onboardingType ?? 'manual',
+      embeddingVersion: userTaste?.embeddingVersion ?? 1,
+      embeddingPending: !!embeddingError,
     });
   } catch (error) {
     console.error("Error completing onboarding:", error);
     return NextResponse.json(
-      { error: "Failed to complete onboarding" },
+      { error: error instanceof Error ? error.message : "Failed to complete onboarding" },
       { status: 500 }
     );
   }
