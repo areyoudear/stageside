@@ -438,3 +438,56 @@ export function formatSourceName(source: ConcertSource): string {
   };
   return names[source];
 }
+
+// ============================================
+// EMBEDDING INTEGRATION
+// ============================================
+
+/**
+ * Search concerts and generate embeddings for results.
+ * Combines aggregator + embedding pipeline in one call.
+ * 
+ * @param params - Search parameters
+ * @param generateEmbeddings - Whether to generate embeddings (default: true)
+ * @returns Enhanced results with embedding IDs attached
+ */
+export async function searchConcertsWithEmbeddings(
+  params: AggregatorSearchParams,
+  generateEmbeddings: boolean = true
+): Promise<EnhancedAggregatorResult & {
+  embeddingStats?: { total: number; success: number; failed: number };
+}> {
+  // First, search all sources
+  const result = await searchAllConcertSourcesEnhanced(params);
+  
+  if (!generateEmbeddings || result.concerts.length === 0) {
+    return result;
+  }
+  
+  try {
+    // Dynamically import to avoid circular dependencies
+    const { embedDeduplicatedConcerts } = await import("./embeddings/concert-integration");
+    
+    // Generate embeddings for all concerts
+    const { embedded, stats } = await embedDeduplicatedConcerts(result.concerts);
+    
+    // Attach embedding IDs to concerts
+    const concertsWithEmbeddings = result.concerts.map(concert => {
+      const embedding = embedded.get(concert.id);
+      return {
+        ...concert,
+        embeddingId: embedding?.id,
+      };
+    });
+    
+    return {
+      ...result,
+      concerts: concertsWithEmbeddings,
+      embeddingStats: stats,
+    };
+  } catch (error) {
+    console.error("Error generating embeddings:", error);
+    // Return results without embeddings on error
+    return result;
+  }
+}

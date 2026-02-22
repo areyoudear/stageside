@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase";
 /**
  * GET /api/user/onboarding-status
  * Check if user has completed onboarding
- * Returns: { completed: boolean, hasArtists: boolean, hasLocation: boolean }
+ * Returns: { completed: boolean, hasArtists: boolean, hasLocation: boolean, hasCompletedEmbeddingOnboarding: boolean }
  */
 export async function GET() {
   try {
@@ -39,14 +39,23 @@ export async function GET() {
       .eq("is_active", true)
       .limit(1);
 
+    // Check if user has completed the embedding-based onboarding
+    const { data: embeddingData } = await adminClient
+      .from("user_taste_embeddings")
+      .select("onboarding_completed_at, onboarding_type")
+      .eq("user_id", session.user.id)
+      .single();
+
     const hasArtists = !!(profile?.top_artists && Array.isArray(profile.top_artists) && profile.top_artists.length > 0);
     const hasConnections = !!(connections && connections.length > 0);
     const hasLocation = !!prefs?.default_location;
+    const hasCompletedEmbeddingOnboarding = !!embeddingData?.onboarding_completed_at;
     
     // User is considered to have completed onboarding if:
     // 1. They explicitly completed it (onboarding_completed flag), OR
-    // 2. They have artists or connected services (they added their music taste)
-    const completed = prefs?.onboarding_completed === true || hasArtists || hasConnections;
+    // 2. They have artists or connected services (they added their music taste), OR
+    // 3. They completed the embedding-based onboarding
+    const completed = prefs?.onboarding_completed === true || hasArtists || hasConnections || hasCompletedEmbeddingOnboarding;
 
     return NextResponse.json({
       completed,
@@ -55,6 +64,9 @@ export async function GET() {
       hasLocation,
       // Explicit flag for when they clicked "complete"
       explicitlyCompleted: prefs?.onboarding_completed === true,
+      // Embedding-based onboarding status
+      hasCompletedEmbeddingOnboarding,
+      embeddingOnboardingType: embeddingData?.onboarding_type || null,
     });
   } catch (error) {
     console.error("Error checking onboarding status:", error);
