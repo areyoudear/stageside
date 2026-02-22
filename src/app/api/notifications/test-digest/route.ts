@@ -8,13 +8,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase";
 import { sendConcertNotificationEmail } from "@/lib/email";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,23 +18,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user profile and notification settings
-    const { data: user, error: userError } = await supabase
+    const adminClient = createAdminClient();
+
+    // Get user profile
+    const { data: user, error: userError } = await adminClient
       .from("users")
-      .select("email, name, notification_settings")
+      .select("email, display_name")
       .eq("id", session.user.id)
       .single();
 
     if (userError || !user) {
+      console.error("User fetch error:", userError);
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
       );
     }
 
-    const settings = user.notification_settings || {};
     const email = user.email;
-    const name = user.name || "there";
+    const name = user.display_name || "there";
 
     if (!email) {
       return NextResponse.json(
@@ -48,19 +45,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get location and filter settings
-    const locationName = settings.location || "your area";
-    const minScore = settings.minMatchScore || 30;
-    const radius = settings.radius || 50;
+    // Get notification settings from concert_notifications table
+    const { data: notificationSettings, error: notifError } = await adminClient
+      .from("concert_notifications")
+      .select("location_name, location_lat, location_lng, radius_miles, min_match_score, enabled")
+      .eq("user_id", session.user.id)
+      .single();
+
+    // Use defaults if no settings found
+    const locationName = notificationSettings?.location_name || "San Francisco";
+    const minScore = notificationSettings?.min_match_score || 30;
+    const radius = notificationSettings?.radius_miles || 50;
+    const lat = notificationSettings?.location_lat || 37.7749;
+    const lng = notificationSettings?.location_lng || -122.4194;
 
     // Fetch real matching concerts from the matches API
     let concerts: any[] = [];
     
     try {
-      // Get lat/lng from location if available
-      const lat = settings.lat || 37.7749;
-      const lng = settings.lng || -122.4194;
-      
       const matchesUrl = new URL("/api/matches/events", request.url);
       matchesUrl.searchParams.set("lat", String(lat));
       matchesUrl.searchParams.set("lng", String(lng));
