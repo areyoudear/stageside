@@ -19,7 +19,19 @@ export async function POST(request: NextRequest) {
     const { action, text, artistName } = body;
 
     const config = getEmbeddingConfig();
-    console.log('Embedding config:', { provider: config.provider, model: config.model, dimensions: config.dimensions });
+    const rawProvider = process.env.EMBEDDING_PROVIDER;
+    console.log('Embedding config:', { provider: config.provider, model: config.model, dimensions: config.dimensions, rawProvider });
+
+    if (action === 'config') {
+      return NextResponse.json({
+        provider: config.provider,
+        model: config.model,
+        dimensions: config.dimensions,
+        rawEnvProvider: rawProvider || 'undefined',
+        hasVoyageKey: !!process.env.VOYAGE_API_KEY,
+        hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+      });
+    }
 
     if (action === 'test-embedding') {
       // Test raw embedding generation
