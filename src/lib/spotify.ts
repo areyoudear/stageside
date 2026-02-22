@@ -760,3 +760,46 @@ export async function getArtistsInfo(
 export async function getSpotifyClientToken(): Promise<string | null> {
   return getClientCredentialsToken();
 }
+
+/**
+ * Refresh an expired Spotify access token
+ */
+export async function refreshAccessToken(
+  refreshToken: string
+): Promise<{ accessToken: string; expiresIn: number } | null> {
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    console.error("Missing Spotify credentials for token refresh");
+    return null;
+  }
+
+  try {
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Failed to refresh Spotify token:", await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    return {
+      accessToken: data.access_token,
+      expiresIn: data.expires_in,
+    };
+  } catch (error) {
+    console.error("Error refreshing Spotify token:", error);
+    return null;
+  }
+}

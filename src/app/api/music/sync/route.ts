@@ -5,11 +5,12 @@ import {
   getMusicConnections,
   getMusicConnection,
   updateConnectionSyncTime,
+  updateConnectionTokens,
   setConnectionError,
   saveAggregatedArtists,
   MusicServiceType,
 } from "@/lib/supabase";
-import { getUserMusicProfile as getSpotifyProfile } from "@/lib/spotify";
+import { getUserMusicProfile as getSpotifyProfile, refreshAccessToken as refreshSpotifyToken } from "@/lib/spotify";
 import { getUserMusicProfile as getYouTubeProfile } from "@/lib/youtube-music";
 import { getUserMusicProfile as getTidalProfile } from "@/lib/tidal";
 import { getUserMusicProfile as getDeezerProfile } from "@/lib/deezer";
@@ -81,9 +82,36 @@ export async function POST(request: NextRequest) {
 
     for (const connection of servicesToSync) {
       try {
+        let accessToken = connection.access_token;
+        
+        // Check if Spotify token is expired and refresh it
+        if (connection.service === "spotify" && connection.refresh_token) {
+          const tokenExpiry = connection.token_expires_at ? new Date(connection.token_expires_at) : null;
+          const isExpired = !tokenExpiry || tokenExpiry < new Date();
+          
+          if (isExpired) {
+            console.log(`Spotify token expired for connection ${connection.id}, refreshing...`);
+            const refreshed = await refreshSpotifyToken(connection.refresh_token);
+            
+            if (refreshed) {
+              accessToken = refreshed.accessToken;
+              const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000).toISOString();
+              
+              // Update the token in the database
+              await updateConnectionTokens(connection.id, {
+                access_token: refreshed.accessToken,
+                token_expires_at: newExpiresAt,
+              });
+              console.log(`Spotify token refreshed successfully`);
+            } else {
+              throw new Error("Failed to refresh Spotify token - please reconnect");
+            }
+          }
+        }
+        
         const profile = await fetchServiceProfile(
           connection.service as MusicService,
-          connection.access_token
+          accessToken
         );
 
         if (profile) {
