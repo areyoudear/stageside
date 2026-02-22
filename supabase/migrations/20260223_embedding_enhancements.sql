@@ -113,7 +113,7 @@ DROP FUNCTION IF EXISTS find_matching_events(uuid, text, date, date, int);
 
 -- Enhanced find_similar_artists function
 CREATE OR REPLACE FUNCTION find_similar_artists(
-  p_embedding vector(1536),
+  p_embedding vector(1024),
   p_limit INT DEFAULT 20,
   p_min_similarity FLOAT DEFAULT 0.0,
   p_genres TEXT[] DEFAULT NULL,
@@ -158,7 +158,7 @@ $$;
 
 -- Enhanced find_similar_events with location and date filtering
 CREATE OR REPLACE FUNCTION find_similar_events(
-  p_embedding vector(1536),
+  p_embedding vector(1024),
   p_limit INT DEFAULT 20,
   p_location TEXT DEFAULT NULL,
   p_date_from DATE DEFAULT NULL,
@@ -209,11 +209,11 @@ $$;
 
 -- Function to calculate effective user embedding with alpha blending
 CREATE OR REPLACE FUNCTION calculate_user_effective_embedding(
-  p_core_embedding vector(1536),
-  p_session_embedding vector(1536),
+  p_core_embedding vector(1024),
+  p_session_embedding vector(1024),
   p_alpha FLOAT DEFAULT 0.3  -- session weight (0 = core only, 1 = session only)
 )
-RETURNS vector(1536)
+RETURNS vector(1024)
 LANGUAGE plpgsql
 IMMUTABLE
 AS $$
@@ -246,7 +246,7 @@ BEGIN
     );
   END LOOP;
   
-  RETURN v_result::vector(1536);
+  RETURN v_result::vector(1024);
 END;
 $$;
 
@@ -255,12 +255,12 @@ CREATE OR REPLACE FUNCTION get_user_effective_embedding(
   p_user_id UUID,
   p_base_session_weight FLOAT DEFAULT 0.3
 )
-RETURNS vector(1536)
+RETURNS vector(1024)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  v_core vector(1536);
-  v_session vector(1536);
+  v_core vector(1024);
+  v_session vector(1024);
   v_session_age_hours FLOAT;
   v_decay_hours INT;
   v_exploration_score FLOAT;
@@ -322,7 +322,7 @@ RETURNS TABLE(
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  v_user_embedding vector(1536);
+  v_user_embedding vector(1024);
 BEGIN
   -- Get user's effective embedding
   v_user_embedding := get_user_effective_embedding(p_user_id);
@@ -453,14 +453,14 @@ CREATE OR REPLACE FUNCTION compute_event_embedding_from_lineup(
   p_lineup_artist_ids UUID[],
   p_headliner_weight FLOAT DEFAULT 0.6
 )
-RETURNS vector(1536)
+RETURNS vector(1024)
 LANGUAGE plpgsql
 AS $$
 DECLARE
   v_result FLOAT[];
   v_weights FLOAT[];
   v_total_weight FLOAT := 0;
-  v_artist_embedding vector(1536);
+  v_artist_embedding vector(1024);
   v_artist_array FLOAT[];
   v_num_artists INT;
   v_remaining_weight FLOAT;
@@ -512,7 +512,7 @@ BEGIN
     END LOOP;
   END IF;
   
-  RETURN v_result::vector(1536);
+  RETURN v_result::vector(1024);
 END;
 $$;
 

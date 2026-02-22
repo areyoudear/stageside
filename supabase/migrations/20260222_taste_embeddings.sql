@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS artist_embeddings (
   normalized_name TEXT NOT NULL,
   
   -- The embedding vector (1536 dims for OpenAI, adjustable)
-  embedding vector(1536),
+  embedding vector(1024),
   
   -- Structured metadata used to generate embedding
   metadata JSONB NOT NULL DEFAULT '{}',
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS event_embeddings (
   lineup_artist_ids UUID[] DEFAULT '{}', -- References to artist_embeddings
   
   -- The embedding vector (computed from artist embeddings)
-  embedding vector(1536),
+  embedding vector(1024),
   
   -- How embedding was computed
   embedding_method TEXT DEFAULT 'weighted_average', -- 'weighted_average', 'headliner_only', etc.
@@ -85,11 +85,11 @@ CREATE TABLE IF NOT EXISTS user_taste_embeddings (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   
   -- Core embedding: stable long-term taste
-  core_embedding vector(1536),
+  core_embedding vector(1024),
   core_updated_at TIMESTAMP WITH TIME ZONE,
   
   -- Session embedding: short-term intent (decays over 24-72h)
-  session_embedding vector(1536),
+  session_embedding vector(1024),
   session_updated_at TIMESTAMP WITH TIME ZONE,
   session_decay_hours INT DEFAULT 48,
   
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS festival_slot_embeddings (
   artist_ids UUID[] DEFAULT '{}',
   
   -- The embedding vector
-  embedding vector(1536),
+  embedding vector(1024),
   
   -- Versioning
   embedding_version INT DEFAULT 1,
@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS embedding_anchors (
   anchor_name TEXT NOT NULL, -- 'low_energy', 'high_energy', 'intimate', 'festival', etc.
   
   -- The anchor vector
-  embedding vector(1536) NOT NULL,
+  embedding vector(1024) NOT NULL,
   
   -- Weight when combining with user embedding
   default_weight FLOAT DEFAULT 0.2,
@@ -234,12 +234,12 @@ CREATE OR REPLACE FUNCTION get_effective_user_embedding(
   p_user_id UUID,
   p_session_weight FLOAT DEFAULT 0.3
 )
-RETURNS vector(1536)
+RETURNS vector(1024)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  v_core vector(1536);
-  v_session vector(1536);
+  v_core vector(1024);
+  v_session vector(1024);
   v_session_age_hours FLOAT;
   v_decay_hours INT;
   v_actual_session_weight FLOAT;
@@ -269,7 +269,7 @@ $$;
 
 -- Function to find similar artists
 CREATE OR REPLACE FUNCTION find_similar_artists(
-  p_embedding vector(1536),
+  p_embedding vector(1024),
   p_limit INT DEFAULT 20
 )
 RETURNS TABLE(

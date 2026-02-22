@@ -27,7 +27,7 @@ ON event_embeddings(lineup_hash);
 -- More flexible for API usage
 
 CREATE OR REPLACE FUNCTION find_matching_events_by_embedding(
-  p_user_embedding vector(1536),
+  p_user_embedding vector(1024),
   p_city TEXT DEFAULT NULL,
   p_date_from DATE DEFAULT CURRENT_DATE,
   p_date_to DATE DEFAULT CURRENT_DATE + INTERVAL '90 days',

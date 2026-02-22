@@ -6,7 +6,7 @@
 -- Function to find matching events with location and date filters
 -- Uses pgvector's efficient cosine similarity
 CREATE OR REPLACE FUNCTION find_matching_events_v2(
-  p_user_embedding vector(1536),
+  p_user_embedding vector(1024),
   p_city TEXT DEFAULT NULL,
   p_date_from DATE DEFAULT CURRENT_DATE,
   p_date_to DATE DEFAULT CURRENT_DATE + INTERVAL '90 days',
@@ -49,7 +49,7 @@ $$;
 
 -- Function to find similar artists with better performance
 CREATE OR REPLACE FUNCTION find_similar_artists_v2(
-  p_embedding vector(1536),
+  p_embedding vector(1024),
   p_limit INT DEFAULT 20,
   p_exclude_name TEXT DEFAULT NULL,
   p_min_similarity FLOAT DEFAULT 0.3
