@@ -159,8 +159,8 @@ export default function CulturePage() {
       localStorage.removeItem("stageside_onboarding_artists");
       localStorage.removeItem("stageside_onboarding_culture");
 
-      // Success - redirect to discover with celebration
-      router.push("/discover?onboarding=complete");
+      // Success - redirect to dashboard
+      router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

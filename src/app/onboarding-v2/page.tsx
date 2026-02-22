@@ -138,8 +138,8 @@ export default function OnboardingV2Page() {
         throw new Error(data.error || "Failed to complete onboarding");
       }
       
-      // Success - redirect to discover
-      router.push("/discover?onboarding=complete");
+      // Success - redirect to dashboard
+      router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
