@@ -48,6 +48,30 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (action === 'check-anchor') {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      
+      const { data, error } = await supabase
+        .from('embedding_anchors')
+        .select('*')
+        .limit(1)
+        .single();
+        
+      if (error) return NextResponse.json({ error: error.message });
+      
+      return NextResponse.json({
+        id: data.id,
+        embeddingType: typeof data.embedding,
+        embeddingIsArray: Array.isArray(data.embedding),
+        embeddingLength: Array.isArray(data.embedding) ? data.embedding.length : 'not array',
+        embeddingSample: Array.isArray(data.embedding) ? data.embedding.slice(0, 3) : String(data.embedding).slice(0, 100),
+      });
+    }
+
     if (action === 'batch-anchors') {
       // Batch initialize all anchors
       const { createClient } = await import('@supabase/supabase-js');
