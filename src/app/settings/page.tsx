@@ -404,8 +404,12 @@ export default function SettingsPage() {
 
   const toggleGenre = (genre: string) => {
     setSelectedGenres((prev) => {
-      const updated = prev.includes(genre)
-        ? prev.filter((g) => g !== genre)
+      // Case-insensitive check for existing genre
+      const existingIndex = prev.findIndex(
+        (g) => g.toLowerCase() === genre.toLowerCase()
+      );
+      const updated = existingIndex >= 0
+        ? prev.filter((_, i) => i !== existingIndex)
         : [...prev, genre];
       setHasChanges(true);
       setSaveStatus("idle");
@@ -613,7 +617,10 @@ export default function SettingsPage() {
 
           <div className="flex flex-wrap gap-2">
             {POPULAR_GENRES.map((genre) => {
-              const isSelected = selectedGenres.includes(genre);
+              // Case-insensitive check for genre selection (Spotify returns lowercase)
+              const isSelected = selectedGenres.some(
+                (g) => g.toLowerCase() === genre.toLowerCase()
+              );
               return (
                 <button
                   key={genre}
