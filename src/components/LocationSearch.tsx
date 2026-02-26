@@ -76,6 +76,13 @@ export function LocationSearch({
 }: LocationSearchProps) {
   const [inputValue, setInputValue] = useState(value?.name || "");
   const [isOpen, setIsOpen] = useState(false);
+
+  // Sync inputValue when value prop changes externally (e.g., auto-detection)
+  useEffect(() => {
+    if (value?.name && value.name !== inputValue) {
+      setInputValue(value.name);
+    }
+  }, [value?.name]);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Location[]>([]);
