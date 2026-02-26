@@ -50,6 +50,13 @@ interface SentRequest {
   sentAt: string;
 }
 
+interface SearchResult {
+  id: string;
+  name: string;
+  username?: string;
+  friendshipStatus?: string | null;
+}
+
 export default function FriendsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -62,6 +69,8 @@ export default function FriendsPage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loadingOverlaps, setLoadingOverlaps] = useState<Set<string>>(new Set());
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [addingUser, setAddingUser] = useState<string | null>(null);
 
   // Fetch friends data
   useEffect(() => {
@@ -69,6 +78,28 @@ export default function FriendsPage() {
       fetchFriends();
     }
   }, [status]);
+
+  // Live search as user types
+  useEffect(() => {
+    const searchUsers = async () => {
+      if (searchQuery.trim().length < 2) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/friends/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        setSearchResults(data.users || []);
+      } catch (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+      }
+    };
+
+    const debounce = setTimeout(searchUsers, 300);
+    return () => clearTimeout(debounce);
+  }, [searchQuery]);
 
   const fetchFriends = async () => {
     try {
@@ -128,20 +159,22 @@ export default function FriendsPage() {
     );
   };
 
-  const sendFriendRequest = async () => {
-    if (!searchQuery.trim()) return;
+  const sendFriendRequest = async (usernameOrEmail?: string) => {
+    const target = usernameOrEmail || searchQuery.trim();
+    if (!target) return;
     
     setIsSearching(true);
     setSearchError(null);
     setSuccessMessage(null);
+    if (usernameOrEmail) setAddingUser(usernameOrEmail);
 
     try {
-      const isEmail = searchQuery.includes("@");
+      const isEmail = target.includes("@");
       const res = await fetch("/api/friends", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          isEmail ? { email: searchQuery } : { username: searchQuery }
+          isEmail ? { email: target } : { username: target }
         ),
       });
       
@@ -154,11 +187,13 @@ export default function FriendsPage() {
 
       setSuccessMessage(`Friend request sent to ${data.friendship.targetUser.name}!`);
       setSearchQuery("");
+      setSearchResults([]);
       fetchFriends(); // Refresh lists
     } catch (error) {
       setSearchError("Failed to send request");
     } finally {
       setIsSearching(false);
+      setAddingUser(null);
     }
   };
 
@@ -287,6 +322,50 @@ export default function FriendsPage() {
               )}
             </Button>
           </div>
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {searchResults.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-3 bg-zinc-800/50 border border-zinc-700/50 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center text-white font-semibold">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-medium text-white">{user.name}</p>
+                      {user.username && (
+                        <p className="text-sm text-zinc-500">@{user.username}</p>
+                      )}
+                    </div>
+                  </div>
+                  {user.friendshipStatus === "accepted" ? (
+                    <span className="text-sm text-green-400">Friends</span>
+                  ) : user.friendshipStatus === "pending" ? (
+                    <span className="text-sm text-amber-400">Pending</span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => sendFriendRequest(user.username || user.id)}
+                      disabled={addingUser === (user.username || user.id)}
+                      className="bg-violet-600 hover:bg-violet-500"
+                    >
+                      {addingUser === (user.username || user.id) ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <UserPlus className="w-4 h-4 mr-1" />
+                          Add
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           {searchError && (
             <p className="text-sm text-red-400 mt-2">{searchError}</p>
           )}
