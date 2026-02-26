@@ -3,6 +3,7 @@ import { upsertMusicConnection, saveMusicProfile, saveRelatedArtists } from "@/l
 import { getUserMusicProfile as getSpotifyMusicProfile, SpotifyArtist, validateArtistsAgainstSpotify } from "@/lib/spotify";
 import { getUserMusicProfile as getYouTubeMusicProfile } from "@/lib/youtube-music";
 import { MusicServiceType } from "@/lib/music-types";
+import { updateUserCoreFromSpotify } from "@/lib/embeddings/user-embeddings";
 
 // Token endpoint configurations
 const TOKEN_CONFIGS: Record<
@@ -216,6 +217,23 @@ async function fetchAndStoreSpotifyProfile(
     ]);
 
     console.log(`Spotify music profile saved for user ${userId}`);
+
+    // Also update user taste embedding for match scoring
+    try {
+      await updateUserCoreFromSpotify(
+        userId,
+        profile.topArtists.map((a: SpotifyArtist) => ({
+          name: a.name,
+          id: a.id,
+          genres: a.genres || [],
+          popularity: a.popularity || 50,
+        }))
+      );
+      console.log(`User taste embedding updated for user ${userId}`);
+    } catch (embeddingError) {
+      // Don't fail the whole operation if embedding update fails
+      console.error("Error updating user embedding:", embeddingError);
+    }
   } catch (error) {
     console.error("Error fetching/storing Spotify music profile:", error);
   }
