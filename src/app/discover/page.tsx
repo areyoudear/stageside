@@ -112,6 +112,8 @@ function DiscoverPageContent() {
 
   // State
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
+  const [hasUserProfile, setHasUserProfile] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   
   // Friend-related state
   const [friendData, setFriendData] = useState<FriendData | null>(null);
@@ -165,6 +167,29 @@ function DiscoverPageContent() {
     setGoingIds(going);
   }, []);
 
+  // Auto-load user's music profile (from Spotify connection)
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const res = await fetch("/api/user/music-profile");
+        const data = await res.json();
+        
+        if (data.hasProfile && data.artists?.length > 0) {
+          setHasUserProfile(true);
+          // Auto-populate artists from user's profile
+          const profileArtists = data.artists.slice(0, 10); // Top 10 artists
+          setSelectedArtists(profileArtists);
+        }
+      } catch (error) {
+        console.error("Error loading user profile:", error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    loadUserProfile();
+  }, []);
+
   // Load friend data when in pair mode (friendId in URL)
   useEffect(() => {
     if (friendIdParam) {
@@ -190,6 +215,9 @@ function DiscoverPageContent() {
 
   const hasEnoughArtists = selectedArtists.length >= 3;
   const canSearch = hasEnoughArtists && location;
+  
+  // In pair mode with both profiles loaded, skip the artist picker UI
+  const shouldShowArtistPicker = !hasUserProfile || selectedArtists.length < 3;
 
   // Track location changes
   const handleLocationChange = (newLocation: Location | null) => {
@@ -626,7 +654,49 @@ function DiscoverPageContent() {
           </div>
         )}
 
-        {/* Artist Picker Card */}
+        {/* Artist Picker Card - Shows compact view when profile is loaded */}
+        {isLoadingProfile ? (
+          <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6 mb-6 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-500 mr-3" />
+            <span className="text-zinc-400">Loading your music profile...</span>
+          </div>
+        ) : hasUserProfile && selectedArtists.length >= 3 ? (
+          /* Compact view when profile is loaded */
+          <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <Check className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Your music profile loaded</p>
+                  <p className="text-sm text-zinc-500">
+                    Matching against your top {selectedArtists.length} artists
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setHasUserProfile(false)}
+                className="text-sm text-violet-400 hover:text-violet-300"
+              >
+                Edit artists
+              </button>
+            </div>
+            {/* Show artist chips */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              {selectedArtists.slice(0, 6).map((artist) => (
+                <span key={artist.id} className="px-3 py-1 rounded-full bg-zinc-800 text-zinc-300 text-sm">
+                  {artist.name}
+                </span>
+              ))}
+              {selectedArtists.length > 6 && (
+                <span className="px-3 py-1 rounded-full bg-zinc-800 text-zinc-500 text-sm">
+                  +{selectedArtists.length - 6} more
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
         <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -695,6 +765,7 @@ function DiscoverPageContent() {
             </div>
           )}
         </div>
+        )}
 
         {/* Location & Date Controls */}
         <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6 mb-8">
