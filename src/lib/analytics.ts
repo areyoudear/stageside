@@ -44,6 +44,9 @@ export interface AnalyticsEvents {
   concert_saved: { concert_id: string; artist: string; match_score?: number };
   concert_unsaved: { concert_id: string; artist: string };
   concert_shared: { concert_id: string; artist: string; method: 'native' | 'clipboard' };
+  concert_interest_changed: { concert_id: string; artist: string; new_status: 'interested' | 'going' | 'removed'; previous_status?: string };
+  concert_going: { concert_id: string; artist: string; match_score?: number };
+  concert_not_going: { concert_id: string; artist: string };
 
   // Ticket Behavior
   ticket_source_expanded: { concert_id: string; sources_count: number };

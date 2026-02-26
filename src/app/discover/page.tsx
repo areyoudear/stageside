@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle, Heart, Check, UserCheck } from "lucide-react";
+import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle, Heart, Check, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocationSearch, Location } from "@/components/LocationSearch";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
@@ -11,24 +11,11 @@ import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
 import { ArtistPicker, TrendingArtistChips } from "@/components/ArtistPicker";
 import { SpotifyUpsellCard } from "@/components/SpotifyUpsellCard";
 import { NoMatchesCard } from "@/components/NoMatchesCard";
+import { FriendsBadge, type FriendInterest } from "@/components/FriendsBadge";
+import { TasteOverlapCard, type TasteOverlap } from "@/components/TasteOverlapCard";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import type { Concert } from "@/lib/ticketmaster";
-
-// Friend interest info
-interface FriendInfo {
-  id: string;
-  name: string;
-  username: string;
-  imageUrl: string | null;
-}
-
-interface FriendsInterests {
-  [concertId: string]: {
-    interested: FriendInfo[];
-    going: FriendInfo[];
-  };
-}
 
 interface Artist {
   id: string;
@@ -55,8 +42,23 @@ type DayFilter = "all" | "weekday" | "weekend";
 // Sort options
 type SortOption = "match" | "date" | "price" | "distance";
 
-// Status filter (saved/going/friends)
-type StatusFilter = "all" | "hearted" | "going" | "friends-interested" | "friends-going";
+// Status filter (saved/going)
+type StatusFilter = "all" | "hearted" | "going";
+
+// Extended concert with friend data
+interface ExtendedConcert extends Concert {
+  userMatches?: boolean;
+  friendMatches?: boolean;
+  bothMatch?: boolean;
+  friendsInterested?: FriendInterest[];
+}
+
+// Friend data for pair mode
+interface FriendData {
+  id: string;
+  name: string;
+  overlap?: TasteOverlap;
+}
 
 const SORT_OPTIONS: { value: SortOption; label: string; icon: typeof ArrowUpDown }[] = [
   { value: "match", label: "Best Match", icon: Sparkles },
@@ -103,13 +105,18 @@ const VIBE_FILTERS: { value: VibeFilter; label: string; icon: typeof Music2; gen
   { value: "festival", label: "Big Shows", icon: Flame, genres: ["rock", "metal", "punk", "hip-hop", "rap", "pop", "alternative"] },
 ];
 
-export default function DiscoverPage() {
-  // Session
-  const { data: session } = useSession();
-  const isAuthenticated = !!session?.user;
+function DiscoverPageContent() {
+  // URL params for friend mode
+  const searchParams = useSearchParams();
+  const friendIdParam = searchParams.get("friendId");
 
   // State
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
+  
+  // Friend-related state
+  const [friendData, setFriendData] = useState<FriendData | null>(null);
+  const [friendsFilter, setFriendsFilter] = useState(false);
+  const [isPairMode, setIsPairMode] = useState(false);
   const [location, setLocation] = useState<Location | null>(null);
   const [radius, setRadius] = useState(50); // Default 50 miles
   const [dateRange, setDateRange] = useState<DateRange>(() => {
@@ -149,9 +156,6 @@ export default function DiscoverPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [goingIds, setGoingIds] = useState<string[]>([]);
-  const [friendsInterests, setFriendsInterests] = useState<FriendsInterests>({});
-  const [friendsConcertIds, setFriendsConcertIds] = useState<{ interested: string[]; going: string[] }>({ interested: [], going: [] });
-  const [friendCount, setFriendCount] = useState(0);
 
   // Load saved/going IDs from localStorage on mount
   useEffect(() => {
@@ -161,37 +165,28 @@ export default function DiscoverPage() {
     setGoingIds(going);
   }, []);
 
-  // Fetch user's own interests and friends' interests
+  // Load friend data when in pair mode (friendId in URL)
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const fetchInterests = async () => {
-      try {
-        // Fetch user's own interests
-        const userRes = await fetch("/api/concerts/interest");
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          const interested = userData.interests?.filter((i: { status: string }) => i.status === "interested").map((i: { concertId: string }) => i.concertId) || [];
-          const going = userData.interests?.filter((i: { status: string }) => i.status === "going").map((i: { concertId: string }) => i.concertId) || [];
-          setSavedIds(interested);
-          setGoingIds(going);
-        }
-
-        // Fetch friends' interests
-        const friendsRes = await fetch("/api/friends/interests");
-        if (friendsRes.ok) {
-          const data = await friendsRes.json();
-          setFriendsInterests(data.interests || {});
-          setFriendsConcertIds(data.concertIds || { interested: [], going: [] });
-          setFriendCount(data.friendCount || 0);
-        }
-      } catch (error) {
-        console.error("Failed to fetch interests:", error);
-      }
-    };
-
-    fetchInterests();
-  }, [isAuthenticated]);
+    if (friendIdParam) {
+      setIsPairMode(true);
+      // Fetch friend overlap data
+      fetch(`/api/friends/overlap/${friendIdParam}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.error) {
+            setFriendData({
+              id: friendIdParam,
+              name: data.friendName,
+              overlap: data.overlap,
+            });
+          }
+        })
+        .catch(err => console.error("Error fetching friend data:", err));
+    } else {
+      setIsPairMode(false);
+      setFriendData(null);
+    }
+  }, [friendIdParam]);
 
   const hasEnoughArtists = selectedArtists.length >= 3;
   const canSearch = hasEnoughArtists && location;
@@ -313,15 +308,11 @@ export default function DiscoverPage() {
       result = result.filter(concert => getDayType(concert.date) === dayFilter);
     }
 
-    // Apply status filter (hearted/going/friends)
+    // Apply status filter (hearted/going)
     if (statusFilter === "hearted") {
       result = result.filter(concert => savedIds.includes(concert.id));
     } else if (statusFilter === "going") {
       result = result.filter(concert => goingIds.includes(concert.id));
-    } else if (statusFilter === "friends-interested") {
-      result = result.filter(concert => friendsConcertIds.interested.includes(concert.id));
-    } else if (statusFilter === "friends-going") {
-      result = result.filter(concert => friendsConcertIds.going.includes(concert.id));
     }
 
     // Apply sorting
@@ -347,7 +338,7 @@ export default function DiscoverPage() {
     });
 
     return result;
-  }, [concerts, vibeFilter, venueSizeFilter, distanceFilter, priceFilter, dayFilter, statusFilter, sortBy, savedIds, goingIds, friendsConcertIds]);
+  }, [concerts, vibeFilter, venueSizeFilter, distanceFilter, priceFilter, dayFilter, statusFilter, sortBy, savedIds, goingIds]);
 
   // Check if we should show the upsell (any low matches in results)
   const hasLowMatches = useMemo(() => {
@@ -395,6 +386,8 @@ export default function DiscoverPage() {
       location: location.name,
       date_range: dateRange.label || 'custom',
       radius,
+      pair_mode: isPairMode,
+      friend_id: friendIdParam || undefined,
     });
 
     setIsLoading(true);
@@ -414,6 +407,14 @@ export default function DiscoverPage() {
         artists: selectedArtists.map((a) => a.name).join(","),
         genres: Array.from(new Set(selectedArtists.flatMap((a) => a.genres))).join(","),
       });
+
+      // Add friend params if in pair mode or friends filter is on
+      if (friendIdParam) {
+        params.append("friendId", friendIdParam);
+      }
+      if (friendsFilter) {
+        params.append("friendsOnly", "true");
+      }
 
       const response = await fetch(`/api/concerts/matched?${params.toString()}`);
       const data = await response.json();
@@ -467,7 +468,7 @@ export default function DiscoverPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [location, dateRange, selectedArtists, radius, fetchPopularConcerts]);
+  }, [location, dateRange, selectedArtists, radius, fetchPopularConcerts, isPairMode, friendIdParam, friendsFilter]);
 
   // Save handler (local only for now)
   const handleSaveConcert = async (concertId: string) => {
@@ -517,44 +518,6 @@ export default function DiscoverPage() {
     });
   };
 
-  // Interest change handler (calls API so friends can see)
-  const handleInterestChange = async (
-    concertId: string,
-    status: "interested" | "going" | null,
-    concert: Concert
-  ) => {
-    if (!isAuthenticated) return;
-
-    // Update local state immediately
-    if (status === "interested") {
-      setSavedIds(prev => [...prev.filter(id => id !== concertId), concertId]);
-      setGoingIds(prev => prev.filter(id => id !== concertId));
-    } else if (status === "going") {
-      setGoingIds(prev => [...prev.filter(id => id !== concertId), concertId]);
-      setSavedIds(prev => prev.filter(id => id !== concertId));
-    } else {
-      setSavedIds(prev => prev.filter(id => id !== concertId));
-      setGoingIds(prev => prev.filter(id => id !== concertId));
-    }
-
-    // Call API to persist
-    try {
-      if (status) {
-        await fetch("/api/concerts/interest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ concertId, status, concert }),
-        });
-      } else {
-        await fetch(`/api/concerts/interest?concertId=${concertId}`, {
-          method: "DELETE",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to save interest:", error);
-    }
-  };
-
   const highMatches = filteredAndSortedConcerts.filter((c) => (c.matchScore || 0) >= 50).length;
   const perfectMatches = filteredAndSortedConcerts.filter((c) => (c.matchScore || 0) >= 100).length;
 
@@ -598,10 +561,16 @@ export default function DiscoverPage() {
                 <Bookmark className="w-4 h-4" />
                 <span className="hidden sm:inline">Saved</span>
               </Link>
-              <Link href="/groups" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+              <Link href="/friends" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
                 <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">Friends</span>
               </Link>
+              {!isPairMode && (
+                <Link href="/friends" className="text-sm text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1">
+                  <UserPlus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Plan with friends</span>
+                </Link>
+              )}
               <Link href="/">
                 <Button className="bg-green-600 hover:bg-green-500 text-white">
                   <Sparkles className="w-4 h-4 mr-2" />
@@ -615,15 +584,47 @@ export default function DiscoverPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header - Removed "Quick Match" label */}
+        {/* Header - Shows pair mode context when friendId is present */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            Find concerts you&apos;ll love
-          </h1>
-          <p className="text-zinc-400">
-            Pick your favorite artists and we&apos;ll find matching concerts near you.
-          </p>
+          {isPairMode && friendData ? (
+            <>
+              <div className="flex items-center gap-2 mb-2">
+                <Link 
+                  href="/discover" 
+                  className="text-zinc-400 hover:text-white text-sm"
+                >
+                  ← Back to solo discovery
+                </Link>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                <Users className="w-8 h-8 text-violet-400" />
+                Finding concerts for you & {friendData.name}
+              </h1>
+              <p className="text-zinc-400">
+                We&apos;ll show concerts you&apos;ll both enjoy based on your shared taste.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                Find concerts you&apos;ll love
+              </h1>
+              <p className="text-zinc-400">
+                Pick your favorite artists and we&apos;ll find matching concerts near you.
+              </p>
+            </>
+          )}
         </div>
+
+        {/* Taste Overlap Card - Only in pair mode */}
+        {isPairMode && friendData?.overlap && (
+          <div className="mb-6">
+            <TasteOverlapCard 
+              friendName={friendData.name} 
+              overlap={friendData.overlap} 
+            />
+          </div>
+        )}
 
         {/* Artist Picker Card */}
         <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6 mb-6">
@@ -685,7 +686,7 @@ export default function DiscoverPage() {
                 {selectedGenres.map((genre) => (
                   <span
                     key={genre}
-                    className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-300 text-xs border border-cyan-500/20"
+                    className="px-2 py-1 rounded-full bg-purple-500/10 text-purple-300 text-xs border border-cyan-500/20"
                   >
                     {genre}
                   </span>
@@ -826,7 +827,7 @@ export default function DiscoverPage() {
                   <p className="text-sm text-zinc-500">
                     In {location?.name} • {dateRange.label || "Custom dates"}
                     {vibeFilter !== "all" && (
-                      <span className="text-blue-400"> • {VIBE_FILTERS.find(f => f.value === vibeFilter)?.label} filter</span>
+                      <span className="text-purple-400"> • {VIBE_FILTERS.find(f => f.value === vibeFilter)?.label} filter</span>
                     )}
                   </p>
                 </div>
@@ -878,7 +879,7 @@ export default function DiscoverPage() {
                       className={cn(
                         "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
                         isActive
-                          ? "bg-blue-500 text-white"
+                          ? "bg-purple-500 text-white"
                           : count === 0
                           ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
                           : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
@@ -889,7 +890,7 @@ export default function DiscoverPage() {
                       {filter.value !== "all" && (
                         <span className={cn(
                           "ml-1 text-xs",
-                          isActive ? "text-blue-200" : "text-zinc-500"
+                          isActive ? "text-purple-200" : "text-zinc-500"
                         )}>
                           ({count})
                         </span>
@@ -935,14 +936,14 @@ export default function DiscoverPage() {
                 )}
               </div>
 
-              {/* Status Filters (Hearted/Going) */}
+              {/* Status Filters (Hearted/Going/Friends) */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-zinc-500 mr-1">Show:</span>
                 <button
                   onClick={() => setStatusFilter("all")}
                   className={cn(
                     "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                    statusFilter === "all"
+                    statusFilter === "all" && !friendsFilter
                       ? "bg-cyan-500 text-white"
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
                   )}
@@ -991,59 +992,40 @@ export default function DiscoverPage() {
                     ({concerts.filter(c => goingIds.includes(c.id)).length})
                   </span>
                 </button>
-                {/* Friends filters - only show if authenticated and have friends */}
-                {isAuthenticated && friendCount > 0 && (
-                  <>
-                    <div className="w-px h-6 bg-zinc-700 mx-1" /> {/* Separator */}
-                    <button
-                      onClick={() => setStatusFilter("friends-interested")}
-                      disabled={friendsConcertIds.interested.length === 0}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                        statusFilter === "friends-interested"
-                          ? "bg-blue-500 text-white"
-                          : friendsConcertIds.interested.length === 0
-                          ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
-                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                      )}
-                    >
-                      <Users className="w-3.5 h-3.5" />
-                      Friends Interested
-                      <span className={cn(
-                        "ml-1 text-xs",
-                        statusFilter === "friends-interested" ? "text-blue-200" : "text-zinc-500"
-                      )}>
-                        ({concerts.filter(c => friendsConcertIds.interested.includes(c.id)).length})
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => setStatusFilter("friends-going")}
-                      disabled={friendsConcertIds.going.length === 0}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                        statusFilter === "friends-going"
-                          ? "bg-emerald-500 text-white"
-                          : friendsConcertIds.going.length === 0
-                          ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
-                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                      )}
-                    >
-                      <UserCheck className="w-3.5 h-3.5" />
-                      Friends Going
-                      <span className={cn(
-                        "ml-1 text-xs",
-                        statusFilter === "friends-going" ? "text-emerald-200" : "text-zinc-500"
-                      )}>
-                        ({concerts.filter(c => friendsConcertIds.going.includes(c.id)).length})
-                      </span>
-                    </button>
-                  </>
-                )}
-                {statusFilter !== "all" && (
+                
+                {/* Friends Filter Toggle */}
+                <button
+                  onClick={() => {
+                    setFriendsFilter(!friendsFilter);
+                    // Re-fetch if toggling on
+                    if (!friendsFilter && hasSearched) {
+                      // Will trigger refetch via useEffect or manual call
+                    }
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                    friendsFilter
+                      ? "bg-violet-500 text-white"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white border border-violet-500/30"
+                  )}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  Friends interested
+                  {friendsFilter && (
+                    <span className="ml-1 text-xs text-violet-200">
+                      ({(concerts as ExtendedConcert[]).filter(c => c.friendsInterested && c.friendsInterested.length > 0).length})
+                    </span>
+                  )}
+                </button>
+
+                {(statusFilter !== "all" || friendsFilter) && (
                   <button
-                    onClick={() => setStatusFilter("all")}
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setFriendsFilter(false);
+                    }}
                     className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
-                    title="Clear status filter"
+                    title="Clear filters"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1114,45 +1096,89 @@ export default function DiscoverPage() {
               )}
             </div>
 
+            {/* Pair mode stats banner */}
+            {isPairMode && friendData && hasSearched && (
+              <div className="mb-6 p-4 rounded-xl bg-violet-500/10 border border-violet-500/20">
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-violet-400" />
+                  <div>
+                    <p className="text-sm font-medium text-white">
+                      {(concerts as ExtendedConcert[]).filter(c => c.bothMatch).length} concerts you&apos;ll both love
+                    </p>
+                    <p className="text-xs text-violet-400">
+                      Plus {(concerts as ExtendedConcert[]).filter(c => c.userMatches && !c.friendMatches).length} just for you
+                      {" · "}
+                      {(concerts as ExtendedConcert[]).filter(c => c.friendMatches && !c.userMatches).length} {friendData.name} might introduce you to
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Concert Grid - 3 columns */}
             {filteredAndSortedConcerts.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-zinc-400">No {VIBE_FILTERS.find(f => f.value === vibeFilter)?.label.toLowerCase()} concerts found.</p>
                 <button
                   onClick={() => setVibeFilter("all")}
-                  className="mt-2 text-blue-400 hover:text-blue-300 text-sm"
+                  className="mt-2 text-purple-400 hover:text-purple-300 text-sm"
                 >
                   Show all concerts instead
                 </button>
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
-                {filteredAndSortedConcerts.map((concert, index) => (
-                  <>
-                    <ConcertCard
-                      key={concert.id}
-                      concert={concert}
-                      onSave={handleSaveConcert}
-                      onUnsave={handleUnsaveConcert}
-                      onGoing={handleGoingConcert}
-                      onNotGoing={handleNotGoingConcert}
-                      isAuthenticated={isAuthenticated}
-                      onInterestChange={isAuthenticated ? handleInterestChange : undefined}
-                      interestStatus={
-                        goingIds.includes(concert.id) ? "going" :
-                        savedIds.includes(concert.id) ? "interested" : null
-                      }
-                      friendsInterested={friendsInterests[concert.id] ? [
-                        ...friendsInterests[concert.id].interested.map(f => ({ id: f.id, name: f.name, status: "interested" as const })),
-                        ...friendsInterests[concert.id].going.map(f => ({ id: f.id, name: f.name, status: "going" as const })),
-                      ] : undefined}
-                    />
-                    {/* Insert upsell card after every 6th low-match result */}
-                    {hasLowMatches && index === 5 && (
-                      <SpotifyUpsellCard key="upsell" />
-                    )}
-                  </>
-                ))}
+                {filteredAndSortedConcerts.map((concert, index) => {
+                  const extendedConcert = concert as ExtendedConcert;
+                  return (
+                    <div key={concert.id} className="relative">
+                      {/* Pair mode badge overlay */}
+                      {isPairMode && (extendedConcert.bothMatch || extendedConcert.userMatches || extendedConcert.friendMatches) && (
+                        <div className="absolute -top-2 -right-2 z-10">
+                          {extendedConcert.bothMatch ? (
+                            <span className="px-2 py-1 rounded-full bg-green-500 text-white text-xs font-bold shadow-lg">
+                              ✓✓ Both
+                            </span>
+                          ) : extendedConcert.userMatches ? (
+                            <span className="px-2 py-1 rounded-full bg-cyan-500 text-white text-xs font-bold shadow-lg">
+                              ✓ You
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full bg-violet-500 text-white text-xs font-bold shadow-lg">
+                              ✓ {friendData?.name?.split(" ")[0]}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Friend activity badge */}
+                      {extendedConcert.friendsInterested && extendedConcert.friendsInterested.length > 0 && !isPairMode && (
+                        <div className="absolute -top-2 -right-2 z-10">
+                          <FriendsBadge 
+                            friends={extendedConcert.friendsInterested}
+                            concertName={extendedConcert.artists.join(", ")}
+                            compact
+                          />
+                        </div>
+                      )}
+
+                      <ConcertCard
+                        concert={concert}
+                        onSave={handleSaveConcert}
+                        onUnsave={handleUnsaveConcert}
+                        onGoing={handleGoingConcert}
+                        onNotGoing={handleNotGoingConcert}
+                        isAuthenticated={true}
+                        friendsInterested={extendedConcert.friendsInterested}
+                      />
+                      
+                      {/* Insert upsell card after every 6th low-match result */}
+                      {hasLowMatches && index === 5 && (
+                        <SpotifyUpsellCard key="upsell" />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -1182,5 +1208,18 @@ export default function DiscoverPage() {
         )}
       </div>
     </main>
+  );
+}
+
+// Wrapper with Suspense for useSearchParams
+export default function DiscoverPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-cyan-400 rounded-full animate-spin" />
+      </main>
+    }>
+      <DiscoverPageContent />
+    </Suspense>
   );
 }

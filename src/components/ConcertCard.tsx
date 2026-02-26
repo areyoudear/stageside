@@ -21,44 +21,21 @@ import {
   UserPlus,
   CheckCircle2,
 } from "lucide-react";
+import { FriendsBadge, type FriendInterest } from "./FriendsBadge";
+import { InterestButtons, type InterestStatus } from "@/components/InterestButtons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, daysUntil, cn } from "@/lib/utils";
 import { TicketSourcesDropdown, TicketSourcesInline } from "@/components/TicketSourcesDropdown";
-import { AudioPreview } from "@/components/AudioPreview";
 import { track } from "@/lib/analytics";
 import type { Concert } from "@/lib/ticketmaster";
-import type { DeduplicatedConcert, TicketSource } from "@/lib/concert-dedup";
-import { 
-  generateVibeTags, 
-  getVibeDescription, 
-  type VibeResult, 
-  type ArtistAudioProfile 
-} from "@/lib/vibe-tags";
 
-// Vibe types based on genre (legacy, kept for backward compatibility)
+// Vibe types based on genre
 type VibeType = "chill" | "energetic" | "intimate" | "festival" | "diverse";
 
-interface FriendInterest {
-  id: string;
-  name: string;
-  status: "interested" | "going";
-  tasteCompatibility?: number;
-  tasteLabel?: string;
-  sharedArtists?: string[];
-  imageUrl?: string | null;
-}
-
-// Extended concert type that may include deduplication data
-type ConcertWithSources = Concert & {
-  sources?: TicketSource[];
-  artistAudioProfile?: ArtistAudioProfile | null;
-  vibeResult?: VibeResult;
-};
-
 interface ConcertCardProps {
-  concert: Concert | ConcertWithSources;
+  concert: Concert;
   onSave?: (concertId: string) => void;
   onUnsave?: (concertId: string) => void;
   onGoing?: (concertId: string) => void;
@@ -69,8 +46,6 @@ interface ConcertCardProps {
   isAuthenticated?: boolean;
   isDemo?: boolean;
   hasProfile?: boolean;
-  // Optional audio profile for enhanced vibe tags
-  artistAudioProfile?: ArtistAudioProfile | null;
 }
 
 // Map genres to vibes with colors
@@ -109,9 +84,9 @@ function getVibe(genres: string[]): {
       type: "intimate", 
       label: "Intimate", 
       icon: Users, 
-      color: "text-blue-400",
-      bgGradient: "from-blue-500/20 via-blue-500/10 to-transparent",
-      borderColor: "border-blue-500/30 hover:border-blue-500/60"
+      color: "text-violet-400",
+      bgGradient: "from-violet-500/20 via-violet-500/10 to-transparent",
+      borderColor: "border-violet-500/30 hover:border-violet-500/60"
     };
   }
   if (genreString.match(/rock|metal|punk|hip-hop|rap|pop|latin/)) {
@@ -128,9 +103,9 @@ function getVibe(genres: string[]): {
     type: "diverse", 
     label: "Mixed", 
     icon: Music2, 
-    color: "text-cyan-400",
-    bgGradient: "from-cyan-500/20 via-cyan-500/10 to-transparent",
-    borderColor: "border-cyan-500/30 hover:border-cyan-500/60"
+    color: "text-fuchsia-400",
+    bgGradient: "from-fuchsia-500/20 via-fuchsia-500/10 to-transparent",
+    borderColor: "border-fuchsia-500/30 hover:border-fuchsia-500/60"
   };
 }
 
@@ -140,68 +115,6 @@ function getUrgency(daysLeft: number): { show: boolean; label: string; color: st
   if (daysLeft === 1) return { show: true, label: "Tomorrow!", color: "bg-red-500 text-white", emoji: "🔥" };
   if (daysLeft <= 3) return { show: true, label: `${daysLeft} days`, color: "bg-orange-500 text-white", emoji: "⚡" };
   if (daysLeft <= 7) return { show: true, label: "This week", color: "bg-amber-500/90 text-white", emoji: "📅" };
-  return null;
-}
-
-/**
- * Get contextual urgency message based on concert and user context
- * Replaces generic "Tickets selling fast!" with personalized messages
- */
-interface ContextualUrgencyContext {
-  venueSize?: string;
-  matchScore?: number;
-  matchReasons?: string[];
-  genres?: string[];
-  isLastShow?: boolean;
-  friendsGoing?: number;
-  savedSimilarCount?: number;
-}
-
-function getContextualUrgency(
-  daysLeft: number,
-  context: ContextualUrgencyContext
-): string | null {
-  const { venueSize, matchScore, genres, isLastShow, friendsGoing, savedSimilarCount } = context;
-  
-  // Priority 1: Last show urgency
-  if (isLastShow) {
-    return "Last show of their tour — no second chances";
-  }
-  
-  // Priority 2: Friends going
-  if (friendsGoing && friendsGoing >= 2) {
-    return `${friendsGoing} friends going — don't miss out!`;
-  }
-  
-  // Priority 3: High match + small venue
-  if (matchScore && matchScore >= 80 && venueSize === "intimate") {
-    return "This venue typically sells out for artists matching your taste";
-  }
-  
-  // Priority 4: Saved similar artists
-  if (savedSimilarCount && savedSimilarCount >= 2) {
-    return `You've saved ${savedSimilarCount} similar artists. This one is actually touring.`;
-  }
-  
-  // Priority 5: Genre rarity (if we could track this)
-  if (genres && genres.length > 0) {
-    const rareGenres = ["jazz", "classical", "bluegrass", "folk", "metal"];
-    const hasRareGenre = genres.some(g => 
-      rareGenres.some(r => g.toLowerCase().includes(r))
-    );
-    if (hasRareGenre) {
-      const matchedGenre = genres.find(g => 
-        rareGenres.some(r => g.toLowerCase().includes(r))
-      );
-      return `${matchedGenre} shows are rare in your area`;
-    }
-  }
-  
-  // Priority 6: Time-based urgency for good matches
-  if (daysLeft <= 7 && matchScore && matchScore >= 70) {
-    return "High match, happening soon";
-  }
-  
   return null;
 }
 
@@ -224,8 +137,8 @@ function MatchScoreBadge({ score, isPerfect, matchReasons, onTooltipHover, hasPr
 }) {
   const matchLabel = getMatchLabel(score);
   
-  // No profile - show CTA to connect music service
-  if (!hasProfile) {
+  // No profile - show CTA
+  if (!hasProfile || score === 0) {
     return (
       <a 
         href="/settings" 
@@ -293,7 +206,6 @@ export function ConcertCard({
   interestStatus,
   onInterestChange,
   friendsInterested = [],
-  artistAudioProfile,
 }: ConcertCardProps) {
   const [isSaved, setIsSaved] = useState(concert.isSaved || false);
   const [isGoing, setIsGoing] = useState(false);
@@ -304,10 +216,6 @@ export function ConcertCard({
   const [localInterestStatus, setLocalInterestStatus] = useState<"interested" | "going" | null>(interestStatus || null);
   const hoverStartTime = useRef<number | null>(null);
   const hasTrackedTooltip = useRef(false);
-  
-  // Separate friends by status
-  const friendsGoing = friendsInterested.filter(f => f.status === "going");
-  const friendsInterestedOnly = friendsInterested.filter(f => f.status === "interested");
   
   const handleInterestClick = (status: "interested" | "going") => {
     const newStatus = localInterestStatus === status ? null : status;
@@ -362,21 +270,6 @@ export function ConcertCard({
   const daysLeft = daysUntil(concert.date);
   const vibe = useMemo(() => getVibe(concert.genres), [concert.genres]);
   const urgency = useMemo(() => getUrgency(daysLeft), [daysLeft]);
-  
-  // Enhanced vibe tags from audio features (when available)
-  const concertExt = concert as ConcertWithSources;
-  const audioProfile = artistAudioProfile || concertExt.artistAudioProfile || null;
-  const enhancedVibeResult = useMemo(() => {
-    // Use pre-computed vibe if available on the concert
-    if (concertExt.vibeResult) {
-      return concertExt.vibeResult;
-    }
-    // Otherwise compute from audio profile and genres
-    return generateVibeTags(audioProfile, concert.genres, undefined);
-  }, [audioProfile, concert.genres, concertExt.vibeResult]);
-  
-  // Check if concert has multiple ticket sources
-  const ticketSources: TicketSource[] = concertExt.sources || [];
 
   const handleSaveToggle = () => {
     const artistName = concert.artists.join(", ");
@@ -531,11 +424,11 @@ export function ConcertCard({
 
         {/* Save & Share Buttons */}
         <div className="absolute top-3 left-3 flex items-center gap-2">
-          {/* Save Button - min 44px touch target */}
+          {/* Save Button */}
           <button
             onClick={handleSaveToggle}
             className={cn(
-              "relative p-3 rounded-full backdrop-blur-md transition-all duration-300 min-w-[44px] min-h-[44px] flex items-center justify-center",
+              "relative p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
               isSaved 
                 ? "bg-red-500/20 hover:bg-red-500/30" 
                 : "bg-black/30 hover:bg-black/50"
@@ -550,18 +443,18 @@ export function ConcertCard({
             />
             {/* Saved feedback toast */}
             {showSavedFeedback && (
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-sm font-medium rounded-md whitespace-nowrap animate-fade-in">
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
                 <Check className="w-3 h-3 inline mr-1" />
                 Saved!
               </div>
             )}
           </button>
 
-          {/* Going Button - min 44px touch target */}
+          {/* Going Button */}
           <button
             onClick={handleGoingToggle}
             className={cn(
-              "relative p-3 rounded-full backdrop-blur-md transition-all duration-300 min-w-[44px] min-h-[44px] flex items-center justify-center",
+              "relative p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
               isGoing 
                 ? "bg-green-500/20 hover:bg-green-500/30" 
                 : "bg-black/30 hover:bg-black/50"
@@ -577,49 +470,33 @@ export function ConcertCard({
             />
             {/* Going feedback toast */}
             {showGoingFeedback && (
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-sm font-medium rounded-md whitespace-nowrap animate-fade-in">
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
                 <Check className="w-3 h-3 inline mr-1" />
                 Going!
               </div>
             )}
           </button>
 
-          {/* Share Button - min 44px touch target */}
+          {/* Share Button */}
           <button
             onClick={handleShare}
-            className="p-3 rounded-full backdrop-blur-md bg-black/30 hover:bg-black/50 transition-all duration-300 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="p-2.5 rounded-full backdrop-blur-md bg-black/30 hover:bg-black/50 transition-all duration-300"
             aria-label="Share concert"
           >
             <Share2 className="w-5 h-5 text-white/80 hover:text-white transition-colors" />
           </button>
         </div>
 
-        {/* Enhanced Vibe Tags */}
-        <div className="absolute bottom-3 left-3 flex flex-wrap gap-1.5 max-w-[60%]">
-          {/* Primary vibe tag with emoji */}
-          <div 
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md cursor-help",
-              enhancedVibeResult.bgColor,
-              "border",
-              enhancedVibeResult.borderColor,
-              enhancedVibeResult.color
-            )}
-            title={getVibeDescription(enhancedVibeResult.primary)}
-          >
-            <span>{enhancedVibeResult.emoji}</span>
-            <span className="truncate max-w-[120px]">{enhancedVibeResult.primary}</span>
+        {/* Vibe indicator pill */}
+        <div className="absolute bottom-3 left-3">
+          <div className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md",
+            "bg-black/40 border border-white/10",
+            vibe.color
+          )}>
+            <vibe.icon className="w-3.5 h-3.5" />
+            <span>{vibe.label}</span>
           </div>
-          
-          {/* Secondary vibe tag (if available) */}
-          {enhancedVibeResult.secondary && (
-            <div 
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium backdrop-blur-md bg-black/30 text-zinc-300 border border-white/10"
-              title={getVibeDescription(enhancedVibeResult.secondary)}
-            >
-              <span className="truncate max-w-[80px]">{enhancedVibeResult.secondary}</span>
-            </div>
-          )}
         </div>
 
         {/* Match Score Badge - Always visible on image */}
@@ -655,7 +532,7 @@ export function ConcertCard({
             )}
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+            <MapPin className="w-4 h-4 text-fuchsia-400 flex-shrink-0" />
             <span className="text-zinc-300 line-clamp-1">
               {concert.venue.name}
               {concert.distance !== undefined && (
@@ -668,7 +545,7 @@ export function ConcertCard({
             <div className="flex items-center gap-1 text-xs text-zinc-500">
               <span className={cn(
                 "px-1.5 py-0.5 rounded",
-                concert.venueSize === "intimate" && "bg-blue-500/10 text-blue-400",
+                concert.venueSize === "intimate" && "bg-violet-500/10 text-violet-400",
                 concert.venueSize === "large" && "bg-cyan-500/10 text-cyan-400",
                 concert.venueSize === "arena" && "bg-orange-500/10 text-orange-400",
                 concert.venueSize === "festival" && "bg-pink-500/10 text-pink-400"
@@ -690,21 +567,21 @@ export function ConcertCard({
             isPerfectMatch 
               ? "bg-green-500/10 border border-green-500/20" 
               : isGreatMatch
-              ? "bg-blue-500/10 border border-blue-500/20"
+              ? "bg-violet-500/10 border border-violet-500/20"
               : "bg-zinc-800/50 border border-zinc-700/30"
           )}>
             <div className="flex items-start gap-2">
               {isPerfectMatch ? (
                 <Star className="w-3.5 h-3.5 text-green-400 mt-0.5 flex-shrink-0" />
               ) : isGreatMatch ? (
-                <Sparkles className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
+                <Sparkles className="w-3.5 h-3.5 text-violet-400 mt-0.5 flex-shrink-0" />
               ) : (
                 <Music2 className="w-3.5 h-3.5 text-zinc-400 mt-0.5 flex-shrink-0" />
               )}
               <div className="flex-1 min-w-0">
                 <p className={cn(
                   "text-xs leading-relaxed font-medium",
-                  isPerfectMatch ? "text-green-200" : isGreatMatch ? "text-blue-200" : "text-zinc-300"
+                  isPerfectMatch ? "text-green-200" : isGreatMatch ? "text-violet-200" : "text-zinc-300"
                 )}>
                   {concert.matchReasons[0]}
                 </p>
@@ -718,7 +595,7 @@ export function ConcertCard({
                         className={cn(
                           "px-2 py-0.5 text-[10px] font-semibold rounded-full uppercase tracking-wide",
                           tag === "Must-see" ? "bg-green-500/20 text-green-300" :
-                          tag === "For you" ? "bg-blue-500/20 text-blue-300" :
+                          tag === "For you" ? "bg-violet-500/20 text-violet-300" :
                           tag === "Fresh pick" ? "bg-blue-500/20 text-blue-300" :
                           "bg-zinc-700/50 text-zinc-400"
                         )}
@@ -731,16 +608,6 @@ export function ConcertCard({
               </div>
             </div>
           </div>
-        )}
-
-        {/* Audio Preview - Sample the artist's music */}
-        {concert.previewUrl && concert.topTrackName && (
-          <AudioPreview
-            previewUrl={concert.previewUrl}
-            trackName={concert.topTrackName}
-            artistName={concert.artists[0]}
-            highlightStartMs={concert.highlightStartMs}
-          />
         )}
 
         {/* Genre tags - Only show on hover */}
@@ -757,106 +624,27 @@ export function ConcertCard({
           </div>
         )}
 
-        {/* Friends Interested Section - Enhanced with taste compatibility */}
+        {/* Friends Interested Section - Using FriendsBadge component */}
         {friendsInterested.length > 0 && (
-          <div className="space-y-2 py-2 px-3 bg-gradient-to-r from-blue-500/10 via-purple-500/5 to-blue-500/10 rounded-lg border border-blue-500/20">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-blue-400 flex-shrink-0" />
-              <span className="text-xs font-semibold text-blue-300">
-                👥 {friendsInterested.length} friend{friendsInterested.length > 1 ? "s" : ""} interested
-              </span>
-            </div>
-            
-            {/* Show top friend with highest taste compatibility */}
-            {(() => {
-              const topFriend = [...friendsGoing, ...friendsInterestedOnly]
-                .sort((a, b) => (b.tasteCompatibility || 0) - (a.tasteCompatibility || 0))[0];
-              
-              if (topFriend && topFriend.tasteCompatibility && topFriend.tasteCompatibility > 0) {
-                return (
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-[10px] text-white font-bold flex-shrink-0">
-                      {topFriend.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium text-white truncate">{topFriend.name}</span>
-                        <span className={cn(
-                          "text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
-                          topFriend.tasteCompatibility >= 70 
-                            ? "bg-green-500/20 text-green-400" 
-                            : "bg-blue-500/20 text-blue-400"
-                        )}>
-                          {topFriend.tasteCompatibility}% match
-                        </span>
-                        <span className="text-[10px] text-zinc-500">
-                          {topFriend.status === "going" ? "is going" : "interested"}
-                        </span>
-                      </div>
-                      {topFriend.sharedArtists && topFriend.sharedArtists.length > 0 && (
-                        <p className="text-[10px] text-zinc-500 truncate">
-                          Both love {topFriend.sharedArtists.slice(0, 2).join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-            
-            {/* Simple list for others */}
-            {friendsInterested.length > 1 && (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {[...friendsGoing, ...friendsInterestedOnly]
-                  .sort((a, b) => (b.tasteCompatibility || 0) - (a.tasteCompatibility || 0))
-                  .slice(1, 4)
-                  .map(friend => (
-                    <span 
-                      key={friend.id}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800/50 text-zinc-400"
-                    >
-                      {friend.name} {friend.status === "going" ? "✓" : ""}
-                    </span>
-                  ))}
-                {friendsInterested.length > 4 && (
-                  <span className="text-[10px] text-zinc-500">
-                    +{friendsInterested.length - 4} more
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          <FriendsBadge
+            friends={friendsInterested}
+            concertName={concert.artists.join(", ")}
+          />
         )}
 
-        {/* Interest Buttons (Interested / Going) - min 44px height for touch */}
+        {/* Interest Buttons (Interested / Going) */}
         {isAuthenticated && onInterestChange && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleInterestClick("interested")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-3 px-3 rounded-lg text-sm font-medium transition-all min-h-[44px]",
-                localInterestStatus === "interested"
-                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                  : "bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-white"
-              )}
-            >
-              <Star className={cn("w-4 h-4", localInterestStatus === "interested" && "fill-amber-400")} />
-              Interested
-            </button>
-            <button
-              onClick={() => handleInterestClick("going")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-3 px-3 rounded-lg text-sm font-medium transition-all min-h-[44px]",
-                localInterestStatus === "going"
-                  ? "bg-green-500/20 text-green-400 border border-green-500/40"
-                  : "bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-white"
-              )}
-            >
-              <CheckCircle2 className={cn("w-4 h-4", localInterestStatus === "going" && "fill-green-400")} />
-              Going
-            </button>
-          </div>
+          <InterestButtons
+            concertId={concert.id}
+            concert={concert}
+            initialStatus={localInterestStatus}
+            onStatusChange={(newStatus) => {
+              setLocalInterestStatus(newStatus);
+              onInterestChange(concert.id, newStatus, concert);
+            }}
+            size="md"
+            variant="default"
+          />
         )}
 
         {/* Price + CTA Row */}
@@ -873,48 +661,6 @@ export function ConcertCard({
             <TicketSourcesInline concert={concert} />
           </div>
         </div>
-        
-        {/* Multiple Ticket Sources (from deduplication) */}
-        {ticketSources.length > 1 && (
-          <div className="flex flex-wrap gap-2 pt-2">
-            <span className="text-xs text-zinc-500 w-full">Compare prices:</span>
-            {ticketSources.map((source, idx) => (
-              <a 
-                key={`${source.source}-${idx}`}
-                href={source.ticketUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => track('ticket_source_clicked', {
-                  concert_id: concert.id,
-                  source: source.source,
-                  price: source.price?.min,
-                })}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
-                  "bg-zinc-800/70 hover:bg-zinc-700 border border-zinc-700/50 hover:border-zinc-600",
-                  source.source === "ticketmaster" && "hover:border-blue-500/50",
-                  source.source === "seatgeek" && "hover:border-green-500/50",
-                  source.source === "bandsintown" && "hover:border-pink-500/50"
-                )}
-              >
-                <span className={cn(
-                  "capitalize",
-                  source.source === "ticketmaster" && "text-blue-400",
-                  source.source === "seatgeek" && "text-green-400",
-                  source.source === "bandsintown" && "text-pink-400"
-                )}>
-                  {source.source}
-                </span>
-                {source.price && (
-                  <span className="text-zinc-300">
-                    ${source.price.min}
-                  </span>
-                )}
-                <ExternalLink className="w-3 h-3 text-zinc-500" />
-              </a>
-            ))}
-          </div>
-        )}
 
         {/* Action Button - Standardized CTAs */}
         {isDemo ? (

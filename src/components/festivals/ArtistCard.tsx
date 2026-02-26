@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Plus, Check, Music, Star, Sparkles } from "lucide-react";
+import { Plus, Check, Music, Star, Sparkles, Heart, Ticket, Play, Pause, Volume2, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { FestivalArtistMatch } from "@/lib/festival-types";
 
@@ -15,6 +14,10 @@ interface ArtistCardProps {
   showScheduleInfo?: boolean;
   showMatchScore?: boolean;
   compact?: boolean;
+  interestStatus?: "interested" | "going" | null;
+  onInterestChange?: (artistId: string, status: "interested" | "going" | null) => void;
+  previewUrl?: string;
+  spotifyUrl?: string;
 }
 
 export function ArtistCard({
@@ -24,32 +27,67 @@ export function ArtistCard({
   showScheduleInfo = false,
   showMatchScore = true,
   compact = false,
+  interestStatus = null,
+  onInterestChange,
+  previewUrl,
+  spotifyUrl,
 }: ArtistCardProps) {
   const [imageError, setImageError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [localInterestStatus, setLocalInterestStatus] = useState(interestStatus);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const getMatchBorderColor = () => {
-    switch (artist.matchType) {
-      case "perfect":
-        return "border-green-500/50 hover:border-green-500";
-      case "genre":
-      case "discovery":
-        return "border-yellow-500/30 hover:border-yellow-500/60";
-      default:
-        return "border-zinc-800 hover:border-zinc-700";
+  // Handle audio preview
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, []);
+
+  const togglePreview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!previewUrl) return;
+
+    if (!audioRef.current) {
+      audioRef.current = new Audio(previewUrl);
+      audioRef.current.volume = 0.5;
+      audioRef.current.onended = () => setIsPlaying(false);
+    }
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
     }
   };
 
+  const handleInterestClick = (e: React.MouseEvent, status: "interested" | "going") => {
+    e.stopPropagation();
+    const newStatus = localInterestStatus === status ? null : status;
+    setLocalInterestStatus(newStatus);
+    onInterestChange?.(artist.id, newStatus);
+  };
+
+  const getMatchBorderColor = () => {
+    if (artist.matchScore >= 80) return "border-green-500/50 hover:border-green-500";
+    if (artist.matchScore >= 50) return "border-yellow-500/30 hover:border-yellow-500/60";
+    if (artist.matchScore > 0) return "border-orange-500/30 hover:border-orange-500/60";
+    return "border-zinc-800 hover:border-zinc-700";
+  };
+
   const getMatchIcon = () => {
-    switch (artist.matchType) {
-      case "perfect":
-        return <Star className="w-3 h-3 fill-green-400 text-green-400" />;
-      case "genre":
-      case "discovery":
-        return <Sparkles className="w-3 h-3 text-yellow-400" />;
-      default:
-        return null;
+    if (artist.matchType === "perfect" || artist.matchScore >= 80) {
+      return <Star className="w-3 h-3 fill-green-400 text-green-400" />;
     }
+    if (artist.matchType === "genre" || artist.matchType === "discovery" || artist.matchScore > 0) {
+      return <Sparkles className="w-3 h-3 text-yellow-400" />;
+    }
+    return null;
   };
 
   const getMatchScoreColor = (score: number) => {
@@ -64,6 +102,32 @@ export function ArtistCard({
     if (score >= 50) return "bg-yellow-500/20 border-yellow-500/40";
     if (score >= 30) return "bg-orange-500/20 border-orange-500/40";
     return "bg-zinc-500/20 border-zinc-500/40";
+  };
+
+  // Generate gradient based on artist name for consistent fallback colors
+  const getArtistGradient = (name: string) => {
+    const hash = name.split('').reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
+    const gradients = [
+      "from-violet-600 via-purple-500 to-fuchsia-500",
+      "from-cyan-600 via-blue-500 to-indigo-500",
+      "from-emerald-600 via-teal-500 to-cyan-500",
+      "from-orange-600 via-red-500 to-pink-500",
+      "from-pink-600 via-rose-500 to-red-500",
+      "from-indigo-600 via-violet-500 to-purple-500",
+      "from-amber-600 via-orange-500 to-red-500",
+      "from-teal-600 via-emerald-500 to-green-500",
+    ];
+    return gradients[Math.abs(hash) % gradients.length];
+  };
+
+  // Get initials for fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
   };
 
   if (compact) {
@@ -89,8 +153,13 @@ export function ArtistCard({
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-pink-500 flex items-center justify-center">
-              <Music className="w-4 h-4 text-white/50" />
+            <div className={cn(
+              "w-full h-full bg-gradient-to-br flex items-center justify-center",
+              getArtistGradient(artist.artist_name)
+            )}>
+              <span className="text-white/90 font-bold text-xs">
+                {getInitials(artist.artist_name)}
+              </span>
             </div>
           )}
         </div>
@@ -120,6 +189,20 @@ export function ArtistCard({
               {artist.matchScore}%
             </span>
           </div>
+        )}
+
+        {/* Preview button */}
+        {previewUrl && (
+          <button
+            onClick={togglePreview}
+            className="flex-shrink-0 p-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors"
+          >
+            {isPlaying ? (
+              <Pause className="w-3 h-3 text-green-400" />
+            ) : (
+              <Play className="w-3 h-3 text-zinc-400" />
+            )}
+          </button>
         )}
 
         {/* Action */}
@@ -155,8 +238,16 @@ export function ArtistCard({
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-600 to-pink-500 flex items-center justify-center">
-            <Music className="w-12 h-12 text-white/30" />
+          <div className={cn(
+            "absolute inset-0 bg-gradient-to-br flex flex-col items-center justify-center",
+            getArtistGradient(artist.artist_name)
+          )}>
+            <span className="text-white/90 font-bold text-3xl mb-1">
+              {getInitials(artist.artist_name)}
+            </span>
+            <span className="text-white/50 text-xs px-2 text-center truncate max-w-full">
+              {artist.artist_name}
+            </span>
           </div>
         )}
 
@@ -177,7 +268,7 @@ export function ArtistCard({
           </div>
         )}
 
-        {/* Match type indicator (shown when no score or as secondary) */}
+        {/* Match type indicator (shown when no score) */}
         {artist.matchType !== "none" && (!showMatchScore || artist.matchScore === 0) && (
           <div className="absolute top-2 left-2">
             <span
@@ -194,7 +285,71 @@ export function ArtistCard({
           </div>
         )}
 
-        {/* Add to agenda button - always visible on hover */}
+        {/* Preview + Spotify buttons - top right */}
+        <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {previewUrl && (
+            <button
+              onClick={togglePreview}
+              className={cn(
+                "p-2 rounded-full backdrop-blur-md transition-all",
+                isPlaying 
+                  ? "bg-green-500/80 text-white" 
+                  : "bg-black/60 text-white hover:bg-black/80"
+              )}
+              title={isPlaying ? "Pause preview" : "Play 30s preview"}
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+            </button>
+          )}
+          {spotifyUrl && (
+            <a
+              href={spotifyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="p-2 rounded-full bg-black/60 backdrop-blur-md text-white hover:bg-[#1DB954] transition-all"
+              title="Open in Spotify"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          )}
+        </div>
+
+        {/* Interest buttons - bottom left */}
+        {onInterestChange && (
+          <div className="absolute bottom-2 left-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => handleInterestClick(e, "interested")}
+              className={cn(
+                "p-2 rounded-full backdrop-blur-md transition-all",
+                localInterestStatus === "interested"
+                  ? "bg-violet-500/80 text-white"
+                  : "bg-black/60 text-white hover:bg-violet-500/60"
+              )}
+              title={localInterestStatus === "interested" ? "Remove interest" : "Interested"}
+            >
+              <Heart className={cn("w-4 h-4", localInterestStatus === "interested" && "fill-white")} />
+            </button>
+            <button
+              onClick={(e) => handleInterestClick(e, "going")}
+              className={cn(
+                "p-2 rounded-full backdrop-blur-md transition-all",
+                localInterestStatus === "going"
+                  ? "bg-green-500/80 text-white"
+                  : "bg-black/60 text-white hover:bg-green-500/60"
+              )}
+              title={localInterestStatus === "going" ? "Not going" : "Going!"}
+            >
+              <Ticket className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Add to agenda button - bottom right */}
         {onToggleAgenda && (
           <button
             onClick={(e) => {
@@ -215,6 +370,14 @@ export function ArtistCard({
               <Plus className="w-4 h-4" />
             )}
           </button>
+        )}
+
+        {/* Playing indicator */}
+        {isPlaying && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/90 text-white text-xs">
+            <Volume2 className="w-3 h-3 animate-pulse" />
+            <span>Playing</span>
+          </div>
         )}
       </div>
 

@@ -57,12 +57,15 @@ export async function GET(
       return NextResponse.json({ error: "Failed to fetch interests" }, { status: 500 });
     }
 
-    const friends = interests?.map((i) => ({
-      id: i.user.id,
-      name: i.user.display_name || i.user.username,
-      username: i.user.username,
-      status: i.status, // 'interested' or 'going'
-    })) || [];
+    const friends = interests?.map((i) => {
+      const user = i.user as unknown as { id: string; display_name: string; username: string };
+      return {
+        id: user.id,
+        name: user.display_name || user.username,
+        username: user.username,
+        status: i.status, // 'interested' or 'going'
+      };
+    }) || [];
 
     // Separate by status
     const going = friends.filter((f) => f.status === "going");

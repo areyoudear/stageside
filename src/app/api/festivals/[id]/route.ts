@@ -35,9 +35,29 @@ export async function GET(
     if (session?.user?.id) {
       const profile = await getUnifiedMusicProfile(session.user.id);
       
+      // Debug logging
+      console.log(`[Festival API] User ${session.user.id} profile:`, {
+        hasProfile: !!profile,
+        topArtistsCount: profile?.topArtists?.length || 0,
+        topGenresCount: profile?.topGenres?.length || 0,
+        connectedServices: profile?.connectedServices || [],
+      });
+      
       if (profile && profile.topArtists.length > 0) {
         const userArtists = await getAggregatedArtists(session.user.id);
+        
+        console.log(`[Festival API] User artists count: ${userArtists.length}`);
+        if (userArtists.length > 0) {
+          console.log(`[Festival API] Sample user artists:`, userArtists.slice(0, 5).map(a => a.artist_name));
+        }
+        
         const matchData = calculateFestivalMatch(lineup, userArtists, profile.topGenres);
+        
+        console.log(`[Festival API] Match results:`, {
+          perfectMatchCount: matchData.perfectMatches.length,
+          discoveryMatchCount: matchData.discoveryMatches.length,
+          matchPercentage: matchData.matchPercentage,
+        });
         
         // Get user's agenda
         const userAgenda = await getUserAgenda(session.user.id, festival.id);
@@ -58,7 +78,14 @@ export async function GET(
           schedule,
           userAgenda: userAgenda?.artist_ids || [],
           personalized: true,
+          debug: {
+            userArtistsCount: userArtists.length,
+            userGenresCount: profile.topGenres.length,
+            lineupCount: lineup.length,
+          },
         });
+      } else {
+        console.log(`[Festival API] No profile or no artists for user ${session.user.id}`);
       }
     }
     

@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
-import { calculateBatchTasteCompatibility } from "@/lib/taste-compatibility";
 
 /**
  * GET /api/friends
  * Get user's friends list and pending requests
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -16,117 +15,54 @@ export async function GET() {
     }
 
     const adminClient = createAdminClient();
-    let userId = session.user.id;
+    const userId = session.user.id;
 
-    // Verify user exists in database, fallback to email lookup
-    const { data: userCheck } = await adminClient
-      .from("users")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!userCheck) {
-      console.log("User not found by ID:", userId, "- trying email:", session.user.email);
-      
-      if (session.user.email) {
-        const { data: userByEmail } = await adminClient
-          .from("users")
-          .select("id")
-          .eq("email", session.user.email)
-          .maybeSingle();
-        
-        if (userByEmail) {
-          userId = userByEmail.id;
-          console.log("Using fallback user ID from email:", userId);
-        } else {
-          console.error("User not found by email either:", session.user.email);
-          return NextResponse.json({ 
-            error: "Account not found. Please log out and log back in.",
-            debug: { sessionId: session.user.id, sessionEmail: session.user.email }
-          }, { status: 400 });
-        }
-      } else {
-        console.error("No email in session to fallback");
-        return NextResponse.json({ 
-          error: "Account not found. Please log out and log back in." 
-        }, { status: 400 });
-      }
-    }
-
-    // Get all friendships involving this user
+    // Get accepted friends
     const { data: friendships, error: friendsError } = await adminClient
       .from("friendships")
-      .select("id, status, created_at, requester_id, addressee_id")
+      .select(`
+        id,
+        status,
+        created_at,
+        requester_id,
+        addressee_id,
+        requester:users!friendships_requester_id_fkey(id, display_name, username, email),
+        addressee:users!friendships_addressee_id_fkey(id, display_name, username, email)
+      `)
       .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
       .order("created_at", { ascending: false });
 
     if (friendsError) {
-      console.error("Error fetching friendships:", friendsError);
+      console.error("Error fetching friends:", friendsError);
       return NextResponse.json({ error: "Failed to fetch friends" }, { status: 500 });
     }
 
-    // Get all user IDs we need to fetch
-    const userIds = new Set<string>();
-    friendships?.forEach((f) => {
-      if (f.requester_id !== userId) userIds.add(f.requester_id);
-      if (f.addressee_id !== userId) userIds.add(f.addressee_id);
-    });
-
-    // Fetch user details
-    let usersMap: Record<string, { id: string; display_name: string | null; username: string | null; email: string | null; avatar_url: string | null }> = {};
-    if (userIds.size > 0) {
-      const { data: users } = await adminClient
-        .from("users")
-        .select("id, display_name, username, email, avatar_url")
-        .in("id", Array.from(userIds));
-      
-      users?.forEach((u) => {
-        usersMap[u.id] = u;
-      });
-    }
-
-    // Get accepted friend IDs
-    const acceptedFriendships = friendships?.filter((f) => f.status === "accepted") || [];
-    const friendIds = acceptedFriendships.map((f) => 
-      f.requester_id === userId ? f.addressee_id : f.requester_id
-    );
-
-    // Calculate taste compatibility for all friends at once
-    const tasteCompatibilityMap = friendIds.length > 0 
-      ? await calculateBatchTasteCompatibility(userId, friendIds)
-      : new Map();
-
-    // Transform friendships with taste compatibility
-    const friends = acceptedFriendships.map((f) => {
-        const friendId = f.requester_id === userId ? f.addressee_id : f.requester_id;
-        const friend = usersMap[friendId];
-        const tasteCompat = tasteCompatibilityMap.get(friendId);
-        
+    type UserInfo = { id: string; display_name: string; username: string; email: string };
+    
+    // Transform to cleaner format
+    const friends = friendships
+      ?.filter((f) => f.status === "accepted")
+      .map((f) => {
+        const friend = (f.requester_id === userId ? f.addressee : f.requester) as unknown as UserInfo;
         return {
           friendshipId: f.id,
-          id: friendId,
-          name: friend?.display_name || friend?.username || friend?.email?.split("@")[0] || "Unknown",
-          username: friend?.username,
-          avatarUrl: friend?.avatar_url,
+          id: friend.id,
+          name: friend.display_name || friend.username || friend.email?.split("@")[0],
+          username: friend.username,
           since: f.created_at,
-          tasteCompatibility: tasteCompat?.score || 0,
-          tasteLabel: tasteCompat?.label || "Unknown",
-          sharedArtists: tasteCompat?.sharedArtists.slice(0, 5) || [],
         };
-      })
-      // Sort friends by taste compatibility (highest first)
-      .sort((a, b) => (b.tasteCompatibility || 0) - (a.tasteCompatibility || 0));
+      }) || [];
 
     // Pending requests (where user is addressee)
     const pendingRequests = friendships
       ?.filter((f) => f.status === "pending" && f.addressee_id === userId)
       .map((f) => {
-        const friend = usersMap[f.requester_id];
+        const requester = f.requester as unknown as UserInfo;
         return {
           friendshipId: f.id,
-          id: f.requester_id,
-          name: friend?.display_name || friend?.username || friend?.email?.split("@")[0] || "Unknown",
-          username: friend?.username,
+          id: requester.id,
+          name: requester.display_name || requester.username || requester.email?.split("@")[0],
+          username: requester.username,
           requestedAt: f.created_at,
         };
       }) || [];
@@ -135,12 +71,12 @@ export async function GET() {
     const sentRequests = friendships
       ?.filter((f) => f.status === "pending" && f.requester_id === userId)
       .map((f) => {
-        const friend = usersMap[f.addressee_id];
+        const addressee = f.addressee as unknown as UserInfo;
         return {
           friendshipId: f.id,
-          id: f.addressee_id,
-          name: friend?.display_name || friend?.username || friend?.email?.split("@")[0] || "Unknown",
-          username: friend?.username,
+          id: addressee.id,
+          name: addressee.display_name || addressee.username || addressee.email?.split("@")[0],
+          username: addressee.username,
           sentAt: f.created_at,
         };
       }) || [];
@@ -158,188 +94,60 @@ export async function GET() {
 
 /**
  * POST /api/friends
- * Send a friend request (by username, email, or name search)
+ * Send a friend request (by username or email)
  */
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
     if (!session?.user?.id) {
-      console.error("No session or user ID found");
-      return NextResponse.json({ error: "Please sign in to add friends" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { username, email, query } = body;
-    
+    const { username, email } = await request.json();
+    if (!username && !email) {
+      return NextResponse.json({ error: "Username or email required" }, { status: 400 });
+    }
+
     const adminClient = createAdminClient();
-    let userId = session.user.id;
+    const userId = session.user.id;
 
-    // Verify user exists in database, fallback to email lookup
-    const { data: userCheck } = await adminClient
-      .from("users")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!userCheck && session.user.email) {
-      const { data: userByEmail } = await adminClient
-        .from("users")
-        .select("id")
-        .eq("email", session.user.email)
-        .maybeSingle();
-      
-      if (userByEmail) {
-        userId = userByEmail.id;
-        console.log("POST: Using fallback user ID from email:", userId);
-      } else {
-        console.error("User not found in database for session:", session.user.email);
-        return NextResponse.json({ error: "Your account was not found. Please log out and log back in." }, { status: 400 });
-      }
-    }
-
-    console.log("Friend request from user:", userId);
-    console.log("Search params:", { username, email, query });
-
-    let targetUser = null;
-
-    // If query provided, search by multiple fields
-    if (query) {
-      const searchTerm = query.trim();
-      console.log("Searching for:", searchTerm);
-      
-      // Try exact username match first (case insensitive)
-      const { data: byUsername } = await adminClient
-        .from("users")
-        .select("id, display_name, username, email")
-        .ilike("username", searchTerm)
-        .neq("id", userId)
-        .maybeSingle();
-      
-      if (byUsername) {
-        console.log("Found by username:", byUsername.display_name);
-        targetUser = byUsername;
-      } else {
-        // Try exact email match
-        const { data: byEmail } = await adminClient
-          .from("users")
-          .select("id, display_name, username, email")
-          .ilike("email", searchTerm)
-          .neq("id", userId)
-          .maybeSingle();
-        
-        if (byEmail) {
-          console.log("Found by email:", byEmail.display_name);
-          targetUser = byEmail;
-        } else {
-          // Search by display name (partial match)
-          const { data: nameMatches } = await adminClient
-            .from("users")
-            .select("id, display_name, username, email")
-            .ilike("display_name", `%${searchTerm}%`)
-            .neq("id", userId)
-            .limit(1);
-          
-          if (nameMatches && nameMatches.length > 0) {
-            console.log("Found by name:", nameMatches[0].display_name);
-            targetUser = nameMatches[0];
-          }
-        }
-      }
-    } else if (username) {
-      const { data } = await adminClient
-        .from("users")
-        .select("id, display_name, username, email")
-        .ilike("username", username)
-        .neq("id", userId)
-        .maybeSingle();
-      targetUser = data;
+    // Find user by username or email
+    let query = adminClient.from("users").select("id, display_name, username");
+    if (username) {
+      query = query.eq("username", username);
     } else if (email) {
-      const { data } = await adminClient
-        .from("users")
-        .select("id, display_name, username, email")
-        .ilike("email", email)
-        .neq("id", userId)
-        .maybeSingle();
-      targetUser = data;
-    } else {
-      return NextResponse.json({ error: "Please enter a username, email, or name to search" }, { status: 400 });
+      query = query.eq("email", email);
     }
 
-    if (!targetUser) {
-      console.log("No user found for search");
-      return NextResponse.json({ 
-        error: "No user found. They may need to create an account first." 
-      }, { status: 404 });
+    const { data: targetUser, error: findError } = await query.single();
+
+    if (findError || !targetUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log("Target user found:", targetUser.id, targetUser.display_name);
+    if (targetUser.id === userId) {
+      return NextResponse.json({ error: "Cannot add yourself as a friend" }, { status: 400 });
+    }
 
-    // Check if friendship already exists (in either direction)
-    // Query for requester -> addressee
-    const { data: sentToTarget } = await adminClient
+    // Check if friendship already exists
+    const { data: existing } = await adminClient
       .from("friendships")
       .select("id, status")
-      .eq("requester_id", userId)
-      .eq("addressee_id", targetUser.id)
-      .maybeSingle();
-
-    // Query for addressee <- requester (they sent to us)
-    const { data: receivedFromTarget } = await adminClient
-      .from("friendships")
-      .select("id, status")
-      .eq("requester_id", targetUser.id)
-      .eq("addressee_id", userId)
-      .maybeSingle();
-
-    const existing = sentToTarget || receivedFromTarget;
+      .or(
+        `and(requester_id.eq.${userId},addressee_id.eq.${targetUser.id}),and(requester_id.eq.${targetUser.id},addressee_id.eq.${userId})`
+      )
+      .single();
 
     if (existing) {
-      console.log("Existing friendship found:", existing);
-      
       if (existing.status === "accepted") {
-        return NextResponse.json({ error: "You're already friends!" }, { status: 400 });
+        return NextResponse.json({ error: "Already friends" }, { status: 400 });
       }
-      
       if (existing.status === "pending") {
-        // If they sent us a request, auto-accept it
-        if (receivedFromTarget) {
-          console.log("They sent us a request - auto-accepting");
-          const { error: acceptError } = await adminClient
-            .from("friendships")
-            .update({ status: "accepted", updated_at: new Date().toISOString() })
-            .eq("id", existing.id);
-          
-          if (acceptError) {
-            console.error("Error accepting request:", acceptError);
-            return NextResponse.json({ error: "Failed to accept request" }, { status: 500 });
-          }
-          
-          return NextResponse.json({
-            success: true,
-            message: `You and ${targetUser.display_name || targetUser.username} are now friends!`,
-            friendship: {
-              id: existing.id,
-              targetUser: {
-                id: targetUser.id,
-                name: targetUser.display_name || targetUser.username || targetUser.email?.split("@")[0],
-                username: targetUser.username,
-              },
-            },
-          });
-        }
-        
-        // We already sent them a request
-        return NextResponse.json({ error: "Friend request already sent" }, { status: 400 });
-      }
-      
-      if (existing.status === "blocked") {
-        return NextResponse.json({ error: "Unable to send friend request" }, { status: 400 });
+        return NextResponse.json({ error: "Friend request already pending" }, { status: 400 });
       }
     }
 
     // Create friend request
-    console.log("Creating new friend request...");
     const { data: friendship, error: createError } = await adminClient
       .from("friendships")
       .insert({
@@ -352,29 +160,22 @@ export async function POST(request: NextRequest) {
 
     if (createError) {
       console.error("Error creating friendship:", createError);
-      return NextResponse.json({ 
-        error: `Failed to send friend request: ${createError.message}` 
-      }, { status: 500 });
+      return NextResponse.json({ error: "Failed to send request" }, { status: 500 });
     }
-
-    console.log("Friendship created:", friendship);
 
     return NextResponse.json({
       success: true,
-      message: `Friend request sent to ${targetUser.display_name || targetUser.username || targetUser.email?.split("@")[0]}!`,
       friendship: {
         id: friendship.id,
         targetUser: {
           id: targetUser.id,
-          name: targetUser.display_name || targetUser.username || targetUser.email?.split("@")[0],
+          name: targetUser.display_name || targetUser.username,
           username: targetUser.username,
         },
       },
     });
   } catch (error) {
     console.error("Error in friends POST:", error);
-    return NextResponse.json({ 
-      error: `Something went wrong: ${error instanceof Error ? error.message : 'Unknown error'}` 
-    }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
