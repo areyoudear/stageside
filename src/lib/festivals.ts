@@ -137,7 +137,7 @@ export function normalizeArtistName(name: string): string {
 }
 
 /**
- * Calculate match score for a single artist
+ * Calculate match score for a single artist with personalized reasons
  */
 export function calculateArtistMatch(
   artist: FestivalArtist,
@@ -145,55 +145,126 @@ export function calculateArtistMatch(
   userGenres: string[]
 ): FestivalArtistMatch {
   const normalized = normalizeArtistName(artist.artist_name);
+  const artistGenres = artist.genres || [];
   
   // Check if in user's top artists (perfect match)
-  const topArtistMatch = userArtists.find(ua => 
+  const topArtistIndex = userArtists.findIndex(ua => 
     normalizeArtistName(ua.artist_name) === normalized
   );
   
-  if (topArtistMatch) {
+  if (topArtistIndex !== -1) {
+    const ranking = topArtistIndex + 1;
+    let matchReason: string;
+    
+    if (ranking === 1) {
+      matchReason = '🔥 Your #1 artist!';
+    } else if (ranking <= 3) {
+      matchReason = `⭐ Your #${ranking} most played`;
+    } else if (ranking <= 10) {
+      matchReason = `In your top 10 artists`;
+    } else if (ranking <= 25) {
+      matchReason = `You listen to them a lot`;
+    } else {
+      matchReason = `In your music library`;
+    }
+    
+    // Adjust score based on ranking
+    const matchScore = ranking <= 3 ? 100 : ranking <= 10 ? 95 : ranking <= 25 ? 90 : 85;
+    
     return {
       ...artist,
       matchType: 'perfect',
-      matchScore: 100,
-      matchReason: 'In your top artists',
+      matchScore,
+      matchReason,
     };
   }
   
-  // Check genre overlap
-  const artistGenres = artist.genres || [];
+  // Check for similar artists by genre overlap
   const genreOverlap = artistGenres.filter(g => 
     userGenres.some(ug => ug.toLowerCase().includes(g.toLowerCase()) || 
                          g.toLowerCase().includes(ug.toLowerCase()))
   );
   
   if (genreOverlap.length > 0) {
+    // Find a user artist with similar genre to make it more personal
+    const similarUserArtist = userArtists.find(ua => 
+      ua.genres?.some(uag => 
+        artistGenres.some(ag => 
+          uag.toLowerCase().includes(ag.toLowerCase()) || 
+          ag.toLowerCase().includes(uag.toLowerCase())
+        )
+      )
+    );
+    
+    let matchReason: string;
+    const primaryGenre = genreOverlap[0];
+    
+    if (similarUserArtist && userArtists.indexOf(similarUserArtist) < 10) {
+      matchReason = `Similar to ${similarUserArtist.artist_name}`;
+    } else if (genreOverlap.length >= 2) {
+      matchReason = `Matches your ${primaryGenre} & ${genreOverlap[1]} taste`;
+    } else {
+      matchReason = `Perfect for your ${primaryGenre} obsession`;
+    }
+    
+    const matchScore = Math.min(75, 40 + genreOverlap.length * 12);
+    
     return {
       ...artist,
       matchType: 'genre',
-      matchScore: Math.min(70, 30 + genreOverlap.length * 15),
-      matchReason: `Matches your ${genreOverlap[0]} taste`,
+      matchScore,
+      matchReason,
+      similarTo: similarUserArtist?.artist_name,
     };
   }
   
-  // Check if similar to user's artists (would need Spotify API)
-  // For MVP, we'll use genre proximity as a proxy
-  const hasRelatedGenre = artistGenres.some(ag =>
+  // Check for related genres (broader match)
+  const relatedGenreMatch = artistGenres.find(ag =>
     userGenres.some(ug => {
       const agLower = ag.toLowerCase();
       const ugLower = ug.toLowerCase();
       // Check for related genres (e.g., "indie rock" matches "rock")
-      return agLower.includes(ugLower.split(' ')[0]) || 
-             ugLower.includes(agLower.split(' ')[0]);
+      const agRoot = agLower.split(' ').pop() || agLower;
+      const ugRoot = ugLower.split(' ').pop() || ugLower;
+      return agRoot === ugRoot || agLower.includes(ugRoot) || ugLower.includes(agRoot);
     })
   );
   
-  if (hasRelatedGenre) {
+  if (relatedGenreMatch) {
+    // Find which user artist shares the related genre
+    const relatedUserArtist = userArtists.slice(0, 20).find(ua =>
+      ua.genres?.some(uag => {
+        const uagLower = uag.toLowerCase();
+        const relatedLower = relatedGenreMatch.toLowerCase();
+        const uagRoot = uagLower.split(' ').pop() || uagLower;
+        const relatedRoot = relatedLower.split(' ').pop() || relatedLower;
+        return uagRoot === relatedRoot;
+      })
+    );
+    
+    let matchReason: string;
+    if (relatedUserArtist) {
+      matchReason = `Fans of ${relatedUserArtist.artist_name} dig this`;
+    } else {
+      matchReason = `Fresh ${relatedGenreMatch} to discover`;
+    }
+    
     return {
       ...artist,
       matchType: 'discovery',
-      matchScore: 40,
-      matchReason: 'You might discover',
+      matchScore: 45,
+      matchReason,
+      similarTo: relatedUserArtist?.artist_name,
+    };
+  }
+  
+  // Headliners get a small boost even without match
+  if (artist.headliner) {
+    return {
+      ...artist,
+      matchType: 'none',
+      matchScore: 10,
+      matchReason: 'Headliner worth checking out',
     };
   }
   
