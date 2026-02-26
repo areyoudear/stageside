@@ -23,7 +23,7 @@ import { getOrCreateUserEmbedding, getEffectiveEmbedding } from "@/lib/embedding
 import { getOrCreateEventEmbedding } from "@/lib/embeddings/event-embeddings";
 import { cosineSimilarity } from "@/lib/embeddings/embedding-service";
 import { EmbeddingVector } from "@/lib/embeddings/types";
-import { enrichConcertsWithPreviews } from "@/lib/concert-enrichment";
+import { enrichConcertsWithPreviews, enrichConcertsWithPrices } from "@/lib/concert-enrichment";
 import { getSavedConcerts } from "@/lib/supabase";
 
 // Match tier thresholds
@@ -211,7 +211,12 @@ export async function GET(request: NextRequest) {
     });
 
     // Enrich top concerts with audio previews
-    const enrichedConcerts = await enrichConcertsWithPreviews(matchedConcerts, 30);
+    let enrichedConcerts = await enrichConcertsWithPreviews(matchedConcerts, 30);
+    
+    // Enrich concerts missing prices from SeatGeek
+    const parsedLat = lat ? parseFloat(lat) : undefined;
+    const parsedLng = lng ? parseFloat(lng) : undefined;
+    enrichedConcerts = await enrichConcertsWithPrices(enrichedConcerts, parsedLat, parsedLng, radius);
 
     // Count by tier
     const tierCounts = {
