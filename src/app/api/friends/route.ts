@@ -37,11 +37,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch friends" }, { status: 500 });
     }
 
+    type UserInfo = { id: string; display_name: string; username: string; email: string };
+    
     // Transform to cleaner format
     const friends = friendships
       ?.filter((f) => f.status === "accepted")
       .map((f) => {
-        const friend = f.requester_id === userId ? f.addressee : f.requester;
+        const friend = (f.requester_id === userId ? f.addressee : f.requester) as unknown as UserInfo;
         return {
           friendshipId: f.id,
           id: friend.id,
@@ -54,24 +56,30 @@ export async function GET(request: NextRequest) {
     // Pending requests (where user is addressee)
     const pendingRequests = friendships
       ?.filter((f) => f.status === "pending" && f.addressee_id === userId)
-      .map((f) => ({
-        friendshipId: f.id,
-        id: f.requester.id,
-        name: f.requester.display_name || f.requester.username || f.requester.email?.split("@")[0],
-        username: f.requester.username,
-        requestedAt: f.created_at,
-      })) || [];
+      .map((f) => {
+        const requester = f.requester as unknown as UserInfo;
+        return {
+          friendshipId: f.id,
+          id: requester.id,
+          name: requester.display_name || requester.username || requester.email?.split("@")[0],
+          username: requester.username,
+          requestedAt: f.created_at,
+        };
+      }) || [];
 
     // Sent requests (where user is requester)
     const sentRequests = friendships
       ?.filter((f) => f.status === "pending" && f.requester_id === userId)
-      .map((f) => ({
-        friendshipId: f.id,
-        id: f.addressee.id,
-        name: f.addressee.display_name || f.addressee.username || f.addressee.email?.split("@")[0],
-        username: f.addressee.username,
-        sentAt: f.created_at,
-      })) || [];
+      .map((f) => {
+        const addressee = f.addressee as unknown as UserInfo;
+        return {
+          friendshipId: f.id,
+          id: addressee.id,
+          name: addressee.display_name || addressee.username || addressee.email?.split("@")[0],
+          username: addressee.username,
+          sentAt: f.created_at,
+        };
+      }) || [];
 
     return NextResponse.json({
       friends,

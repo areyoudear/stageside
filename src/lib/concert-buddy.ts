@@ -5,6 +5,8 @@
 
 import { createAdminClient, getUnifiedMusicProfile } from "./supabase";
 import { normalizeArtistName, isSameArtist } from "./music-aggregator";
+import { searchConcerts, Concert } from "./ticketmaster";
+import { calculateMatchScore as calculateUserMatchScore } from "./matching";
 
 export interface GroupMember {
   userId: string;
@@ -39,6 +41,29 @@ export interface GroupMatchResult {
   }>;
   overlapArtists: string[];
   overlapGenres: string[];
+}
+
+// ============================================
+// PAIR MATCHING TYPES
+// ============================================
+
+export interface TasteOverlap {
+  sharedArtists: string[];
+  sharedGenres: string[];
+  overlapPercentage: number;
+  totalUniqueArtists: number;
+  userArtistCount: number;
+  friendArtistCount: number;
+}
+
+export interface PairMatchedConcert {
+  concert: Concert;
+  pairScore: number;
+  userMatches: boolean;
+  friendMatches: boolean;
+  isSharedArtist: boolean;
+  userMatchReasons: string[];
+  friendMatchReasons: string[];
 }
 
 /**
@@ -112,7 +137,7 @@ export async function getGroupById(groupId: string): Promise<ConcertGroup | null
   // Get music profiles for each member
   const memberProfiles: GroupMember[] = [];
   for (const member of members || []) {
-    const user = member.user as { id: string; username: string; display_name: string; avatar_url?: string };
+    const user = member.user as unknown as { id: string; username: string; display_name: string; avatar_url?: string };
     const profile = await getUnifiedMusicProfile(user.id);
 
     memberProfiles.push({
@@ -274,7 +299,8 @@ export function findOverlapArtists(members: GroupMember[]): string[] {
 
       // Find if this artist already exists (with slight name variation)
       let matchedKey: string | null = null;
-      for (const [key] of artistCounts) {
+      const artistKeys = Array.from(artistCounts.keys());
+      for (const key of artistKeys) {
         if (isSameArtist(artist, normalizedToOriginal.get(key) || key)) {
           matchedKey = key;
           break;
@@ -413,4 +439,251 @@ export function calculateGroupMatchScore(
     overlapArtists: overlapArtists.slice(0, 10),
     overlapGenres: overlapGenres.slice(0, 10),
   };
+}
+
+// ============================================
+// PAIR MATCHING FUNCTIONS
+// ============================================
+
+/**
+ * Calculate taste overlap between two users
+ */
+export async function calculateTasteOverlap(
+  userId: string,
+  friendId: string
+): Promise<TasteOverlap | null> {
+  // Get both users' music profiles
+  const userProfile = await getUnifiedMusicProfile(userId);
+  const friendProfile = await getUnifiedMusicProfile(friendId);
+
+  if (!userProfile || !friendProfile) {
+    return null;
+  }
+
+  // Create GroupMember-like structures for the overlap functions
+  const userMember: GroupMember = {
+    userId,
+    username: "",
+    displayName: "",
+    role: "member",
+    topArtists: userProfile.topArtists.map((a) => a.name),
+    topGenres: userProfile.topGenres,
+  };
+
+  const friendMember: GroupMember = {
+    userId: friendId,
+    username: "",
+    displayName: "",
+    role: "member",
+    topArtists: friendProfile.topArtists.map((a) => a.name),
+    topGenres: friendProfile.topGenres,
+  };
+
+  const members = [userMember, friendMember];
+
+  // Find overlaps
+  const sharedArtists = findOverlapArtists(members);
+  const sharedGenres = findOverlapGenres(members);
+
+  // Calculate unique artists (union of both lists, deduped by similarity)
+  const allArtists = new Set<string>();
+  const normalizedSeen = new Map<string, string>();
+
+  for (const artist of [...userMember.topArtists, ...friendMember.topArtists]) {
+    const normalized = normalizeArtistName(artist);
+    let isNew = true;
+
+    const seenEntries = Array.from(normalizedSeen.entries());
+    for (const [, original] of seenEntries) {
+      if (isSameArtist(artist, original)) {
+        isNew = false;
+        break;
+      }
+    }
+
+    if (isNew) {
+      normalizedSeen.set(normalized, artist);
+      allArtists.add(artist);
+    }
+  }
+
+  const totalUniqueArtists = allArtists.size;
+
+  // Calculate overlap percentage based on Jaccard similarity
+  // overlapPercentage = (shared / total unique) * 100
+  const overlapPercentage =
+    totalUniqueArtists > 0
+      ? Math.round((sharedArtists.length / totalUniqueArtists) * 100)
+      : 0;
+
+  return {
+    sharedArtists,
+    sharedGenres,
+    overlapPercentage,
+    totalUniqueArtists,
+    userArtistCount: userMember.topArtists.length,
+    friendArtistCount: friendMember.topArtists.length,
+  };
+}
+
+/**
+ * Check if a concert artist matches a user's taste
+ */
+function checkArtistMatch(
+  concertArtists: string[],
+  userArtists: string[]
+): { matches: boolean; matchedArtist?: string } {
+  for (const concertArtist of concertArtists) {
+    for (const userArtist of userArtists) {
+      if (isSameArtist(concertArtist, userArtist)) {
+        return { matches: true, matchedArtist: userArtist };
+      }
+    }
+  }
+  return { matches: false };
+}
+
+/**
+ * Get pair-matched concerts for two users
+ * Returns concerts sorted by pair match score
+ */
+export async function getPairMatchedConcerts(
+  userId: string,
+  friendId: string,
+  location: { lat: number; lng: number },
+  dateRange: { start: string; end: string }
+): Promise<PairMatchedConcert[]> {
+  // Get both users' music profiles
+  const userProfile = await getUnifiedMusicProfile(userId);
+  const friendProfile = await getUnifiedMusicProfile(friendId);
+
+  if (!userProfile || !friendProfile) {
+    console.error("Could not load music profiles for pair matching");
+    return [];
+  }
+
+  // Get taste overlap for shared artist detection
+  const userMember: GroupMember = {
+    userId,
+    username: "",
+    displayName: "",
+    role: "member",
+    topArtists: userProfile.topArtists.map((a) => a.name),
+    topGenres: userProfile.topGenres,
+  };
+
+  const friendMember: GroupMember = {
+    userId: friendId,
+    username: "",
+    displayName: "",
+    role: "member",
+    topArtists: friendProfile.topArtists.map((a) => a.name),
+    topGenres: friendProfile.topGenres,
+  };
+
+  const sharedArtists = findOverlapArtists([userMember, friendMember]);
+
+  // Format dates for Ticketmaster API
+  const startDate = `${dateRange.start}T00:00:00Z`;
+  const endDate = `${dateRange.end}T23:59:59Z`;
+
+  // Fetch concerts from Ticketmaster
+  const concertsResult = await searchConcerts({
+    latLong: `${location.lat},${location.lng}`,
+    radius: 50,
+    startDate,
+    endDate,
+    size: 100,
+  });
+
+  // Build user profiles for matching
+  const userMatchProfile = {
+    topArtists: userProfile.topArtists.map((a, i) => ({ name: a.name, rank: i })),
+    topGenres: userProfile.topGenres,
+    recentlyPlayed: [],
+  };
+
+  const friendMatchProfile = {
+    topArtists: friendProfile.topArtists.map((a, i) => ({ name: a.name, rank: i })),
+    topGenres: friendProfile.topGenres,
+    recentlyPlayed: [],
+  };
+
+  // Score each concert for both users
+  const pairMatchedConcerts: PairMatchedConcert[] = concertsResult.concerts.map((concert) => {
+    // Calculate individual match scores
+    const userMatch = calculateUserMatchScore(
+      concert.artists,
+      concert.genres,
+      userMatchProfile
+    );
+
+    const friendMatch = calculateUserMatchScore(
+      concert.artists,
+      concert.genres,
+      friendMatchProfile
+    );
+
+    // Check if it's a shared artist
+    const isSharedArtist = concert.artists.some((artist) =>
+      sharedArtists.some((shared) => isSameArtist(artist, shared))
+    );
+
+    // Check direct artist matches
+    const userArtistMatch = checkArtistMatch(concert.artists, userMember.topArtists);
+    const friendArtistMatch = checkArtistMatch(concert.artists, friendMember.topArtists);
+
+    // Calculate pair score
+    // - Shared artist concerts get highest priority
+    // - Both matching gets bonus
+    // - Average of individual scores as base
+    let pairScore = (userMatch.score + friendMatch.score) / 2;
+
+    if (isSharedArtist) {
+      pairScore += 50; // Big bonus for shared favorites
+    }
+
+    if (userArtistMatch.matches && friendArtistMatch.matches) {
+      pairScore += 25; // Bonus when both users have direct artist match
+    }
+
+    return {
+      concert: {
+        ...concert,
+        matchScore: Math.round(pairScore),
+        matchReasons: isSharedArtist
+          ? [`🤝 You both love this artist!`]
+          : userMatch.reasons.length > 0
+          ? userMatch.reasons
+          : friendMatch.reasons,
+      },
+      pairScore: Math.round(pairScore),
+      userMatches: userMatch.score > 30 || userArtistMatch.matches,
+      friendMatches: friendMatch.score > 30 || friendArtistMatch.matches,
+      isSharedArtist,
+      userMatchReasons: userMatch.reasons,
+      friendMatchReasons: friendMatch.reasons,
+    };
+  });
+
+  // Filter out concerts with no match for either user (unless discovery mode)
+  const relevantConcerts = pairMatchedConcerts.filter(
+    (c) => c.userMatches || c.friendMatches || c.pairScore > 20
+  );
+
+  // Sort by pair score (highest first), then by shared artist status
+  relevantConcerts.sort((a, b) => {
+    // Shared artists first
+    if (a.isSharedArtist !== b.isSharedArtist) {
+      return a.isSharedArtist ? -1 : 1;
+    }
+    // Then by pair score
+    if (b.pairScore !== a.pairScore) {
+      return b.pairScore - a.pairScore;
+    }
+    // Then by date
+    return new Date(a.concert.date).getTime() - new Date(b.concert.date).getTime();
+  });
+
+  return relevantConcerts;
 }

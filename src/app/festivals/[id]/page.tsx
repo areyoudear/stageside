@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -19,6 +19,7 @@ import {
   Loader2,
   Grid,
   List,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
@@ -33,6 +34,9 @@ interface FestivalDetailPageProps {
   params: { id: string };
 }
 
+type InterestStatus = "interested" | "going" | null;
+type InterestMap = Record<string, InterestStatus>;
+
 export default function FestivalDetailPage({ params }: FestivalDetailPageProps) {
   const { id } = params;
   const { data: session } = useSession();
@@ -45,6 +49,35 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filter, setFilter] = useState<"all" | "matches" | "discoveries">("all");
   const [imageError, setImageError] = useState(false);
+  const [interestMap, setInterestMap] = useState<InterestMap>({});
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+
+  // Load interest status from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem(`festival-interest-${id}`);
+    if (stored) {
+      try {
+        setInterestMap(JSON.parse(stored));
+      } catch (e) {
+        console.error("Error loading interest map:", e);
+      }
+    }
+  }, [id]);
+
+  // Handle interest change
+  const handleInterestChange = useCallback((artistId: string, status: InterestStatus) => {
+    setInterestMap(prev => {
+      const newMap = { ...prev };
+      if (status === null) {
+        delete newMap[artistId];
+      } else {
+        newMap[artistId] = status;
+      }
+      // Persist to localStorage
+      localStorage.setItem(`festival-interest-${id}`, JSON.stringify(newMap));
+      return newMap;
+    });
+  }, [id]);
 
   useEffect(() => {
     fetchFestival();
@@ -62,6 +95,14 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
       setFestival(data.festival);
       setLineup(data.lineup || []);
       setUserAgenda(data.userAgenda || []);
+      
+      // Capture debug info if present
+      if (data.debug) {
+        setDebugInfo(data.debug);
+        console.log("[Festival Page] Debug info:", data.debug);
+        console.log("[Festival Page] Personalized:", data.personalized);
+        console.log("[Festival Page] Perfect matches:", data.festival?.perfectMatches?.length || 0);
+      }
     } catch (error) {
       console.error("Error fetching festival:", error);
     } finally {
@@ -263,6 +304,20 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Debug Info Banner (only shown when no matches despite having profile) */}
+        {debugInfo && debugInfo.userArtistsCount > 0 && festival.perfectMatches.length === 0 && festival.discoveryMatches.length === 0 && (
+          <div className="mb-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-200 text-sm font-medium">No matches found</p>
+              <p className="text-amber-200/70 text-xs mt-1">
+                We couldn&apos;t find any matches between your {debugInfo.userArtistsCount} saved artists and the {debugInfo.lineupCount} artists in this lineup.
+                This might be due to artist name variations. Try checking your music profile.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Perfect Matches */}
         {festival.perfectMatches.length > 0 && (
           <section className="mb-12">
@@ -278,6 +333,10 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                   isInAgenda={userAgenda.includes(artist.id)}
                   onToggleAgenda={toggleAgenda}
                   showScheduleInfo
+                  interestStatus={interestMap[artist.id] || null}
+                  onInterestChange={handleInterestChange}
+                  previewUrl={artist.preview_url}
+                  spotifyUrl={artist.spotify_url || (artist.spotify_id ? `https://open.spotify.com/artist/${artist.spotify_id}` : undefined)}
                 />
               ))}
             </div>
@@ -299,6 +358,10 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                   isInAgenda={userAgenda.includes(artist.id)}
                   onToggleAgenda={toggleAgenda}
                   showScheduleInfo
+                  interestStatus={interestMap[artist.id] || null}
+                  onInterestChange={handleInterestChange}
+                  previewUrl={artist.preview_url}
+                  spotifyUrl={artist.spotify_url || (artist.spotify_id ? `https://open.spotify.com/artist/${artist.spotify_id}` : undefined)}
                 />
               ))}
             </div>
@@ -378,6 +441,10 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                   isInAgenda={userAgenda.includes(artist.id)}
                   onToggleAgenda={toggleAgenda}
                   showScheduleInfo
+                  interestStatus={interestMap[artist.id] || null}
+                  onInterestChange={handleInterestChange}
+                  previewUrl={artist.preview_url}
+                  spotifyUrl={artist.spotify_url || (artist.spotify_id ? `https://open.spotify.com/artist/${artist.spotify_id}` : undefined)}
                 />
               ))}
             </div>
@@ -391,6 +458,10 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                   onToggleAgenda={toggleAgenda}
                   showScheduleInfo
                   compact
+                  interestStatus={interestMap[artist.id] || null}
+                  onInterestChange={handleInterestChange}
+                  previewUrl={artist.preview_url}
+                  spotifyUrl={artist.spotify_url || (artist.spotify_id ? `https://open.spotify.com/artist/${artist.spotify_id}` : undefined)}
                 />
               ))}
             </div>

@@ -42,6 +42,8 @@ export interface FestivalArtist {
   spotify_id?: string;
   image_url?: string;
   genres?: string[];
+  preview_url?: string; // Spotify 30s preview
+  spotify_url?: string; // Link to Spotify artist page
 }
 
 export interface FestivalWithMatch extends Festival {

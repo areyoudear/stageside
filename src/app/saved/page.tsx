@@ -1,114 +1,175 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { Music, ArrowRight, Heart, Check, Filter, Users, Calendar } from "lucide-react";
+import { Music, ArrowRight, Heart, Ticket, Users, Calendar, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConcertCard, ConcertCardSkeleton } from "@/components/ConcertCard";
 import { cn } from "@/lib/utils";
 import type { Concert } from "@/lib/ticketmaster";
+import type { InterestStatus } from "@/components/InterestButtons";
 
-type FilterType = "all" | "hearted" | "going";
+type TabType = "interested" | "going" | "past";
+
+interface ConcertInterest {
+  id: string;
+  concertId: string;
+  status: "interested" | "going";
+  concertData: Concert;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function SavedConcertsPage() {
-  const [savedIds, setSavedIds] = useState<string[]>([]);
-  const [goingIds, setGoingIds] = useState<string[]>([]);
-  const [concerts, setConcerts] = useState<Concert[]>([]);
+  const [interests, setInterests] = useState<ConcertInterest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterType>("all");
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>("interested");
 
-  useEffect(() => {
-    // Load saved and going concert IDs from localStorage
-    const saved = JSON.parse(localStorage.getItem('savedConcerts') || '[]');
-    const going = JSON.parse(localStorage.getItem('goingConcerts') || '[]');
-    setSavedIds(saved);
-    setGoingIds(going);
-    
-    // Combine all unique IDs
-    const allIds = Array.from(new Set([...saved, ...going]));
-    
-    if (allIds.length === 0) {
-      setIsLoading(false);
-      return;
-    }
-
-    // Fetch full concert details
-    fetchConcerts(allIds);
-  }, []);
-
-  const fetchConcerts = async (ids: string[]) => {
+  // Fetch user's concert interests from API
+  const fetchInterests = useCallback(async () => {
     try {
-      const res = await fetch('/api/concerts/by-ids', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
+      setIsLoading(true);
+      setError(null);
+      
+      const res = await fetch("/api/concerts/interest", {
+        method: "GET",
+        credentials: "include",
       });
       
-      if (res.ok) {
-        const data = await res.json();
-        // Mark saved/going status on each concert
-        const concertsWithStatus = data.concerts.map((c: Concert) => ({
-          ...c,
-          isSaved: savedIds.includes(c.id),
-        }));
-        setConcerts(concertsWithStatus);
+      if (res.status === 401) {
+        // Not authenticated - show empty state with CTA
+        setInterests([]);
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching concerts:", error);
+      
+      if (!res.ok) {
+        throw new Error("Failed to fetch interests");
+      }
+      
+      const data = await res.json();
+      setInterests(data.interests || []);
+    } catch (err) {
+      console.error("Error fetching interests:", err);
+      setError("Couldn't load your concerts. Please try again.");
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchInterests();
+  }, [fetchInterests]);
+
+  // Check if a concert date is in the past
+  const isPastConcert = (dateStr: string) => {
+    const concertDate = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return concertDate < today;
   };
 
-  // Filter concerts based on selection
+  // Filter concerts by tab
   const filteredConcerts = useMemo(() => {
-    switch (filter) {
-      case "hearted":
-        return concerts.filter(c => savedIds.includes(c.id));
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    switch (activeTab) {
+      case "interested":
+        return interests
+          .filter(i => i.status === "interested" && !isPastConcert(i.concertData.date))
+          .map(i => ({ ...i.concertData, interestStatus: i.status as InterestStatus }));
       case "going":
-        return concerts.filter(c => goingIds.includes(c.id));
+        return interests
+          .filter(i => i.status === "going" && !isPastConcert(i.concertData.date))
+          .map(i => ({ ...i.concertData, interestStatus: i.status as InterestStatus }));
+      case "past":
+        return interests
+          .filter(i => isPastConcert(i.concertData.date))
+          .map(i => ({ ...i.concertData, interestStatus: i.status as InterestStatus }))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       default:
-        return concerts;
+        return [];
     }
-  }, [concerts, savedIds, goingIds, filter]);
+  }, [interests, activeTab]);
 
-  const handleSaveConcert = (concertId: string) => {
-    setConcerts(prev => prev.map(c => c.id === concertId ? { ...c, isSaved: true } : c));
-    const newSaved = [...savedIds, concertId];
-    setSavedIds(newSaved);
-    localStorage.setItem('savedConcerts', JSON.stringify(newSaved));
+  // Count for each tab
+  const counts = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    
+    return {
+      interested: interests.filter(i => i.status === "interested" && !isPastConcert(i.concertData.date)).length,
+      going: interests.filter(i => i.status === "going" && !isPastConcert(i.concertData.date)).length,
+      past: interests.filter(i => isPastConcert(i.concertData.date)).length,
+    };
+  }, [interests]);
+
+  // Handle interest status change from a card
+  const handleInterestChange = useCallback((concertId: string, status: InterestStatus, _concert: Concert) => {
+    setInterests(prev => {
+      if (status === null) {
+        // Remove this interest
+        return prev.filter(i => i.concertId !== concertId);
+      }
+      // Update the status
+      return prev.map(i => 
+        i.concertId === concertId 
+          ? { ...i, status } 
+          : i
+      );
+    });
+  }, []);
+
+  const tabs: { id: TabType; label: string; icon: typeof Heart; color: string; activeColor: string }[] = [
+    { 
+      id: "interested", 
+      label: "Interested", 
+      icon: Heart, 
+      color: "text-zinc-400",
+      activeColor: "bg-violet-500 text-white" 
+    },
+    { 
+      id: "going", 
+      label: "Going", 
+      icon: Ticket, 
+      color: "text-zinc-400",
+      activeColor: "bg-green-500 text-white" 
+    },
+    { 
+      id: "past", 
+      label: "Past", 
+      icon: Clock, 
+      color: "text-zinc-400",
+      activeColor: "bg-zinc-600 text-white" 
+    },
+  ];
+
+  const getEmptyState = () => {
+    switch (activeTab) {
+      case "interested":
+        return {
+          icon: Heart,
+          title: "No concerts yet",
+          description: "When you find concerts you're interested in, tap the heart to save them here.",
+          iconColor: "text-violet-500/50",
+        };
+      case "going":
+        return {
+          icon: Ticket,
+          title: "No concerts planned",
+          description: "Mark concerts as 'Going' when you've bought tickets or decided to attend.",
+          iconColor: "text-green-500/50",
+        };
+      case "past":
+        return {
+          icon: Clock,
+          title: "No past concerts",
+          description: "Concerts you were interested in or went to will appear here after they've happened.",
+          iconColor: "text-zinc-500",
+        };
+    }
   };
-
-  const handleUnsaveConcert = (concertId: string) => {
-    setConcerts(prev => prev.map(c => c.id === concertId ? { ...c, isSaved: false } : c));
-    const newSaved = savedIds.filter(id => id !== concertId);
-    setSavedIds(newSaved);
-    localStorage.setItem('savedConcerts', JSON.stringify(newSaved));
-  };
-
-  const handleGoing = (concertId: string) => {
-    const newGoing = [...goingIds, concertId];
-    setGoingIds(newGoing);
-    localStorage.setItem('goingConcerts', JSON.stringify(newGoing));
-  };
-
-  const handleNotGoing = (concertId: string) => {
-    const newGoing = goingIds.filter(id => id !== concertId);
-    setGoingIds(newGoing);
-    localStorage.setItem('goingConcerts', JSON.stringify(newGoing));
-  };
-
-  const clearAll = () => {
-    localStorage.setItem('savedConcerts', '[]');
-    localStorage.setItem('goingConcerts', '[]');
-    setSavedIds([]);
-    setGoingIds([]);
-    setConcerts([]);
-  };
-
-  const heartedCount = savedIds.length;
-  const goingCount = goingIds.length;
-  const allCount = concerts.length;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
@@ -139,81 +200,48 @@ export default function SavedConcertsPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-rose-400 mb-2">
-              <Heart className="w-5 h-5" />
-              <span className="text-sm font-medium">My Concerts</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-              Your saved concerts
-            </h1>
-            <p className="text-zinc-400">
-              {allCount === 0 
-                ? "Save concerts you're interested in to find them later."
-                : `${heartedCount} hearted, ${goingCount} going`
-              }
-            </p>
+        <div className="mb-8">
+          <div className="flex items-center gap-2 text-violet-400 mb-2">
+            <Calendar className="w-5 h-5" />
+            <span className="text-sm font-medium">My Concerts</span>
           </div>
-          {allCount > 0 && (
-            <Button
-              variant="outline"
-              onClick={clearAll}
-              className="border-zinc-700 text-zinc-400 hover:text-white"
-            >
-              Clear All
-            </Button>
-          )}
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+            Your concert plans
+          </h1>
+          <p className="text-zinc-400">
+            {interests.length === 0 && !isLoading
+              ? "Track concerts you're interested in and planning to attend."
+              : `${counts.interested} interested, ${counts.going} going${counts.past > 0 ? `, ${counts.past} past` : ""}`
+            }
+          </p>
         </div>
 
-        {/* Filter Tabs */}
-        {allCount > 0 && (
-          <div className="mb-6 flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-zinc-500 mr-1">
-              <Filter className="w-4 h-4 inline mr-1" />
-              Filter:
-            </span>
+        {/* Tab Navigation */}
+        <div className="mb-6 flex items-center gap-2 flex-wrap border-b border-zinc-800 pb-4">
+          {tabs.map(tab => (
             <button
-              onClick={() => setFilter("all")}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                filter === "all"
-                  ? "bg-cyan-500 text-white"
-                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                "inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all",
+                activeTab === tab.id
+                  ? tab.activeColor
+                  : "bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800 hover:text-white"
               )}
             >
-              <Calendar className="w-3.5 h-3.5" />
-              All
-              <span className="ml-1 text-xs opacity-70">({allCount})</span>
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+              <span className={cn(
+                "ml-1 text-xs px-1.5 py-0.5 rounded-full",
+                activeTab === tab.id
+                  ? "bg-white/20"
+                  : "bg-zinc-700"
+              )}>
+                {counts[tab.id]}
+              </span>
             </button>
-            <button
-              onClick={() => setFilter("hearted")}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                filter === "hearted"
-                  ? "bg-red-500 text-white"
-                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-              )}
-            >
-              <Heart className="w-3.5 h-3.5" />
-              Hearted
-              <span className="ml-1 text-xs opacity-70">({heartedCount})</span>
-            </button>
-            <button
-              onClick={() => setFilter("going")}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                filter === "going"
-                  ? "bg-green-500 text-white"
-                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-              )}
-            >
-              <Check className="w-3.5 h-3.5" />
-              Going
-              <span className="ml-1 text-xs opacity-70">({goingCount})</span>
-            </button>
-          </div>
-        )}
+          ))}
+        </div>
 
         {/* Content */}
         {isLoading ? (
@@ -222,65 +250,94 @@ export default function SavedConcertsPage() {
               <ConcertCardSkeleton key={i} />
             ))}
           </div>
-        ) : allCount === 0 ? (
-          // Empty State
+        ) : error ? (
+          // Error State
           <div className="text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-6">
-              <Heart className="w-10 h-10 text-zinc-700" />
+            <div className="w-20 h-20 rounded-full bg-red-900/20 flex items-center justify-center mx-auto mb-6">
+              <Calendar className="w-10 h-10 text-red-500/50" />
             </div>
             <h2 className="text-xl font-semibold text-white mb-2">
-              No saved concerts yet
+              Something went wrong
             </h2>
             <p className="text-zinc-500 max-w-md mx-auto mb-6">
-              When you find concerts you&apos;re interested in, tap the heart icon to save them here for later.
+              {error}
             </p>
-            <Link href="/discover">
-              <Button className="bg-green-600 hover:bg-green-500">
-                Discover Concerts
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+            <Button 
+              onClick={fetchInterests}
+              className="bg-zinc-800 hover:bg-zinc-700"
+            >
+              <Loader2 className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
           </div>
         ) : filteredConcerts.length === 0 ? (
-          // No results for this filter
-          <div className="text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-6">
-              {filter === "hearted" ? (
-                <Heart className="w-10 h-10 text-zinc-700" />
-              ) : (
-                <Check className="w-10 h-10 text-zinc-700" />
-              )}
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-2">
-              No {filter === "hearted" ? "hearted" : "going"} concerts
-            </h2>
-            <p className="text-zinc-500 max-w-md mx-auto mb-6">
-              {filter === "hearted" 
-                ? "Tap the heart icon on concerts you're interested in."
-                : "Tap the checkmark icon on concerts you're definitely going to."
-              }
-            </p>
-            <button
-              onClick={() => setFilter("all")}
-              className="text-cyan-400 hover:text-cyan-300 text-sm font-medium"
-            >
-              Show all saved concerts instead
-            </button>
-          </div>
+          // Empty State
+          (() => {
+            const emptyState = getEmptyState();
+            return (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-6">
+                  <emptyState.icon className={cn("w-10 h-10", emptyState.iconColor)} />
+                </div>
+                <h2 className="text-xl font-semibold text-white mb-2">
+                  {emptyState.title}
+                </h2>
+                <p className="text-zinc-500 max-w-md mx-auto mb-6">
+                  {emptyState.description}
+                </p>
+                <Link href="/discover">
+                  <Button className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500">
+                    Discover Concerts
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            );
+          })()
         ) : (
           // Concert Grid
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredConcerts.map((concert) => (
-              <ConcertCard
-                key={concert.id}
-                concert={concert}
-                onSave={handleSaveConcert}
-                onUnsave={handleUnsaveConcert}
-                onGoing={handleGoing}
-                onNotGoing={handleNotGoing}
-                isAuthenticated={true}
-              />
-            ))}
+          <>
+            {/* Past concerts disclaimer */}
+            {activeTab === "past" && (
+              <div className="mb-6 p-4 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
+                <p className="text-sm text-zinc-400 flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  These concerts have already happened. Hope you had a great time!
+                </p>
+              </div>
+            )}
+            
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredConcerts.map((concert) => (
+                <ConcertCard
+                  key={concert.id}
+                  concert={concert}
+                  isAuthenticated={true}
+                  interestStatus={(concert as Concert & { interestStatus?: InterestStatus }).interestStatus}
+                  onInterestChange={handleInterestChange}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Quick Stats Footer */}
+        {interests.length > 0 && !isLoading && (
+          <div className="mt-12 pt-8 border-t border-zinc-800">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="p-4 bg-violet-500/10 rounded-lg border border-violet-500/20">
+                <div className="text-2xl font-bold text-violet-400">{counts.interested}</div>
+                <div className="text-sm text-zinc-400">Interested</div>
+              </div>
+              <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                <div className="text-2xl font-bold text-green-400">{counts.going}</div>
+                <div className="text-sm text-zinc-400">Going</div>
+              </div>
+              <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
+                <div className="text-2xl font-bold text-zinc-400">{counts.past}</div>
+                <div className="text-sm text-zinc-500">Attended</div>
+              </div>
+            </div>
           </div>
         )}
       </div>
