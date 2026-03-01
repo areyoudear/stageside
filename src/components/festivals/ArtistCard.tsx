@@ -285,8 +285,11 @@ export function ArtistCard({
           </div>
         )}
 
-        {/* Preview + Spotify buttons - top right */}
-        <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Preview + Spotify buttons - top right - show preview always if available */}
+        <div className={cn(
+          "absolute top-2 right-2 flex gap-1.5 transition-opacity",
+          previewUrl ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        )}>
           {previewUrl && (
             <button
               onClick={togglePreview}
@@ -319,9 +322,9 @@ export function ArtistCard({
           )}
         </div>
 
-        {/* Interest buttons - bottom left */}
+        {/* Interest buttons - bottom left - always visible */}
         {onInterestChange && (
-          <div className="absolute bottom-2 left-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute bottom-2 left-2 flex gap-1.5 transition-opacity">
             <button
               onClick={(e) => handleInterestClick(e, "interested")}
               className={cn(
