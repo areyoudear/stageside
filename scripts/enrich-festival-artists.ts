@@ -74,6 +74,50 @@ async function getArtistFromAudioDB(name: string): Promise<string | null> {
   }
 }
 
+// Get preview URL from iTunes (free, no API key)
+interface iTunesResult {
+  trackName: string;
+  artistName: string;
+  previewUrl: string;
+  artworkUrl100: string;
+}
+
+async function getPreviewFromiTunes(name: string): Promise<{ previewUrl: string; trackName: string } | null> {
+  const encodedName = encodeURIComponent(name);
+  const url = `https://itunes.apple.com/search?term=${encodedName}&entity=song&limit=5`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const results = data.results as iTunesResult[];
+    
+    // Find first result with preview URL that matches artist
+    for (const result of results) {
+      if (result.previewUrl && result.artistName.toLowerCase().includes(name.toLowerCase().split(' ')[0])) {
+        return {
+          previewUrl: result.previewUrl,
+          trackName: result.trackName,
+        };
+      }
+    }
+    
+    // Fallback to first result with preview
+    const withPreview = results.find(r => r.previewUrl);
+    if (withPreview) {
+      return {
+        previewUrl: withPreview.previewUrl,
+        trackName: withPreview.trackName,
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
 // Try Wikipedia/Wikimedia Commons as last resort
 async function getArtistFromWikipedia(name: string): Promise<string | null> {
   const encodedName = encodeURIComponent(name);
@@ -90,14 +134,21 @@ async function getArtistFromWikipedia(name: string): Promise<string | null> {
   }
 }
 
-async function enrichArtists(festivalSlug?: string) {
-  console.log('🎵 Enriching festival artists with images...\n');
+async function enrichArtists(festivalSlug?: string, enrichPreviews = false) {
+  console.log('🎵 Enriching festival artists...\n');
 
   // Get artists that need enrichment
   let query = supabase
     .from('festival_artists')
-    .select('id, artist_name, festival_id')
-    .is('image_url', null);
+    .select('id, artist_name, festival_id, image_url, preview_url');
+  
+  // If not enriching previews, only get those missing images
+  if (!enrichPreviews) {
+    query = query.is('image_url', null);
+  } else {
+    // Get artists missing previews
+    query = query.is('preview_url', null);
+  }
 
   if (festivalSlug) {
     // Get festival ID first
@@ -124,11 +175,11 @@ async function enrichArtists(festivalSlug?: string) {
   }
 
   if (!artists || artists.length === 0) {
-    console.log('✅ All artists already have images!');
+    console.log(enrichPreviews ? '✅ All artists already have previews!' : '✅ All artists already have images!');
     return;
   }
 
-  console.log(`Found ${artists.length} artists needing images\n`);
+  console.log(`Found ${artists.length} artists needing ${enrichPreviews ? 'previews' : 'images'}\n`);
 
   let enriched = 0;
   let failed = 0;
@@ -137,38 +188,56 @@ async function enrichArtists(festivalSlug?: string) {
     process.stdout.write(`  ${artist.artist_name}... `);
 
     try {
-      let imageUrl: string | null = null;
+      const updateData: Record<string, string | null> = {};
       let source = '';
 
-      // Try Bandsintown first (best quality, most current)
-      const bandsintownArtist = await getArtistFromBandsintown(artist.artist_name);
-      if (bandsintownArtist?.image_url && !bandsintownArtist.image_url.includes('no_photo')) {
-        imageUrl = bandsintownArtist.image_url;
-        source = 'Bandsintown';
-      }
+      if (enrichPreviews) {
+        // Fetch preview URL from iTunes
+        const preview = await getPreviewFromiTunes(artist.artist_name);
+        if (preview) {
+          updateData.preview_url = preview.previewUrl;
+          source = `iTunes (${preview.trackName})`;
+        } else {
+          console.log('❌ no preview found');
+          failed++;
+          continue;
+        }
+      } else {
+        // Fetch image
+        let imageUrl: string | null = null;
 
-      // Fallback to TheAudioDB
-      if (!imageUrl) {
-        imageUrl = await getArtistFromAudioDB(artist.artist_name);
-        if (imageUrl) source = 'AudioDB';
-      }
+        // Try Bandsintown first (best quality, most current)
+        const bandsintownArtist = await getArtistFromBandsintown(artist.artist_name);
+        if (bandsintownArtist?.image_url && !bandsintownArtist.image_url.includes('no_photo')) {
+          imageUrl = bandsintownArtist.image_url;
+          source = 'Bandsintown';
+        }
 
-      // Last resort: Wikipedia
-      if (!imageUrl) {
-        imageUrl = await getArtistFromWikipedia(artist.artist_name);
-        if (imageUrl) source = 'Wikipedia';
-      }
+        // Fallback to TheAudioDB
+        if (!imageUrl) {
+          imageUrl = await getArtistFromAudioDB(artist.artist_name);
+          if (imageUrl) source = 'AudioDB';
+        }
 
-      if (!imageUrl) {
-        console.log('❌ no image found');
-        failed++;
-        continue;
+        // Last resort: Wikipedia
+        if (!imageUrl) {
+          imageUrl = await getArtistFromWikipedia(artist.artist_name);
+          if (imageUrl) source = 'Wikipedia';
+        }
+
+        if (!imageUrl) {
+          console.log('❌ no image found');
+          failed++;
+          continue;
+        }
+
+        updateData.image_url = imageUrl;
       }
 
       // Update database
       const { error: updateError } = await supabase
         .from('festival_artists')
-        .update({ image_url: imageUrl })
+        .update(updateData)
         .eq('id', artist.id);
 
       if (updateError) {
@@ -192,17 +261,25 @@ async function enrichArtists(festivalSlug?: string) {
 }
 
 async function main() {
-  console.log('=== Festival Artist Image Enrichment ===');
-  console.log('Using: Bandsintown → TheAudioDB → Wikipedia\n');
+  console.log('=== Festival Artist Enrichment ===');
+  console.log('Usage: npx tsx scripts/enrich-festival-artists.ts [festival-slug] [--previews]');
+  console.log('Images: Bandsintown → TheAudioDB → Wikipedia');
+  console.log('Previews: iTunes API (free)\n');
 
   if (!supabaseUrl || !supabaseServiceKey) {
     console.error('Missing Supabase credentials in .env.local');
     return;
   }
 
-  // Enrich specific festival or all
-  const targetFestival = process.argv[2] || 'coachella';
-  await enrichArtists(targetFestival);
+  // Parse arguments
+  const args = process.argv.slice(2);
+  const enrichPreviews = args.includes('--previews');
+  const targetFestival = args.find(a => !a.startsWith('--')) || 'coachella';
+
+  console.log(`Mode: ${enrichPreviews ? 'PREVIEWS' : 'IMAGES'}`);
+  console.log(`Festival: ${targetFestival}\n`);
+
+  await enrichArtists(targetFestival, enrichPreviews);
 
   console.log('\n=== Complete ===');
 }
