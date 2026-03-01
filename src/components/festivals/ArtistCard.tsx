@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Plus, Check, Music, Star, Sparkles, Heart, Ticket, Play, Pause, Volume2, ExternalLink } from "lucide-react";
+import { Plus, Check, Music, Star, Sparkles, Heart, Play, Pause, Volume2, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { FestivalArtistMatch } from "@/lib/festival-types";
@@ -190,34 +190,20 @@ export function ArtistCard({
           </div>
         )}
 
-        {/* Interest buttons */}
+        {/* Interest button */}
         {onInterestChange && (
-          <div className="flex-shrink-0 flex gap-1">
-            <button
-              onClick={(e) => handleInterestClick(e, "interested")}
-              className={cn(
-                "p-1.5 rounded-full transition-all",
-                localInterestStatus === "interested"
-                  ? "bg-violet-500/80 text-white"
-                  : "bg-zinc-800 text-zinc-400 hover:bg-violet-500/60 hover:text-white"
-              )}
-              title={localInterestStatus === "interested" ? "Remove interest" : "Interested"}
-            >
-              <Heart className={cn("w-3 h-3", localInterestStatus === "interested" && "fill-white")} />
-            </button>
-            <button
-              onClick={(e) => handleInterestClick(e, "going")}
-              className={cn(
-                "p-1.5 rounded-full transition-all",
-                localInterestStatus === "going"
-                  ? "bg-green-500/80 text-white"
-                  : "bg-zinc-800 text-zinc-400 hover:bg-green-500/60 hover:text-white"
-              )}
-              title={localInterestStatus === "going" ? "Not going" : "Going!"}
-            >
-              <Ticket className="w-3 h-3" />
-            </button>
-          </div>
+          <button
+            onClick={(e) => handleInterestClick(e, "interested")}
+            className={cn(
+              "flex-shrink-0 p-1.5 rounded-full transition-all",
+              localInterestStatus === "interested"
+                ? "bg-violet-500/80 text-white"
+                : "bg-zinc-800 text-zinc-400 hover:bg-violet-500/60 hover:text-white"
+            )}
+            title={localInterestStatus === "interested" ? "Remove interest" : "Interested"}
+          >
+            <Heart className={cn("w-3 h-3", localInterestStatus === "interested" && "fill-white")} />
+          </button>
         )}
 
         {/* Preview button */}
@@ -371,34 +357,20 @@ export function ArtistCard({
           )}
         </div>
 
-        {/* Interest buttons - bottom left - always visible */}
+        {/* Interest button - bottom left - always visible */}
         {onInterestChange && (
-          <div className="absolute bottom-2 left-2 flex gap-1.5 transition-opacity">
-            <button
-              onClick={(e) => handleInterestClick(e, "interested")}
-              className={cn(
-                "p-2 rounded-full backdrop-blur-md transition-all",
-                localInterestStatus === "interested"
-                  ? "bg-violet-500/80 text-white"
-                  : "bg-black/60 text-white hover:bg-violet-500/60"
-              )}
-              title={localInterestStatus === "interested" ? "Remove interest" : "Interested"}
-            >
-              <Heart className={cn("w-4 h-4", localInterestStatus === "interested" && "fill-white")} />
-            </button>
-            <button
-              onClick={(e) => handleInterestClick(e, "going")}
-              className={cn(
-                "p-2 rounded-full backdrop-blur-md transition-all",
-                localInterestStatus === "going"
-                  ? "bg-green-500/80 text-white"
-                  : "bg-black/60 text-white hover:bg-green-500/60"
-              )}
-              title={localInterestStatus === "going" ? "Not going" : "Going!"}
-            >
-              <Ticket className="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            onClick={(e) => handleInterestClick(e, "interested")}
+            className={cn(
+              "absolute bottom-2 left-2 p-2 rounded-full backdrop-blur-md transition-all",
+              localInterestStatus === "interested"
+                ? "bg-violet-500/80 text-white"
+                : "bg-black/60 text-white hover:bg-violet-500/60"
+            )}
+            title={localInterestStatus === "interested" ? "Remove interest" : "Interested"}
+          >
+            <Heart className={cn("w-4 h-4", localInterestStatus === "interested" && "fill-white")} />
+          </button>
         )}
 
         {/* Add to agenda button - bottom right */}
