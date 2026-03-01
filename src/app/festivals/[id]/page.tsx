@@ -48,19 +48,31 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
   const [userAgenda, setUserAgenda] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filter, setFilter] = useState<"all" | "matches" | "discoveries">("all");
+  const [filter, setFilter] = useState<"all" | "matches" | "discoveries" | "interested" | "mySchedule">("all");
   const [imageError, setImageError] = useState(false);
   const [interestMap, setInterestMap] = useState<InterestMap>({});
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
-  // Load interest status from localStorage
+  // Load interest status and agenda from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem(`festival-interest-${id}`);
-    if (stored) {
+    const storedInterest = localStorage.getItem(`festival-interest-${id}`);
+    if (storedInterest) {
       try {
-        setInterestMap(JSON.parse(stored));
+        setInterestMap(JSON.parse(storedInterest));
       } catch (e) {
         console.error("Error loading interest map:", e);
+      }
+    }
+    
+    const storedAgenda = localStorage.getItem(`festival-agenda-${id}`);
+    if (storedAgenda) {
+      try {
+        const parsed = JSON.parse(storedAgenda);
+        if (Array.isArray(parsed)) {
+          setUserAgenda(parsed);
+        }
+      } catch (e) {
+        console.error("Error loading agenda:", e);
       }
     }
   }, [id]);
@@ -118,30 +130,29 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
   };
 
   const toggleAgenda = async (artistId: string) => {
-    if (!session) {
-      // Prompt to login
-      return;
-    }
-
     const isInAgenda = userAgenda.includes(artistId);
-    const method = isInAgenda ? "DELETE" : "POST";
-
-    try {
-      const response = await fetch(`/api/festivals/${id}/agenda`, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ artistId }),
-      });
-
-      if (response.ok) {
-        setUserAgenda(
-          isInAgenda
-            ? userAgenda.filter((id) => id !== artistId)
-            : [...userAgenda, artistId]
-        );
+    const newAgenda = isInAgenda
+      ? userAgenda.filter((aid) => aid !== artistId)
+      : [...userAgenda, artistId];
+    
+    // Update local state immediately
+    setUserAgenda(newAgenda);
+    
+    // Save to localStorage (works for all users)
+    localStorage.setItem(`festival-agenda-${id}`, JSON.stringify(newAgenda));
+    
+    // If logged in, also sync with server
+    if (session) {
+      const method = isInAgenda ? "DELETE" : "POST";
+      try {
+        await fetch(`/api/festivals/${id}/agenda`, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ artistId }),
+        });
+      } catch (error) {
+        console.error("Error syncing agenda with server:", error);
       }
-    } catch (error) {
-      console.error("Error updating agenda:", error);
     }
   };
 
@@ -151,8 +162,14 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
     if (filter === "matches") return artist.matchType === "perfect";
     if (filter === "discoveries")
       return artist.matchType === "discovery" || artist.matchType === "genre";
+    if (filter === "interested") return interestMap[artist.id] === "interested";
+    if (filter === "mySchedule") return userAgenda.includes(artist.id);
     return true;
   });
+  
+  // Count for filter badges
+  const interestedCount = Object.values(interestMap).filter(s => s === "interested").length;
+  const scheduleCount = userAgenda.length;
 
   const formatDateRange = (dates: { start: string; end: string }) => {
     const start = new Date(dates.start);
@@ -472,6 +489,28 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                       }`}
                     >
                       Discoveries
+                    </button>
+                    <button
+                      onClick={() => setFilter("interested")}
+                      className={`px-3 py-1.5 rounded text-sm whitespace-nowrap min-w-[44px] flex items-center gap-1 ${
+                        filter === "interested"
+                          ? "bg-violet-600 text-white"
+                          : "text-zinc-400"
+                      }`}
+                    >
+                      <Heart className="w-3 h-3" />
+                      {interestedCount > 0 && <span>({interestedCount})</span>}
+                    </button>
+                    <button
+                      onClick={() => setFilter("mySchedule")}
+                      className={`px-3 py-1.5 rounded text-sm whitespace-nowrap min-w-[44px] flex items-center gap-1 ${
+                        filter === "mySchedule"
+                          ? "bg-green-600 text-white"
+                          : "text-zinc-400"
+                      }`}
+                    >
+                      My Schedule
+                      {scheduleCount > 0 && <span>({scheduleCount})</span>}
                     </button>
                   </div>
 

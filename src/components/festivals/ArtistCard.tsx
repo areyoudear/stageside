@@ -373,7 +373,7 @@ export function ArtistCard({
           </button>
         )}
 
-        {/* Add to agenda button - bottom right */}
+        {/* Add to agenda button - bottom right - always visible */}
         {onToggleAgenda && (
           <button
             onClick={(e) => {
@@ -381,10 +381,10 @@ export function ArtistCard({
               onToggleAgenda(artist.id);
             }}
             className={cn(
-              "absolute bottom-2 right-2 p-2 rounded-full transition-all",
+              "absolute bottom-2 right-2 p-2 rounded-full backdrop-blur-md transition-all",
               isInAgenda
                 ? "bg-green-500 text-white"
-                : "bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 hover:bg-cyan-600"
+                : "bg-black/60 text-white hover:bg-cyan-600"
             )}
             title={isInAgenda ? "Remove from schedule" : "Add to my schedule"}
           >
