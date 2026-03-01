@@ -134,11 +134,10 @@ export function ArtistCard({
     return (
       <div
         className={cn(
-          "flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer",
+          "flex items-center gap-3 p-2 rounded-lg border transition-all",
           getMatchBorderColor(),
           isInAgenda && "bg-green-500/10"
         )}
-        onClick={() => onToggleAgenda?.(artist.id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -191,28 +190,78 @@ export function ArtistCard({
           </div>
         )}
 
+        {/* Interest buttons */}
+        {onInterestChange && (
+          <div className="flex-shrink-0 flex gap-1">
+            <button
+              onClick={(e) => handleInterestClick(e, "interested")}
+              className={cn(
+                "p-1.5 rounded-full transition-all",
+                localInterestStatus === "interested"
+                  ? "bg-violet-500/80 text-white"
+                  : "bg-zinc-800 text-zinc-400 hover:bg-violet-500/60 hover:text-white"
+              )}
+              title={localInterestStatus === "interested" ? "Remove interest" : "Interested"}
+            >
+              <Heart className={cn("w-3 h-3", localInterestStatus === "interested" && "fill-white")} />
+            </button>
+            <button
+              onClick={(e) => handleInterestClick(e, "going")}
+              className={cn(
+                "p-1.5 rounded-full transition-all",
+                localInterestStatus === "going"
+                  ? "bg-green-500/80 text-white"
+                  : "bg-zinc-800 text-zinc-400 hover:bg-green-500/60 hover:text-white"
+              )}
+              title={localInterestStatus === "going" ? "Not going" : "Going!"}
+            >
+              <Ticket className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+
         {/* Preview button */}
         {previewUrl && (
           <button
             onClick={togglePreview}
-            className="flex-shrink-0 p-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors"
+            className={cn(
+              "flex-shrink-0 p-1.5 rounded-full transition-colors",
+              isPlaying 
+                ? "bg-green-500/80 text-white" 
+                : "bg-zinc-800 hover:bg-zinc-700 text-zinc-400"
+            )}
+            title={isPlaying ? "Pause" : "Play preview"}
           >
             {isPlaying ? (
-              <Pause className="w-3 h-3 text-green-400" />
+              <Pause className="w-3 h-3" />
             ) : (
-              <Play className="w-3 h-3 text-zinc-400" />
+              <Play className="w-3 h-3" />
             )}
           </button>
         )}
 
-        {/* Action */}
-        <div className="flex-shrink-0">
-          {isInAgenda ? (
-            <Check className="w-4 h-4 text-green-400" />
-          ) : isHovered ? (
-            <Plus className="w-4 h-4 text-zinc-400" />
-          ) : null}
-        </div>
+        {/* Add to agenda button */}
+        {onToggleAgenda && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleAgenda(artist.id);
+            }}
+            className={cn(
+              "flex-shrink-0 p-1.5 rounded-full transition-all",
+              isInAgenda
+                ? "bg-green-500 text-white"
+                : "bg-zinc-800 text-zinc-400 hover:bg-cyan-600 hover:text-white"
+            )}
+            title={isInAgenda ? "Remove from schedule" : "Add to schedule"}
+          >
+            {isInAgenda ? (
+              <Check className="w-3 h-3" />
+            ) : (
+              <Plus className="w-3 h-3" />
+            )}
+          </button>
+        )}
       </div>
     );
   }
