@@ -71,7 +71,8 @@ export async function GET(
     const includeDiscoveries = searchParams.get("discoveries") !== "false";
     const restBreakMinutes = parseInt(searchParams.get("restBreak") || "90");
 
-    const lineup = await getFestivalLineup(festivalId);
+    // Use festival.id (UUID) not festivalId (could be slug)
+    const lineup = await getFestivalLineup(festival.id);
     if (lineup.length === 0) {
       return NextResponse.json(
         { error: "No lineup data available for this festival" },
