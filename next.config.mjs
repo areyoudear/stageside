@@ -36,6 +36,22 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.supabase.co', // Supabase storage (avatars, etc)
       },
+      {
+        protocol: 'https',
+        hostname: '*.theaudiodb.com', // Artist images from TheAudioDB
+      },
+      {
+        protocol: 'https',
+        hostname: 'r2.theaudiodb.com', // AudioDB CDN
+      },
+      {
+        protocol: 'https',
+        hostname: 'upload.wikimedia.org', // Wikipedia images
+      },
+      {
+        protocol: 'https',
+        hostname: '*.bandsintown.com', // Bandsintown artist images
+      },
     ],
   },
 };
