@@ -252,11 +252,19 @@ export async function GET(request: NextRequest) {
     return true;
   });
 
-  return NextResponse.json({ 
-    artists: uniqueArtists.slice(0, 10),
-    source: artists.length > 0 
-      ? (artists[0].id.startsWith("spotify:") ? "spotify" : 
-         artists[0].id.startsWith("mb:") ? "musicbrainz" : "ticketmaster")
-      : null
-  });
+  // Return with cache headers for faster subsequent requests
+  return NextResponse.json(
+    { 
+      artists: uniqueArtists.slice(0, 10),
+      source: artists.length > 0 
+        ? (artists[0].id.startsWith("spotify:") ? "spotify" : 
+           artists[0].id.startsWith("mb:") ? "musicbrainz" : "ticketmaster")
+        : null
+    },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    }
+  );
 }

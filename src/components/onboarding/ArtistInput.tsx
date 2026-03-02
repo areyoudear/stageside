@@ -29,9 +29,9 @@ export function ArtistInput({
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debouncedQuery = useDebounce(query, 300);
+  const debouncedQuery = useDebounce(query, 150); // Faster response
   
-  // Search for artists
+  // Search for artists using Spotify-backed API (better results, sorted by popularity)
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.length < 2) {
       setResults([]);
@@ -41,18 +41,20 @@ export function ArtistInput({
     const searchArtists = async () => {
       setIsSearching(true);
       try {
-        // Use iTunes API for artist search (free, no auth)
+        // Use our Spotify-backed search API for better accuracy
         const res = await fetch(
-          `https://itunes.apple.com/search?term=${encodeURIComponent(debouncedQuery)}&entity=musicArtist&limit=8`
+          `/api/artists/search?q=${encodeURIComponent(debouncedQuery)}`
         );
         const data = await res.json();
         
-        const searchResults: SearchResult[] = data.results.map((r: {
-          artistName: string;
-          primaryGenreName?: string;
+        const searchResults: SearchResult[] = (data.artists || []).map((r: {
+          name: string;
+          imageUrl?: string;
+          genres?: string[];
         }) => ({
-          name: r.artistName,
-          genres: r.primaryGenreName ? [r.primaryGenreName] : [],
+          name: r.name,
+          image: r.imageUrl || undefined,
+          genres: r.genres || [],
         }));
         
         // Filter out already added artists
@@ -162,9 +164,17 @@ export function ArtistInput({
                 onClick={() => addArtist(result.name)}
                 className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left"
               >
-                <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
-                  <Music className="w-5 h-5 text-zinc-500" />
-                </div>
+                {result.image ? (
+                  <img
+                    src={result.image}
+                    alt={result.name}
+                    className="w-10 h-10 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
+                    <Music className="w-5 h-5 text-zinc-500" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-white truncate">{result.name}</p>
                   {result.genres && result.genres.length > 0 && (
