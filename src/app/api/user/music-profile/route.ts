@@ -35,17 +35,31 @@ export async function GET() {
       });
     }
 
-    // Get full artist data for the discover page
-    const artists = await getAggregatedArtists(session.user.id);
+    // Try to get full artist data from user_artists table first
+    const aggregatedArtists = await getAggregatedArtists(session.user.id);
     
-    // Transform to match the Artist interface used in discover page
-    const formattedArtists = artists.slice(0, 20).map((a, index) => ({
-      id: a.spotify_id || `user-artist-${index}`,
-      name: a.artist_name,
-      genres: a.genres || [],
-      popularity: a.aggregated_score || 50,
-      imageUrl: a.image_url || null,
-    }));
+    // If user_artists is populated, use that (has image URLs, source IDs, etc.)
+    // Otherwise fall back to profile.topArtists (from legacy music_profiles or connections)
+    let formattedArtists;
+    
+    if (aggregatedArtists.length > 0) {
+      formattedArtists = aggregatedArtists.slice(0, 20).map((a, index) => ({
+        id: a.source_ids?.spotify || `user-artist-${index}`,
+        name: a.artist_name,
+        genres: a.genres || [],
+        popularity: a.aggregated_score || 50,
+        imageUrl: a.image_url || null,
+      }));
+    } else {
+      // Fall back to unified profile artists (from music_profiles table)
+      formattedArtists = profile.topArtists.slice(0, 20).map((a, index) => ({
+        id: `profile-artist-${index}`,
+        name: a.name,
+        genres: a.genres || [],
+        popularity: a.score || 50,
+        imageUrl: null,
+      }));
+    }
 
     return NextResponse.json({
       isAuthenticated: true,
