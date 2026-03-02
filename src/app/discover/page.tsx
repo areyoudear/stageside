@@ -174,17 +174,22 @@ function DiscoverPageContent() {
   }, []);
 
   // Auto-load user's music profile (from Spotify connection) and detect auth status
-  // Redirect authenticated users to dashboard (this page is for anonymous browsing)
+  // Redirect authenticated users to dashboard UNLESS they're in pair mode (friendId present)
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
         const res = await fetch("/api/user/music-profile");
         const data = await res.json();
         
-        // Redirect authenticated users to dashboard
-        if (data.isAuthenticated) {
+        // Redirect authenticated users to dashboard, but NOT if in pair mode
+        if (data.isAuthenticated && !friendIdParam) {
           router.push("/dashboard");
           return;
+        }
+        
+        // Set auth status for pair mode
+        if (data.isAuthenticated) {
+          setIsAuthenticated(true);
         }
         
         if (data.hasProfile && data.artists?.length > 0) {
