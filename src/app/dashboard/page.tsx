@@ -602,48 +602,57 @@ export default function DashboardPage() {
                 {friendCount > 0 && (
                   <>
                     <div className="w-px h-6 bg-zinc-700 mx-1" />
-                    <button
-                      onClick={() => setStatusFilter("friends-interested")}
-                      disabled={friendsConcertIds.interested.length === 0}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
-                        statusFilter === "friends-interested"
-                          ? "bg-blue-500 text-white"
-                          : friendsConcertIds.interested.length === 0
-                          ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
-                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                      )}
-                    >
-                      <Users className="w-3.5 h-3.5" />
-                      Friends Interested
-                      <span className={cn(
-                        "ml-1 text-xs",
-                        statusFilter === "friends-interested" ? "text-blue-200" : "text-zinc-500"
-                      )}>
-                        ({friendsConcertIds.interested.length})
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => setStatusFilter("friends-going")}
-                      disabled={friendsConcertIds.going.length === 0}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
-                        statusFilter === "friends-going"
-                          ? "bg-emerald-500 text-white"
-                          : friendsConcertIds.going.length === 0
-                          ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
-                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                      )}
-                    >
-                      <UserCheck className="w-4 h-4" />
-                      Friends Going
-                      <span className={cn(
-                        "ml-1 text-xs",
-                        statusFilter === "friends-going" ? "text-emerald-200" : "text-zinc-500"
-                      )}>
-                        ({friendsConcertIds.going.length})
-                      </span>
-                    </button>
+                    {(() => {
+                      // Count friends interested/going within CURRENT search results only
+                      const friendsInterestedInResults = concerts.filter(c => friendsConcertIds.interested.includes(c.id)).length;
+                      const friendsGoingInResults = concerts.filter(c => friendsConcertIds.going.includes(c.id)).length;
+                      return (
+                        <>
+                          <button
+                            onClick={() => setStatusFilter("friends-interested")}
+                            disabled={friendsInterestedInResults === 0}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
+                              statusFilter === "friends-interested"
+                                ? "bg-blue-500 text-white"
+                                : friendsInterestedInResults === 0
+                                ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                                : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                            )}
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            Friends Interested
+                            <span className={cn(
+                              "ml-1 text-xs",
+                              statusFilter === "friends-interested" ? "text-blue-200" : "text-zinc-500"
+                            )}>
+                              ({friendsInterestedInResults})
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => setStatusFilter("friends-going")}
+                            disabled={friendsGoingInResults === 0}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all min-h-[44px]",
+                              statusFilter === "friends-going"
+                                ? "bg-emerald-500 text-white"
+                                : friendsGoingInResults === 0
+                                ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                                : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                            )}
+                          >
+                            <UserCheck className="w-4 h-4" />
+                            Friends Going
+                            <span className={cn(
+                              "ml-1 text-xs",
+                              statusFilter === "friends-going" ? "text-emerald-200" : "text-zinc-500"
+                            )}>
+                              ({friendsGoingInResults})
+                            </span>
+                          </button>
+                        </>
+                      );
+                    })()}
                   </>
                 )}
                 {statusFilter !== "all" && (
