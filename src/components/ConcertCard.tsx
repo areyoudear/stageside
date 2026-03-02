@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { FriendsBadge, type FriendInterest } from "./FriendsBadge";
 import { InterestButtons, type InterestStatus } from "@/components/InterestButtons";
+import { AudioPreviewButton } from "@/components/AudioPreview";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -526,8 +527,8 @@ export function ConcertCard({
           </button>
         </div>
 
-        {/* Vibe indicator pill */}
-        <div className="absolute bottom-3 left-3">
+        {/* Vibe indicator pill + Audio preview */}
+        <div className="absolute bottom-3 left-3 flex items-center gap-2">
           <div className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md",
             "bg-black/40 border border-white/10",
@@ -536,6 +537,17 @@ export function ConcertCard({
             <vibe.icon className="w-3.5 h-3.5" />
             <span>{vibe.label}</span>
           </div>
+          
+          {/* Audio Preview Button */}
+          {concert.previewUrl && (
+            <AudioPreviewButton
+              previewUrl={concert.previewUrl}
+              trackName={concert.topTrackName || concert.artists[0]}
+              artistName={concert.artists[0]}
+              highlightStartMs={concert.highlightStartMs}
+              size="sm"
+            />
+          )}
         </div>
 
         {/* Match Score Badge - Always visible on image */}

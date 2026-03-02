@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle, Heart, Check, UserPlus, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,7 @@ function DiscoverPageContent() {
   // URL params for friend mode
   const searchParams = useSearchParams();
   const friendIdParam = searchParams.get("friendId");
+  const router = useRouter();
 
   // State
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
@@ -117,6 +118,7 @@ function DiscoverPageContent() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [hasAutoFetched, setHasAutoFetched] = useState(false);
   
   // Friend-related state
   const [friendData, setFriendData] = useState<FriendData | null>(null);
@@ -156,7 +158,8 @@ function DiscoverPageContent() {
   const [distanceFilter, setDistanceFilter] = useState<DistanceFilter>("all");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const [dayFilter, setDayFilter] = useState<DayFilter>("all");
-  const [sortBy, setSortBy] = useState<SortOption>("match");
+  // Default to "date" for anonymous users since they don't have match scores
+  const [sortBy, setSortBy] = useState<SortOption>("date");
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -171,15 +174,17 @@ function DiscoverPageContent() {
   }, []);
 
   // Auto-load user's music profile (from Spotify connection) and detect auth status
+  // Redirect authenticated users to dashboard (this page is for anonymous browsing)
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
         const res = await fetch("/api/user/music-profile");
         const data = await res.json();
         
-        // Check if user is authenticated
+        // Redirect authenticated users to dashboard
         if (data.isAuthenticated) {
-          setIsAuthenticated(true);
+          router.push("/dashboard");
+          return;
         }
         
         if (data.hasProfile && data.artists?.length > 0) {
@@ -197,7 +202,7 @@ function DiscoverPageContent() {
     };
 
     loadUserProfile();
-  }, []);
+  }, [router]);
 
   // Auto-detect location via browser geolocation
   useEffect(() => {
@@ -256,6 +261,37 @@ function DiscoverPageContent() {
 
     detectLocation();
   }, []);
+
+  // Auto-fetch concerts when location is detected (for anonymous users - immediate value)
+  useEffect(() => {
+    if (location && !isLoadingProfile && !isAuthenticated && !hasAutoFetched) {
+      setHasAutoFetched(true);
+      // Trigger auto-fetch by calling the search
+      const autoFetch = async () => {
+        setIsLoading(true);
+        setHasSearched(true);
+        try {
+          const params = new URLSearchParams({
+            lat: location.lat.toString(),
+            lng: location.lng.toString(),
+            radius: radius.toString(),
+            startDate: dateRange.startDate.toISOString().split("T")[0],
+            endDate: dateRange.endDate.toISOString().split("T")[0],
+          });
+          const response = await fetch(`/api/concerts/browse?${params.toString()}`);
+          const data = await response.json();
+          if (!data.error) {
+            setConcerts(data.concerts || []);
+          }
+        } catch (err) {
+          console.error("Error auto-fetching concerts:", err);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      autoFetch();
+    }
+  }, [location, isLoadingProfile, isAuthenticated, hasAutoFetched, radius, dateRange]);
 
   // Load friend data when in pair mode (friendId in URL)
   useEffect(() => {
@@ -763,50 +799,30 @@ function DiscoverPageContent() {
             <span className="text-zinc-400">Loading...</span>
           </div>
         ) : !isAuthenticated ? (
-          /* Anonymous user - show signup prompt instead of artist picker */
-          <div className="bg-gradient-to-r from-green-900/20 to-emerald-900/20 rounded-2xl border border-green-500/20 p-6 mb-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-green-400" />
+          /* Anonymous user - compact signup prompt */
+          <Link href="/signup" className="block mb-4">
+            <div className="bg-gradient-to-r from-cyan-900/30 to-violet-900/30 rounded-xl border border-cyan-500/20 p-3 hover:border-cyan-500/40 transition-colors">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white font-medium text-sm truncate">
+                      See which concerts match <span className="text-cyan-400">your</span> taste
+                    </p>
+                    <p className="text-xs text-zinc-500 truncate">
+                      Connect music • Take quiz • Get match scores
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-white font-semibold">Want personalized recommendations?</h3>
-                  <p className="text-sm text-zinc-400">
-                    Connect Spotify to see which concerts match your taste
-                  </p>
-                </div>
-              </div>
-              <Link href="/signup">
-                <Button className="bg-green-600 hover:bg-green-500 whitespace-nowrap">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Get Personalized Matches
+                <Button size="sm" className="bg-cyan-600 hover:bg-cyan-500 text-xs whitespace-nowrap flex-shrink-0">
+                  Sign up free
+                  <ArrowRight className="w-3 h-3 ml-1" />
                 </Button>
-              </Link>
-            </div>
-            
-            {/* Preview of what they'd get */}
-            <div className="mt-4 pt-4 border-t border-green-500/20 grid sm:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center gap-2 text-zinc-400">
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
-                  <span className="text-green-400 font-bold">%</span>
-                </div>
-                <span>Match scores for every concert</span>
-              </div>
-              <div className="flex items-center gap-2 text-zinc-400">
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
-                  <Heart className="w-4 h-4 text-red-400" />
-                </div>
-                <span>Save concerts &amp; get alerts</span>
-              </div>
-              <div className="flex items-center gap-2 text-zinc-400">
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-violet-400" />
-                </div>
-                <span>Plan with friends</span>
               </div>
             </div>
-          </div>
+          </Link>
         ) : hasUserProfile && selectedArtists.length >= 3 ? (
           /* Compact view when profile is loaded */
           <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-4 mb-6">
@@ -1056,6 +1072,26 @@ function DiscoverPageContent() {
                   <div className="flex items-center bg-zinc-800/50 rounded-lg p-1">
                     {SORT_OPTIONS.map((option) => {
                       const Icon = option.icon;
+                      // "Best Match" is locked for anonymous users
+                      const isLocked = option.value === "match" && !isAuthenticated;
+                      
+                      if (isLocked) {
+                        return (
+                          <Link
+                            key={option.value}
+                            href="/signup"
+                            className="relative group/sort flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-zinc-600 cursor-pointer"
+                          >
+                            <Lock className="w-3 h-3" />
+                            <span className="hidden sm:inline">{option.label}</span>
+                            {/* Tooltip */}
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-800 rounded text-xs text-white whitespace-nowrap opacity-0 invisible group-hover/sort:opacity-100 group-hover/sort:visible transition-all border border-zinc-700 z-10">
+                              Sign up to sort by match
+                            </div>
+                          </Link>
+                        );
+                      }
+                      
                       return (
                         <button
                           key={option.value}
@@ -1211,30 +1247,45 @@ function DiscoverPageContent() {
                   </span>
                 </button>
                 
-                {/* Friends Filter Toggle */}
-                <button
-                  onClick={() => {
-                    setFriendsFilter(!friendsFilter);
-                    // Re-fetch if toggling on
-                    if (!friendsFilter && hasSearched) {
-                      // Will trigger refetch via useEffect or manual call
-                    }
-                  }}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                    friendsFilter
-                      ? "bg-violet-500 text-white"
-                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white border border-violet-500/30"
-                  )}
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  Friends interested
-                  {friendsFilter && (
-                    <span className="ml-1 text-xs text-violet-200">
-                      ({(concerts as ExtendedConcert[]).filter(c => c.friendsInterested && c.friendsInterested.length > 0).length})
-                    </span>
-                  )}
-                </button>
+                {/* Friends Filter Toggle - Locked for anonymous users */}
+                {isAuthenticated ? (
+                  <button
+                    onClick={() => {
+                      setFriendsFilter(!friendsFilter);
+                      // Re-fetch if toggling on
+                      if (!friendsFilter && hasSearched) {
+                        // Will trigger refetch via useEffect or manual call
+                      }
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                      friendsFilter
+                        ? "bg-violet-500 text-white"
+                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white border border-violet-500/30"
+                    )}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    Friends interested
+                    {friendsFilter && (
+                      <span className="ml-1 text-xs text-violet-200">
+                        ({(concerts as ExtendedConcert[]).filter(c => c.friendsInterested && c.friendsInterested.length > 0).length})
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <Link
+                    href="/signup"
+                    className="relative group/friends inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-zinc-800/50 text-zinc-500 border border-zinc-700"
+                  >
+                    <Lock className="w-3 h-3" />
+                    <Users className="w-3.5 h-3.5" />
+                    Friends
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-800 rounded text-xs text-white whitespace-nowrap opacity-0 invisible group-hover/friends:opacity-100 group-hover/friends:visible transition-all border border-zinc-700 z-10">
+                      Sign up to see friends
+                    </div>
+                  </Link>
+                )}
 
                 {(statusFilter !== "all" || friendsFilter) && (
                   <button
