@@ -197,35 +197,51 @@ export default function FriendProfilePage() {
               </div>
             </div>
 
-            {/* Compatibility Score */}
+            {/* Shared Artists Count */}
             <div className="text-center p-4 bg-zinc-800/50 rounded-xl border border-zinc-700">
               <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-5 h-5 text-cyan-400" />
-                <span className="text-2xl font-bold text-white">{profile.compatibility.score}%</span>
+                <Heart className="w-5 h-5 text-pink-400" />
+                <span className="text-2xl font-bold text-white">{profile.compatibility.totalCommonArtists}</span>
               </div>
-              <p className="text-xs text-zinc-400">Music Match</p>
+              <p className="text-xs text-zinc-400">Artists in Common</p>
             </div>
           </div>
 
           {/* Common Artists */}
-          {profile.compatibility.commonArtists.length > 0 && (
+          {profile.compatibility.commonArtists.length > 0 ? (
             <div className="mt-6 pt-6 border-t border-zinc-800">
-              <p className="text-sm text-zinc-400 mb-2">
-                <Users className="w-4 h-4 inline mr-1" />
-                {profile.compatibility.totalCommonArtists} artists in common
+              <p className="text-sm text-zinc-400 mb-3">
+                You both love these artists:
               </p>
               <div className="flex flex-wrap gap-2">
                 {profile.compatibility.commonArtists.map((artist) => (
                   <span
                     key={artist}
-                    className="px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-sm"
+                    className="px-3 py-1.5 bg-pink-500/20 text-pink-300 rounded-full text-sm font-medium"
                   >
                     {artist}
                   </span>
                 ))}
               </div>
             </div>
+          ) : (
+            <div className="mt-6 pt-6 border-t border-zinc-800">
+              <p className="text-sm text-zinc-400">
+                Different music tastes — discover new artists together! 🎵
+              </p>
+            </div>
           )}
+
+          {/* CTA */}
+          <div className="mt-6 pt-6 border-t border-zinc-800">
+            <Button
+              onClick={() => router.push(`/discover?friendId=${userId}`)}
+              className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Find concerts together
+            </Button>
+          </div>
         </div>
 
         {/* Tabs */}
