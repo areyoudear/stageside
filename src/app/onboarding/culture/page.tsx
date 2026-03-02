@@ -15,32 +15,128 @@ import {
 import { cn } from "@/lib/utils";
 import { OnboardingData, OnboardingSliderValues } from "@/lib/embeddings/types";
 
-// Cultural/Regional music preferences
-const CULTURAL_OPTIONS = [
-  { id: "hindi_indie", label: "Hindi Indie", emoji: "🇮🇳", region: "South Asia" },
-  { id: "latin", label: "Latin / Reggaeton", emoji: "🌴", region: "Latin America" },
-  { id: "kpop", label: "K-Pop", emoji: "🇰🇷", region: "Korea" },
-  { id: "afrobeats", label: "Afrobeats", emoji: "🌍", region: "Africa" },
-  { id: "jpop", label: "J-Pop / J-Rock", emoji: "🇯🇵", region: "Japan" },
-  { id: "french", label: "French Pop", emoji: "🇫🇷", region: "France" },
-  { id: "german_techno", label: "German Techno", emoji: "🇩🇪", region: "Germany" },
-  { id: "uk_garage", label: "UK Garage / Grime", emoji: "🇬🇧", region: "UK" },
-  { id: "brazilian", label: "Brazilian", emoji: "🇧🇷", region: "Brazil" },
-  { id: "arabic", label: "Arabic Pop", emoji: "🌙", region: "Middle East" },
-  { id: "mandopop", label: "Mandopop", emoji: "🇨🇳", region: "China/Taiwan" },
-  { id: "russian", label: "Russian", emoji: "🇷🇺", region: "Russia" },
+// Music Scenes - organized by category
+const SCENE_CATEGORIES = [
+  {
+    name: "Asian Pop",
+    scenes: [
+      { id: "kpop", label: "K-Pop", emoji: "🇰🇷" },
+      { id: "jpop", label: "J-Pop / J-Rock", emoji: "🇯🇵" },
+      { id: "cpop", label: "C-Pop / Mandopop", emoji: "🇨🇳" },
+      { id: "cantopop", label: "Cantopop", emoji: "🇭🇰" },
+      { id: "ppop", label: "P-Pop", emoji: "🇵🇭" },
+      { id: "thai_pop", label: "Thai Pop / T-Pop", emoji: "🇹🇭" },
+      { id: "vpop", label: "V-Pop", emoji: "🇻🇳" },
+      { id: "indo_pop", label: "Indonesian Pop", emoji: "🇮🇩" },
+    ],
+  },
+  {
+    name: "South Asian",
+    scenes: [
+      { id: "bollywood", label: "Bollywood", emoji: "🎬" },
+      { id: "hindi_indie", label: "Hindi Indie", emoji: "🇮🇳" },
+      { id: "punjabi", label: "Punjabi / Bhangra", emoji: "🎵" },
+      { id: "tamil", label: "Tamil / Kollywood", emoji: "🇮🇳" },
+      { id: "telugu", label: "Telugu / Tollywood", emoji: "🇮🇳" },
+      { id: "pakistani", label: "Pakistani / Coke Studio", emoji: "🇵🇰" },
+      { id: "bengali", label: "Bengali", emoji: "🇧🇩" },
+    ],
+  },
+  {
+    name: "Latin & Caribbean",
+    scenes: [
+      { id: "reggaeton", label: "Reggaeton", emoji: "🌴" },
+      { id: "latin_pop", label: "Latin Pop", emoji: "🎤" },
+      { id: "salsa", label: "Salsa / Bachata", emoji: "💃" },
+      { id: "brazilian", label: "Brazilian / MPB", emoji: "🇧🇷" },
+      { id: "funk_carioca", label: "Funk Carioca / Baile", emoji: "🇧🇷" },
+      { id: "sertanejo", label: "Sertanejo", emoji: "🤠" },
+      { id: "cumbia", label: "Cumbia", emoji: "🇨🇴" },
+      { id: "reggae", label: "Reggae / Dancehall", emoji: "🇯🇲" },
+      { id: "soca", label: "Soca / Calypso", emoji: "🇹🇹" },
+    ],
+  },
+  {
+    name: "African",
+    scenes: [
+      { id: "afrobeats", label: "Afrobeats", emoji: "🌍" },
+      { id: "amapiano", label: "Amapiano", emoji: "🇿🇦" },
+      { id: "afropop", label: "Afropop", emoji: "🎵" },
+      { id: "highlife", label: "Highlife", emoji: "🇬🇭" },
+      { id: "bongo_flava", label: "Bongo Flava", emoji: "🇹🇿" },
+      { id: "gqom", label: "Gqom", emoji: "🇿🇦" },
+      { id: "kwaito", label: "Kwaito", emoji: "🇿🇦" },
+      { id: "raï", label: "Raï", emoji: "🇩🇿" },
+    ],
+  },
+  {
+    name: "European",
+    scenes: [
+      { id: "uk_garage", label: "UK Garage / Grime", emoji: "🇬🇧" },
+      { id: "german_techno", label: "German Techno", emoji: "🇩🇪" },
+      { id: "french_house", label: "French House / Touch", emoji: "🇫🇷" },
+      { id: "french_pop", label: "French Pop / Chanson", emoji: "🇫🇷" },
+      { id: "dutch_edm", label: "Dutch EDM", emoji: "🇳🇱" },
+      { id: "swedish_pop", label: "Swedish Pop", emoji: "🇸🇪" },
+      { id: "italian", label: "Italian Pop", emoji: "🇮🇹" },
+      { id: "spanish_pop", label: "Spanish Pop", emoji: "🇪🇸" },
+      { id: "russian", label: "Russian Pop", emoji: "🇷🇺" },
+      { id: "turkish", label: "Turkish Pop", emoji: "🇹🇷" },
+      { id: "greek", label: "Greek Music", emoji: "🇬🇷" },
+      { id: "balkan", label: "Balkan / Turbofolk", emoji: "🎺" },
+    ],
+  },
+  {
+    name: "Middle Eastern",
+    scenes: [
+      { id: "arabic_pop", label: "Arabic Pop", emoji: "🌙" },
+      { id: "khaleeji", label: "Khaleeji / Gulf", emoji: "🇸🇦" },
+      { id: "egyptian", label: "Egyptian Pop / Mahraganat", emoji: "🇪🇬" },
+      { id: "levantine", label: "Levantine", emoji: "🇱🇧" },
+      { id: "persian", label: "Persian / Iranian", emoji: "🇮🇷" },
+      { id: "israeli", label: "Israeli / Hebrew", emoji: "🇮🇱" },
+    ],
+  },
 ];
 
-// Language preferences
+// Flatten scenes for easy access
+const ALL_SCENES = SCENE_CATEGORIES.flatMap((cat) => cat.scenes);
+
+// Language preferences - comprehensive list
 const LANGUAGE_OPTIONS = [
+  // Major global languages
   { id: "english", label: "English", emoji: "🇺🇸" },
   { id: "spanish", label: "Spanish", emoji: "🇪🇸" },
-  { id: "hindi", label: "Hindi", emoji: "🇮🇳" },
+  { id: "portuguese", label: "Portuguese", emoji: "🇧🇷" },
+  { id: "french", label: "French", emoji: "🇫🇷" },
+  { id: "german", label: "German", emoji: "🇩🇪" },
+  { id: "italian", label: "Italian", emoji: "🇮🇹" },
+  { id: "dutch", label: "Dutch", emoji: "🇳🇱" },
+  // Asian languages
   { id: "korean", label: "Korean", emoji: "🇰🇷" },
   { id: "japanese", label: "Japanese", emoji: "🇯🇵" },
-  { id: "french", label: "French", emoji: "🇫🇷" },
-  { id: "portuguese", label: "Portuguese", emoji: "🇧🇷" },
-  { id: "german", label: "German", emoji: "🇩🇪" },
+  { id: "mandarin", label: "Mandarin", emoji: "🇨🇳" },
+  { id: "cantonese", label: "Cantonese", emoji: "🇭🇰" },
+  { id: "hindi", label: "Hindi", emoji: "🇮🇳" },
+  { id: "punjabi", label: "Punjabi", emoji: "🇮🇳" },
+  { id: "tamil", label: "Tamil", emoji: "🇮🇳" },
+  { id: "telugu", label: "Telugu", emoji: "🇮🇳" },
+  { id: "thai", label: "Thai", emoji: "🇹🇭" },
+  { id: "vietnamese", label: "Vietnamese", emoji: "🇻🇳" },
+  { id: "indonesian", label: "Indonesian", emoji: "🇮🇩" },
+  { id: "tagalog", label: "Tagalog", emoji: "🇵🇭" },
+  // Middle Eastern & African
+  { id: "arabic", label: "Arabic", emoji: "🌙" },
+  { id: "persian", label: "Persian / Farsi", emoji: "🇮🇷" },
+  { id: "turkish", label: "Turkish", emoji: "🇹🇷" },
+  { id: "hebrew", label: "Hebrew", emoji: "🇮🇱" },
+  { id: "swahili", label: "Swahili", emoji: "🇰🇪" },
+  { id: "yoruba", label: "Yoruba", emoji: "🇳🇬" },
+  // European
+  { id: "russian", label: "Russian", emoji: "🇷🇺" },
+  { id: "polish", label: "Polish", emoji: "🇵🇱" },
+  { id: "swedish", label: "Swedish", emoji: "🇸🇪" },
+  { id: "greek", label: "Greek", emoji: "🇬🇷" },
 ];
 
 export default function CulturePage() {
@@ -48,6 +144,10 @@ export default function CulturePage() {
   
   const [culturalPreferences, setCulturalPreferences] = useState<string[]>([]);
   const [languagePreferences, setLanguagePreferences] = useState<string[]>([]);
+  const [customScene, setCustomScene] = useState("");
+  const [customLanguage, setCustomLanguage] = useState("");
+  const [showAllScenes, setShowAllScenes] = useState(false);
+  const [showAllLanguages, setShowAllLanguages] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -187,44 +287,144 @@ export default function CulturePage() {
         </p>
       </motion.div>
 
-      {/* Regional Music Section */}
+      {/* Music Scenes Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         className="mb-8"
       >
-        <div className="flex items-center gap-2 mb-4">
-          <Music className="w-5 h-5 text-purple-400" />
-          <h3 className="font-semibold text-white">Regional Music</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Music className="w-5 h-5 text-purple-400" />
+            <h3 className="font-semibold text-white">Music Scenes</h3>
+          </div>
+          <button
+            onClick={() => setShowAllScenes(!showAllScenes)}
+            className="text-xs text-cyan-400 hover:text-cyan-300"
+          >
+            {showAllScenes ? "Show less" : "Show all"}
+          </button>
         </div>
         <p className="text-sm text-zinc-400 mb-4">
-          Do you follow any regional music scenes?
+          What music scenes are you into?
         </p>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {CULTURAL_OPTIONS.map((option, index) => {
-            const isSelected = culturalPreferences.includes(option.id);
-            return (
-              <motion.button
-                key={option.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 + index * 0.02 }}
-                onClick={() => toggleCultural(option.id)}
-                className={cn(
-                  "p-3 rounded-xl border transition-all text-left",
-                  isSelected
-                    ? "border-purple-500 bg-purple-500/10 text-white"
-                    : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-600 text-zinc-400 hover:text-white"
-                )}
-              >
-                <span className="text-xl mr-2">{option.emoji}</span>
-                <span className="text-sm font-medium">{option.label}</span>
-              </motion.button>
-            );
-          })}
+        {/* Show categories when expanded, popular picks when collapsed */}
+        {showAllScenes ? (
+          <div className="space-y-6">
+            {SCENE_CATEGORIES.map((category) => (
+              <div key={category.name}>
+                <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
+                  {category.name}
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {category.scenes.map((scene) => {
+                    const isSelected = culturalPreferences.includes(scene.id);
+                    return (
+                      <button
+                        key={scene.id}
+                        onClick={() => toggleCultural(scene.id)}
+                        className={cn(
+                          "px-3 py-2 rounded-lg border transition-all text-sm",
+                          isSelected
+                            ? "border-purple-500 bg-purple-500/10 text-white"
+                            : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-600 text-zinc-400 hover:text-white"
+                        )}
+                      >
+                        <span className="mr-1.5">{scene.emoji}</span>
+                        {scene.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {/* Show popular/common scenes when collapsed */}
+            {["kpop", "bollywood", "reggaeton", "afrobeats", "uk_garage", "german_techno", "latin_pop", "jpop", "arabic_pop"].map((sceneId) => {
+              const scene = ALL_SCENES.find((s) => s.id === sceneId);
+              if (!scene) return null;
+              const isSelected = culturalPreferences.includes(scene.id);
+              return (
+                <button
+                  key={scene.id}
+                  onClick={() => toggleCultural(scene.id)}
+                  className={cn(
+                    "p-3 rounded-xl border transition-all text-left",
+                    isSelected
+                      ? "border-purple-500 bg-purple-500/10 text-white"
+                      : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-600 text-zinc-400 hover:text-white"
+                  )}
+                >
+                  <span className="text-xl mr-2">{scene.emoji}</span>
+                  <span className="text-sm font-medium">{scene.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Custom scene input */}
+        <div className="mt-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={customScene}
+              onChange={(e) => setCustomScene(e.target.value)}
+              placeholder="Add another scene..."
+              className="flex-1 px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500 text-sm focus:outline-none focus:border-purple-500"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && customScene.trim()) {
+                  const id = `custom_${customScene.toLowerCase().replace(/\s+/g, "_")}`;
+                  if (!culturalPreferences.includes(id)) {
+                    setCulturalPreferences([...culturalPreferences, id]);
+                  }
+                  setCustomScene("");
+                }
+              }}
+            />
+            <button
+              onClick={() => {
+                if (customScene.trim()) {
+                  const id = `custom_${customScene.toLowerCase().replace(/\s+/g, "_")}`;
+                  if (!culturalPreferences.includes(id)) {
+                    setCulturalPreferences([...culturalPreferences, id]);
+                  }
+                  setCustomScene("");
+                }
+              }}
+              disabled={!customScene.trim()}
+              className="px-4 py-2 rounded-lg bg-purple-500/20 text-purple-400 text-sm font-medium disabled:opacity-50 hover:bg-purple-500/30"
+            >
+              Add
+            </button>
+          </div>
         </div>
+
+        {/* Show selected custom scenes */}
+        {culturalPreferences.filter((p) => p.startsWith("custom_")).length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {culturalPreferences
+              .filter((p) => p.startsWith("custom_"))
+              .map((p) => (
+                <span
+                  key={p}
+                  className="px-3 py-1.5 rounded-full bg-purple-500/20 text-purple-300 text-sm flex items-center gap-2"
+                >
+                  {p.replace("custom_", "").replace(/_/g, " ")}
+                  <button
+                    onClick={() => setCulturalPreferences(culturalPreferences.filter((x) => x !== p))}
+                    className="text-purple-400 hover:text-white"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+          </div>
+        )}
       </motion.div>
 
       {/* Language Preferences Section */}
@@ -234,16 +434,24 @@ export default function CulturePage() {
         transition={{ delay: 0.2 }}
         className="mb-8"
       >
-        <div className="flex items-center gap-2 mb-4">
-          <Languages className="w-5 h-5 text-blue-400" />
-          <h3 className="font-semibold text-white">Language Preferences</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Languages className="w-5 h-5 text-blue-400" />
+            <h3 className="font-semibold text-white">Languages</h3>
+          </div>
+          <button
+            onClick={() => setShowAllLanguages(!showAllLanguages)}
+            className="text-xs text-cyan-400 hover:text-cyan-300"
+          >
+            {showAllLanguages ? "Show less" : `Show all (${LANGUAGE_OPTIONS.length})`}
+          </button>
         </div>
         <p className="text-sm text-zinc-400 mb-4">
           What languages do you listen to music in?
         </p>
 
         <div className="flex flex-wrap gap-2">
-          {LANGUAGE_OPTIONS.map((option, index) => {
+          {(showAllLanguages ? LANGUAGE_OPTIONS : LANGUAGE_OPTIONS.slice(0, 12)).map((option, index) => {
             const isSelected = languagePreferences.includes(option.id);
             return (
               <motion.button
@@ -265,6 +473,65 @@ export default function CulturePage() {
             );
           })}
         </div>
+
+        {/* Custom language input */}
+        <div className="mt-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={customLanguage}
+              onChange={(e) => setCustomLanguage(e.target.value)}
+              placeholder="Add another language..."
+              className="flex-1 px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500 text-sm focus:outline-none focus:border-blue-500"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && customLanguage.trim()) {
+                  const id = `custom_lang_${customLanguage.toLowerCase().replace(/\s+/g, "_")}`;
+                  if (!languagePreferences.includes(id)) {
+                    setLanguagePreferences([...languagePreferences, id]);
+                  }
+                  setCustomLanguage("");
+                }
+              }}
+            />
+            <button
+              onClick={() => {
+                if (customLanguage.trim()) {
+                  const id = `custom_lang_${customLanguage.toLowerCase().replace(/\s+/g, "_")}`;
+                  if (!languagePreferences.includes(id)) {
+                    setLanguagePreferences([...languagePreferences, id]);
+                  }
+                  setCustomLanguage("");
+                }
+              }}
+              disabled={!customLanguage.trim()}
+              className="px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 text-sm font-medium disabled:opacity-50 hover:bg-blue-500/30"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+
+        {/* Show selected custom languages */}
+        {languagePreferences.filter((p) => p.startsWith("custom_lang_")).length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {languagePreferences
+              .filter((p) => p.startsWith("custom_lang_"))
+              .map((p) => (
+                <span
+                  key={p}
+                  className="px-3 py-1.5 rounded-full bg-blue-500/20 text-blue-300 text-sm flex items-center gap-2"
+                >
+                  {p.replace("custom_lang_", "").replace(/_/g, " ")}
+                  <button
+                    onClick={() => setLanguagePreferences(languagePreferences.filter((x) => x !== p))}
+                    className="text-blue-400 hover:text-white"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+          </div>
+        )}
       </motion.div>
 
       {/* Summary Card */}
