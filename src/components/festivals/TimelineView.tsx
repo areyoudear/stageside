@@ -23,10 +23,21 @@ import type {
   ScheduleConflict,
   FreeSlot,
 } from "@/lib/schedule-planner";
+import dynamic from "next/dynamic";
+
+// Lazy load share modal to avoid SSR issues with html-to-image
+const ShareScheduleCard = dynamic(
+  () => import("./ShareScheduleCard"),
+  { ssr: false }
+);
 
 interface TimelineViewProps {
   schedule: CrewSchedule;
   currentUserId: string;
+  festivalName?: string;
+  crewName?: string;
+  crewId?: string;
+  festivalId?: string;
   onSetMeetup?: (time: string, artistId: string) => void;
   onShare?: () => void;
   onExport?: () => void;
@@ -317,10 +328,15 @@ function FreeSlotIndicator({ slot }: { slot: FreeSlot }) {
 export function TimelineView({
   schedule,
   currentUserId,
+  festivalName,
+  crewName,
+  crewId,
+  festivalId,
   onSetMeetup,
   onShare,
   onExport,
 }: TimelineViewProps) {
+  const [showShareModal, setShowShareModal] = useState(false);
   // Merge slots, conflicts, and free slots into timeline order
   const timeline: Array<
     | { type: "slot"; data: ScheduleSlot }
@@ -368,11 +384,26 @@ export function TimelineView({
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">{schedule.day}</h2>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" onClick={onShare}>
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            onClick={() => onShare ? onShare() : setShowShareModal(true)}
+          >
             <Share2 className="w-4 h-4 mr-1.5" />
             Share
           </Button>
-          <Button size="sm" variant="ghost" onClick={onExport}>
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            onClick={() => {
+              if (onExport) {
+                onExport();
+              } else if (festivalId && crewId) {
+                // Direct download
+                window.location.href = `/api/festivals/${festivalId}/schedule/export?crewId=${crewId}`;
+              }
+            }}
+          >
             <Calendar className="w-4 h-4 mr-1.5" />
             Export
           </Button>
@@ -449,6 +480,17 @@ export function TimelineView({
           </div>
         )}
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && festivalName && crewName && (
+        <ShareScheduleCard
+          schedules={[schedule]}
+          festivalName={festivalName}
+          crewName={crewName}
+          selectedDay={schedule.day}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </div>
   );
 }
