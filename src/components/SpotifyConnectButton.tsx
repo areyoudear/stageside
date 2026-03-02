@@ -1,9 +1,9 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, Music2 } from "lucide-react";
+import { Loader2, Music2 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
@@ -54,37 +54,25 @@ export function SpotifyConnectButton({
   }
 
   if (session?.user) {
+    // Just show avatar when logged in - Sign Out is in Settings
     return (
-      <div className="flex items-center gap-3">
-        {showName && (
-          <div className="flex items-center gap-2">
-            {session.user.image ? (
-              <Image
-                src={session.user.image}
-                alt={session.user.name || "User"}
-                width={32}
-                height={32}
-                className="rounded-full"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
-                <Music2 className="w-4 h-4 text-zinc-400" />
-              </div>
-            )}
-            <span className="text-sm text-zinc-300 hidden sm:inline">
-              {session.user.name}
-            </span>
+      <div className="flex items-center gap-2">
+        {session.user.image ? (
+          <Image
+            src={session.user.image}
+            alt={session.user.name || "User"}
+            width={32}
+            height={32}
+            className="rounded-full"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
+            <Music2 className="w-4 h-4 text-zinc-400" />
           </div>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800"
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
-        </Button>
+        <span className="text-sm text-zinc-300 hidden md:inline">
+          {session.user.name?.split(" ")[0]}
+        </span>
       </div>
     );
   }
