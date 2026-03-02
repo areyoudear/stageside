@@ -16,9 +16,9 @@ import {
   Loader2,
   Sparkles,
   ChevronRight,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MatchBadge } from "@/components/TasteOverlapCard";
 import { cn } from "@/lib/utils";
 
 interface Friend {
@@ -30,7 +30,7 @@ interface Friend {
 }
 
 interface FriendWithOverlap extends Friend {
-  overlapPercentage?: number;
+  sharedArtists?: string[];
   sharedArtistCount?: number;
 }
 
@@ -150,7 +150,7 @@ export default function FriendsPage() {
         if (result?.overlap) {
           return {
             ...friend,
-            overlapPercentage: result.overlap.overlapPercentage,
+            sharedArtists: result.overlap.sharedArtists || [],
             sharedArtistCount: result.overlap.sharedArtists?.length || 0,
           };
         }
@@ -258,11 +258,11 @@ export default function FriendsPage() {
     );
   }
 
-  // Sort friends by overlap percentage (highest first)
+  // Sort friends by shared artist count (highest first)
   const sortedFriends = [...friends].sort((a, b) => {
-    const aOverlap = a.overlapPercentage ?? -1;
-    const bOverlap = b.overlapPercentage ?? -1;
-    return bOverlap - aOverlap;
+    const aCount = a.sharedArtistCount ?? -1;
+    const bCount = b.sharedArtistCount ?? -1;
+    return bCount - aCount;
   });
 
   return (
@@ -460,55 +460,69 @@ export default function FriendsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {sortedFriends.map((friend) => {
                 const isLoadingOverlap = loadingOverlaps.has(friend.id);
-                const hasOverlap = friend.overlapPercentage !== undefined;
+                const hasSharedArtists = (friend.sharedArtistCount ?? 0) > 0;
+                const sharedArtists = friend.sharedArtists || [];
 
                 return (
                   <div
                     key={friend.friendshipId}
                     className="group bg-zinc-900/50 border border-zinc-800 rounded-xl hover:bg-zinc-800/50 transition-colors overflow-hidden"
                   >
-                    {/* Main friend info row */}
                     <Link
                       href={`/friends/${friend.id}`}
-                      className="flex items-center justify-between p-4"
+                      className="block p-4"
                     >
-                      <div className="flex items-center gap-3">
-                        {/* Avatar */}
-                        <div className="relative">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-medium text-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          {/* Avatar */}
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-medium text-lg flex-shrink-0">
                             {friend.name.charAt(0).toUpperCase()}
                           </div>
-                          {/* Match badge overlay */}
-                          {hasOverlap && friend.overlapPercentage! > 0 && (
-                            <div className="absolute -bottom-1 -right-1">
-                              <MatchBadge percentage={friend.overlapPercentage!} size="sm" />
-                            </div>
-                          )}
+
+                          {/* Name and shared artists */}
+                          <div className="min-w-0">
+                            <p className="font-medium text-white flex items-center gap-2">
+                              {friend.name}
+                              {isLoadingOverlap && (
+                                <Loader2 className="w-3 h-3 animate-spin text-zinc-500" />
+                              )}
+                            </p>
+                            
+                            {/* Shared artists info */}
+                            {!isLoadingOverlap && (
+                              <div className="mt-1">
+                                {hasSharedArtists ? (
+                                  <div className="flex items-center gap-1.5 text-sm">
+                                    <Heart className="w-3.5 h-3.5 text-pink-400 flex-shrink-0" />
+                                    <span className="text-zinc-300">
+                                      {sharedArtists.length} in common
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-zinc-500">
+                                    Different vibes — discover together!
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Name and info */}
-                        <div>
-                          <p className="font-medium text-white flex items-center gap-2">
-                            {friend.name}
-                            {isLoadingOverlap && (
-                              <Loader2 className="w-3 h-3 animate-spin text-zinc-500" />
-                            )}
-                          </p>
-                          {friend.username && (
-                            <p className="text-sm text-zinc-500">@{friend.username}</p>
-                          )}
-                          {hasOverlap && friend.sharedArtistCount! > 0 && (
-                            <p className="text-xs text-zinc-500 mt-0.5">
-                              {friend.sharedArtistCount} shared artists
-                            </p>
-                          )}
-                        </div>
+                        <ChevronRight className="w-5 h-5 text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0 mt-1" />
                       </div>
 
-                      <ChevronRight className="w-5 h-5 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+                      {/* Shared artist names */}
+                      {hasSharedArtists && sharedArtists.length > 0 && (
+                        <div className="mt-3 ml-15 pl-15">
+                          <p className="text-xs text-zinc-400 truncate pl-[60px]">
+                            {sharedArtists.slice(0, 4).join(" • ")}
+                            {sharedArtists.length > 4 && ` +${sharedArtists.length - 4} more`}
+                          </p>
+                        </div>
+                      )}
                     </Link>
 
                     {/* Action buttons row */}
