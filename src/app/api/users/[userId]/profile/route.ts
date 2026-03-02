@@ -73,34 +73,42 @@ export async function GET(
     const interestedConcerts = upcomingConcerts.filter(c => c.status === "interested");
     const goingConcerts = upcomingConcerts.filter(c => c.status === "going");
 
-    // Get friend's top artists for compatibility calculation
-    const { data: friendArtists } = await adminClient
-      .from("user_artists")
-      .select("artist_id, artist_name")
-      .eq("user_id", friendId);
+    // Get friend's top artists from music_profiles
+    const { data: friendProfile2 } = await adminClient
+      .from("music_profiles")
+      .select("top_artists")
+      .eq("user_id", friendId)
+      .single();
 
-    // Get current user's top artists
-    const { data: userArtists } = await adminClient
-      .from("user_artists")
-      .select("artist_id, artist_name")
-      .eq("user_id", currentUserId);
+    // Get current user's top artists from music_profiles
+    const { data: userProfile } = await adminClient
+      .from("music_profiles")
+      .select("top_artists")
+      .eq("user_id", currentUserId)
+      .single();
 
-    // Calculate music taste overlap
-    const friendArtistIds = new Set((friendArtists || []).map(a => a.artist_id));
-    const userArtistIds = new Set((userArtists || []).map(a => a.artist_id));
+    // Extract artist names
+    const friendArtistNames = (friendProfile2?.top_artists || []).map((a: { name: string }) => a.name.toLowerCase());
+    const userArtistNames = (userProfile?.top_artists || []).map((a: { name: string }) => a.name.toLowerCase());
+
+    // Find common artists (case-insensitive match)
+    const commonArtistNames: string[] = [];
+    const friendOriginalNames = (friendProfile2?.top_artists || []).map((a: { name: string }) => a.name);
     
-    const commonArtists = [...userArtistIds].filter(id => friendArtistIds.has(id));
-    const totalUniqueArtists = new Set([...friendArtistIds, ...userArtistIds]).size;
+    for (const friendArtist of friendOriginalNames) {
+      const normalizedFriend = friendArtist.toLowerCase();
+      if (userArtistNames.includes(normalizedFriend)) {
+        commonArtistNames.push(friendArtist);
+      }
+    }
+
+    // Calculate total unique artists
+    const allArtistsSet = new Set([...friendArtistNames, ...userArtistNames]);
+    const totalUniqueArtists = allArtistsSet.size;
     
     const compatibilityScore = totalUniqueArtists > 0 
-      ? Math.round((commonArtists.length / totalUniqueArtists) * 100)
+      ? Math.round((commonArtistNames.length / totalUniqueArtists) * 100)
       : 0;
-
-    // Get names of common artists
-    const commonArtistNames = (friendArtists || [])
-      .filter(a => commonArtists.includes(a.artist_id))
-      .map(a => a.artist_name)
-      .slice(0, 10);
 
     // Get current user's concert interests to find overlap
     const { data: userInterests } = await adminClient
@@ -148,8 +156,8 @@ export async function GET(
       })),
       compatibility: {
         score: compatibilityScore,
-        commonArtists: commonArtistNames,
-        totalCommonArtists: commonArtists.length,
+        commonArtists: commonArtistNames.slice(0, 10),
+        totalCommonArtists: commonArtistNames.length,
       },
     });
   } catch (error) {
