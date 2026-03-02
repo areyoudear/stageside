@@ -154,7 +154,7 @@ function MatchScoreBadge({ score, isPerfect, matchReasons, onTooltipHover, hasPr
   }
   
   // No profile - show CTA to connect music
-  if (!hasProfile || score === 0) {
+  if (!hasProfile) {
     return (
       <a 
         href="/settings" 
@@ -163,6 +163,16 @@ function MatchScoreBadge({ score, isPerfect, matchReasons, onTooltipHover, hasPr
         <Sparkles className="w-3.5 h-3.5 text-zinc-500 group-hover:text-cyan-400" />
         <span className="text-xs font-medium text-zinc-400 group-hover:text-cyan-300">Get match %</span>
       </a>
+    );
+  }
+  
+  // Score 0 = event hasn't been analyzed yet, show "Discovery" badge
+  if (score === 0) {
+    return (
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800/80 border border-zinc-700">
+        <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+        <span className="text-xs font-medium text-zinc-400">Discovery</span>
+      </div>
     );
   }
 
