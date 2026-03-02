@@ -38,13 +38,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Regenerate embedding
-    const result = await updateUserCoreFromOnboarding(userId, userTaste.onboarding_data);
+    try {
+      const result = await updateUserCoreFromOnboarding(userId, userTaste.onboarding_data);
 
-    return NextResponse.json({
-      success: true,
-      hasEmbedding: !!result.coreEmbedding,
-      embeddingDimensions: result.coreEmbedding?.length || 0,
-    });
+      return NextResponse.json({
+        success: true,
+        hasEmbedding: !!result.coreEmbedding,
+        embeddingDimensions: result.coreEmbedding?.length || 0,
+      });
+    } catch (embeddingError) {
+      console.error("Embedding generation error:", embeddingError);
+      return NextResponse.json({
+        error: embeddingError instanceof Error ? embeddingError.message : "Embedding generation failed",
+        stack: embeddingError instanceof Error ? embeddingError.stack?.split('\n').slice(0, 5) : undefined,
+      }, { status: 500 });
+    }
   } catch (error) {
     console.error("Error regenerating embedding:", error);
     return NextResponse.json(
