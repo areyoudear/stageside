@@ -18,13 +18,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { searchConcerts, Concert } from "@/lib/ticketmaster";
+import { Concert } from "@/lib/ticketmaster";
+import { searchAllConcertSources } from "@/lib/concert-aggregator";
 import { getOrCreateUserEmbedding, getEffectiveEmbedding } from "@/lib/embeddings/user-embeddings";
 import { getOrCreateEventEmbedding } from "@/lib/embeddings/event-embeddings";
 import { cosineSimilarity } from "@/lib/embeddings/embedding-service";
 import { EmbeddingVector } from "@/lib/embeddings/types";
 import { enrichConcertsWithPreviews, enrichConcertsWithPrices } from "@/lib/concert-enrichment";
-import { getSavedConcerts } from "@/lib/supabase";
+import { getSavedConcerts, getUnifiedMusicProfile } from "@/lib/supabase";
 
 // Match tier thresholds
 function getMatchTier(similarity: number): 'perfect' | 'great' | 'good' | 'discovery' {
@@ -82,20 +83,29 @@ export async function GET(request: NextRequest) {
     const startDate = `${startDateStr}T00:00:00Z`;
     const endDate = `${endDateStr}T23:59:59Z`;
 
-    // Get user's taste embedding
-    const userTaste = await getOrCreateUserEmbedding(session.user.id);
+    // Get user's taste embedding and music profile for Bandsintown
+    const [userTaste, musicProfile] = await Promise.all([
+      getOrCreateUserEmbedding(session.user.id),
+      getUnifiedMusicProfile(session.user.id),
+    ]);
+    
+    // Get artist names for Bandsintown search
+    const artistNames = musicProfile?.topArtists?.slice(0, 20).map(a => a.name) || [];
+    
+    // Search all sources: Ticketmaster + SeatGeek + Bandsintown
+    const concertsResult = await searchAllConcertSources({
+      lat: lat ? parseFloat(lat) : undefined,
+      lng: lng ? parseFloat(lng) : undefined,
+      city: city || undefined,
+      radiusMiles: radius,
+      dateFrom: startDateStr,
+      dateTo: endDateStr,
+      artistNames, // For Bandsintown
+      sources: ["ticketmaster", "seatgeek", "bandsintown"],
+    });
     
     if (!userTaste?.coreEmbedding) {
       // Fallback to non-personalized results
-      const concertsResult = await searchConcerts({
-        city,
-        latLong,
-        radius,
-        startDate,
-        endDate,
-        size: limit,
-      });
-      
       return NextResponse.json({
         concerts: concertsResult.concerts.map(c => ({
           ...c,
@@ -103,7 +113,8 @@ export async function GET(request: NextRequest) {
           matchTier: 'discovery' as const,
           matchReasons: ["Connect Spotify or complete onboarding for personalized matches"],
         })),
-        totalElements: concertsResult.totalElements,
+        totalElements: concertsResult.concerts.length,
+        sourceBreakdown: concertsResult.totalBySource,
         hasEmbedding: false,
         message: "Sync Spotify or complete onboarding for personalized matches",
       });
@@ -119,16 +130,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Fetch concerts from Ticketmaster
-    const concertsResult = await searchConcerts({
-      city,
-      latLong,
-      radius,
-      startDate,
-      endDate,
-      size: limit,
-    });
-
     // Get saved concerts
     const savedConcertIds = await getSavedConcerts(session.user.id);
 
@@ -137,9 +138,11 @@ export async function GET(request: NextRequest) {
       concertsResult.concerts.map(async (concert) => {
         try {
           // Get or create event embedding
+          // Use the primary source from the aggregated concert
+          const primarySource = (concert as any).sources?.[0] || 'ticketmaster';
           const eventEmbedding = await getOrCreateEventEmbedding({
             externalId: concert.id,
-            source: 'ticketmaster',
+            source: primarySource,
             name: concert.name,
             venueName: concert.venue.name,
             city: concert.venue.city,
@@ -221,9 +224,9 @@ export async function GET(request: NextRequest) {
       concerts: enrichedConcerts,
       categories: tierCounts,
       highMatches: tierCounts.perfect + tierCounts.great, // For dashboard compatibility
-      totalElements: concertsResult.totalElements,
-      totalPages: concertsResult.totalPages,
-      page: concertsResult.page,
+      totalElements: enrichedConcerts.length,
+      sourceBreakdown: concertsResult.totalBySource, // Shows count from each provider
+      searchedSources: concertsResult.searchedSources,
       hasEmbedding: true,
       hasProfile: true,
     });
