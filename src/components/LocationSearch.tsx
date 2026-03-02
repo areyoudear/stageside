@@ -6,23 +6,62 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Popular cities for quick selection
+// Extended list of cities for instant matching (no API call needed)
 const POPULAR_CITIES = [
-  { name: "Los Angeles", lat: 34.0522, lng: -118.2437 },
+  // Major US cities
   { name: "New York", lat: 40.7128, lng: -74.006 },
+  { name: "Los Angeles", lat: 34.0522, lng: -118.2437 },
   { name: "Chicago", lat: 41.8781, lng: -87.6298 },
+  { name: "Houston", lat: 29.7604, lng: -95.3698 },
+  { name: "Phoenix", lat: 33.4484, lng: -112.074 },
+  { name: "Philadelphia", lat: 39.9526, lng: -75.1652 },
+  { name: "San Antonio", lat: 29.4241, lng: -98.4936 },
+  { name: "San Diego", lat: 32.7157, lng: -117.1611 },
+  { name: "Dallas", lat: 32.7767, lng: -96.797 },
+  { name: "San Jose", lat: 37.3382, lng: -121.8863 },
   { name: "Austin", lat: 30.2672, lng: -97.7431 },
-  { name: "Nashville", lat: 36.1627, lng: -86.7816 },
+  { name: "Jacksonville", lat: 30.3322, lng: -81.6557 },
+  { name: "Fort Worth", lat: 32.7555, lng: -97.3308 },
+  { name: "Columbus", lat: 39.9612, lng: -82.9988 },
   { name: "San Francisco", lat: 37.7749, lng: -122.4194 },
-  { name: "Miami", lat: 25.7617, lng: -80.1918 },
+  { name: "Charlotte", lat: 35.2271, lng: -80.8431 },
+  { name: "Indianapolis", lat: 39.7684, lng: -86.1581 },
   { name: "Seattle", lat: 47.6062, lng: -122.3321 },
   { name: "Denver", lat: 39.7392, lng: -104.9903 },
-  { name: "Atlanta", lat: 33.749, lng: -84.388 },
+  { name: "Washington DC", lat: 38.9072, lng: -77.0369 },
   { name: "Boston", lat: 42.3601, lng: -71.0589 },
+  { name: "Nashville", lat: 36.1627, lng: -86.7816 },
+  { name: "Detroit", lat: 42.3314, lng: -83.0458 },
   { name: "Portland", lat: 45.5152, lng: -122.6784 },
-  { name: "Phoenix", lat: 33.4484, lng: -112.074 },
-  { name: "Dallas", lat: 32.7767, lng: -96.797 },
-  { name: "San Diego", lat: 32.7157, lng: -117.1611 },
+  { name: "Las Vegas", lat: 36.1699, lng: -115.1398 },
+  { name: "Memphis", lat: 35.1495, lng: -90.049 },
+  { name: "Louisville", lat: 38.2527, lng: -85.7585 },
+  { name: "Baltimore", lat: 39.2904, lng: -76.6122 },
+  { name: "Milwaukee", lat: 43.0389, lng: -87.9065 },
+  { name: "Albuquerque", lat: 35.0844, lng: -106.6504 },
+  { name: "Tucson", lat: 32.2226, lng: -110.9747 },
+  { name: "Fresno", lat: 36.7378, lng: -119.7871 },
+  { name: "Sacramento", lat: 38.5816, lng: -121.4944 },
+  { name: "Atlanta", lat: 33.749, lng: -84.388 },
+  { name: "Miami", lat: 25.7617, lng: -80.1918 },
+  { name: "Oakland", lat: 37.8044, lng: -122.2712 },
+  { name: "Minneapolis", lat: 44.9778, lng: -93.265 },
+  { name: "Cleveland", lat: 41.4993, lng: -81.6944 },
+  { name: "New Orleans", lat: 29.9511, lng: -90.0715 },
+  { name: "Tampa", lat: 27.9506, lng: -82.4572 },
+  { name: "Pittsburgh", lat: 40.4406, lng: -79.9959 },
+  { name: "Cincinnati", lat: 39.1031, lng: -84.512 },
+  { name: "St. Louis", lat: 38.627, lng: -90.1994 },
+  { name: "Orlando", lat: 28.5383, lng: -81.3792 },
+  { name: "Raleigh", lat: 35.7796, lng: -78.6382 },
+  { name: "Salt Lake City", lat: 40.7608, lng: -111.891 },
+  { name: "Kansas City", lat: 39.0997, lng: -94.5786 },
+  // International
+  { name: "London", lat: 51.5074, lng: -0.1278 },
+  { name: "Toronto", lat: 43.6532, lng: -79.3832 },
+  { name: "Vancouver", lat: 49.2827, lng: -123.1207 },
+  { name: "Montreal", lat: 45.5017, lng: -73.5673 },
+  { name: "Mexico City", lat: 19.4326, lng: -99.1332 },
 ];
 
 // Radius options in miles
@@ -166,16 +205,26 @@ export function LocationSearch({
     }
   }, []);
 
-  // Debounced search
+  // Debounced search - only hit API if no popular city matches
   useEffect(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
     if (inputValue && inputValue !== value?.name) {
-      debounceRef.current = setTimeout(() => {
-        searchLocations(inputValue);
-      }, 300);
+      // Check if we have good matches in popular cities first
+      const popularMatches = POPULAR_CITIES.filter((city) =>
+        city.name.toLowerCase().includes(inputValue.toLowerCase())
+      );
+      
+      // Only search API if no popular matches and query is 3+ chars
+      if (popularMatches.length === 0 && inputValue.length >= 3) {
+        debounceRef.current = setTimeout(() => {
+          searchLocations(inputValue);
+        }, 150); // Faster debounce
+      } else {
+        setSearchResults([]);
+      }
     } else {
       setSearchResults([]);
     }
@@ -187,11 +236,20 @@ export function LocationSearch({
     };
   }, [inputValue, value?.name, searchLocations]);
 
-  // Filter popular cities based on input
+  // Filter popular cities based on input - prioritize starts-with matches
   const filteredPopularCities = inputValue
-    ? POPULAR_CITIES.filter((city) =>
-        city.name.toLowerCase().includes(inputValue.toLowerCase())
-      )
+    ? POPULAR_CITIES
+        .filter((city) =>
+          city.name.toLowerCase().includes(inputValue.toLowerCase())
+        )
+        .sort((a, b) => {
+          // Prioritize cities that START with the query
+          const aStarts = a.name.toLowerCase().startsWith(inputValue.toLowerCase());
+          const bStarts = b.name.toLowerCase().startsWith(inputValue.toLowerCase());
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          return 0;
+        })
     : POPULAR_CITIES;
 
   // Use browser geolocation
@@ -320,18 +378,40 @@ export function LocationSearch({
               <span className="text-blue-400">Use my current location</span>
             </button>
 
-            {/* Search Results */}
+            {/* Matching Cities (instant, from our list) */}
+            {filteredPopularCities.length > 0 && (
+              <div className="max-h-48 overflow-y-auto">
+                {inputValue && (
+                  <div className="px-3 py-2 text-xs text-zinc-500 uppercase tracking-wider">
+                    {filteredPopularCities.length === POPULAR_CITIES.length ? "Popular Cities" : "Matching Cities"}
+                  </div>
+                )}
+                {filteredPopularCities.slice(0, 8).map((city) => (
+                  <button
+                    key={city.name}
+                    type="button"
+                    onClick={() => handleLocationSelect(city)}
+                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left"
+                  >
+                    <MapPin className="w-4 h-4 text-green-500" />
+                    <span className="text-white">{city.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* API Search Results (for cities not in our list) */}
             {isSearching && (
-              <div className="px-4 py-3 flex items-center gap-2 text-zinc-500">
+              <div className="px-4 py-3 flex items-center gap-2 text-zinc-500 border-t border-zinc-700">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Searching...</span>
+                <span>Searching more cities...</span>
               </div>
             )}
 
             {searchResults.length > 0 && (
-              <div className="border-b border-zinc-700">
+              <div className="border-t border-zinc-700">
                 <div className="px-3 py-2 text-xs text-zinc-500 uppercase tracking-wider">
-                  Search Results
+                  More Results
                 </div>
                 {searchResults.map((location, idx) => (
                   <button
@@ -340,30 +420,17 @@ export function LocationSearch({
                     onClick={() => handleLocationSelect(location)}
                     className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left"
                   >
-                    <MapPin className="w-4 h-4 text-green-500" />
+                    <MapPin className="w-4 h-4 text-cyan-500" />
                     <span className="text-white">{location.name}</span>
                   </button>
                 ))}
               </div>
             )}
-
-            {/* Popular Cities */}
-            {!isSearching && searchResults.length === 0 && (
-              <div className="max-h-64 overflow-y-auto">
-                <div className="px-3 py-2 text-xs text-zinc-500 uppercase tracking-wider">
-                  Popular Cities
-                </div>
-                {filteredPopularCities.slice(0, 8).map((city) => (
-                  <button
-                    key={city.name}
-                    type="button"
-                    onClick={() => handleLocationSelect(city)}
-                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left"
-                  >
-                    <MapPin className="w-4 h-4 text-zinc-500" />
-                    <span className="text-white">{city.name}</span>
-                  </button>
-                ))}
+            
+            {/* No results message */}
+            {inputValue.length >= 3 && filteredPopularCities.length === 0 && searchResults.length === 0 && !isSearching && (
+              <div className="px-4 py-3 text-zinc-500 text-center">
+                No cities found for &quot;{inputValue}&quot;
               </div>
             )}
           </div>
