@@ -148,15 +148,8 @@ export async function GET(request: NextRequest) {
           });
 
           if (!eventEmbedding?.embedding) {
-            // Embedding generation pending - assign discovery tier with base score
-            return {
-              ...concert,
-              matchScore: 20, // Base discovery score
-              rawSimilarity: 0.20,
-              matchTier: 'discovery' as const,
-              matchReasons: ["Discover something new"],
-              isSaved: savedConcertIds.includes(concert.id),
-            };
+            // No embedding - skip this concert (will be filtered out)
+            return null;
           }
 
           // Compute cosine similarity
@@ -190,20 +183,17 @@ export async function GET(request: NextRequest) {
           };
         } catch (error) {
           console.error(`Error processing concert ${concert.id}:`, error);
-          return {
-            ...concert,
-            matchScore: 20, // Base discovery score for failed embeddings
-            rawSimilarity: 0.20,
-            matchTier: 'discovery' as const,
-            matchReasons: ["Discover something new"],
-            isSaved: savedConcertIds.includes(concert.id),
-          };
+          // Skip concerts that failed embedding - will be filtered out
+          return null;
         }
       })
     );
 
+    // Filter out concerts that couldn't be analyzed (null values)
+    const analyzedConcerts = matchedConcerts.filter((c): c is NonNullable<typeof c> => c !== null);
+
     // Sort by similarity (highest first)
-    matchedConcerts.sort((a, b) => {
+    analyzedConcerts.sort((a, b) => {
       if (b.rawSimilarity !== a.rawSimilarity) {
         return b.rawSimilarity - a.rawSimilarity;
       }
@@ -212,7 +202,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Enrich top concerts with audio previews
-    let enrichedConcerts = await enrichConcertsWithPreviews(matchedConcerts, 30);
+    let enrichedConcerts = await enrichConcertsWithPreviews(analyzedConcerts, 30);
     
     // Enrich concerts missing prices from SeatGeek
     const parsedLat = lat ? parseFloat(lat) : undefined;
