@@ -33,7 +33,7 @@ export async function GET() {
 
     // Check if user has any connected music services
     const { data: connections } = await adminClient
-      .from("music_connections")
+      .from("user_music_connections")
       .select("id")
       .eq("user_id", session.user.id)
       .eq("is_active", true)
