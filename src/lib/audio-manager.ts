@@ -150,16 +150,28 @@ class AudioManager {
   async stop(fade: boolean = true): Promise<void> {
     if (!this.currentInstance) return;
     
-    const { audio, onStateChange } = this.currentInstance;
+    const instance = this.currentInstance;
+    const { audio, onStateChange } = instance;
     
-    if (fade && !audio.paused) {
+    // Clear fade first to prevent conflicts
+    this.clearFade();
+    
+    if (fade && !audio.paused && audio.volume > 0) {
       await this.fadeOut(audio);
     }
     
+    // Ensure audio is stopped
     audio.pause();
     audio.currentTime = 0;
+    
+    // Notify state change before cleanup
     onStateChange?.('idle');
-    this.cleanup();
+    
+    // Only cleanup if this is still the current instance
+    // (prevents race condition if new audio started during fade)
+    if (this.currentInstance === instance) {
+      this.cleanup();
+    }
   }
   
   /**
@@ -271,11 +283,19 @@ class AudioManager {
     
     if (this.currentInstance) {
       const { audio } = this.currentInstance;
+      // Stop playback completely
+      audio.pause();
+      audio.currentTime = 0;
+      // Remove event listeners
       audio.oncanplay = null;
       audio.onerror = null;
       audio.onended = null;
       audio.ontimeupdate = null;
+      audio.onpause = null;
+      audio.onplay = null;
+      // Clear source to release resources
       audio.src = '';
+      audio.load(); // Force release
       this.currentInstance = null;
     }
   }

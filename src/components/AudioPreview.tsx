@@ -51,21 +51,31 @@ export function AudioPreview({
     // Check initial state
     if (audioManager.isCurrent(previewUrl)) {
       setState(audioManager.getState());
+    } else {
+      // Not the current audio, ensure we're idle
+      setState("idle");
+      setProgress(0);
     }
     
-    // Listen for state changes via periodic check (simple approach)
+    // Listen for state changes via periodic check
     const interval = setInterval(() => {
-      if (audioManager.isCurrent(previewUrl)) {
+      const isCurrent = audioManager.isCurrent(previewUrl);
+      
+      if (isCurrent) {
         const currentState = audioManager.getState();
         setState(currentState);
-      } else if (state !== "idle") {
-        setState("idle");
-        setProgress(0);
+      } else {
+        // Another audio is playing or nothing is playing
+        // Reset this component to idle
+        if (state !== "idle") {
+          setState("idle");
+          setProgress(0);
+        }
       }
-    }, 100);
+    }, 50); // Faster polling for snappier UI
     
     return () => clearInterval(interval);
-  }, [previewUrl, state]);
+  }, [previewUrl]); // Removed 'state' dependency to prevent loop
   
   // Handle play/pause
   const handleToggle = useCallback(async () => {
