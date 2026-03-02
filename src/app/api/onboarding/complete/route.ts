@@ -5,6 +5,38 @@ import { OnboardingData } from "@/lib/embeddings/types";
 import { updateUserCoreFromOnboarding } from "@/lib/embeddings/user-embeddings";
 import { createAdminClient } from "@/lib/supabase";
 
+/**
+ * Sync onboarding artists to music_profiles table for matching
+ */
+async function syncArtistsToMusicProfile(
+  userId: string,
+  likedArtists: string[],
+  genres: string[] = []
+) {
+  const supabase = createAdminClient();
+  
+  // Transform artist names to music_profiles format
+  const topArtists = likedArtists.map((name, index) => ({
+    id: `onboarding-${index}`,
+    name,
+    genres: [],
+    popularity: 100 - index, // Higher score for earlier picks
+    source: 'manual',
+    image_url: null,
+  }));
+  
+  await supabase
+    .from('music_profiles')
+    .upsert({
+      user_id: userId,
+      top_artists: topArtists,
+      top_genres: genres,
+      last_synced: new Date().toISOString(),
+    }, {
+      onConflict: 'user_id',
+    });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -25,6 +57,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    
+    // Always sync artists to music_profiles for matching to work
+    await syncArtistsToMusicProfile(
+      session.user.id,
+      body.likedArtists,
+      body.culturalPreferences || []
+    );
     
     // Try to create user embedding from onboarding data
     // If embedding generation fails, still mark onboarding as complete
