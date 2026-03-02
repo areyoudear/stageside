@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchConcerts, Concert } from "@/lib/ticketmaster";
 import { calculateDistance } from "@/lib/utils";
+import { getArtistsTopTrackPreviews } from "@/lib/itunes";
 
 /**
  * GET /api/concerts/browse
  * Fetch concerts for anonymous/public browsing (no personalization)
+ * Enriches with iTunes previews for audio playback
  * 
  * Query params:
  * - lat, lng: Location (required)
@@ -54,7 +56,17 @@ export async function GET(request: NextRequest) {
     const userLat = parseFloat(lat);
     const userLng = parseFloat(lng);
 
-    // Add distance to each concert (no match scores for anonymous users)
+    // Get unique artist names for preview fetching (first 20 to limit API calls)
+    const uniqueArtists = [...new Set(
+      concertsResult.concerts
+        .slice(0, 30)
+        .flatMap(c => c.artists)
+    )].slice(0, 20);
+
+    // Fetch iTunes previews in parallel
+    const previewsMap = await getArtistsTopTrackPreviews(uniqueArtists, 5);
+
+    // Add distance and previews to each concert
     const browseConcerts: Concert[] = concertsResult.concerts.map((concert) => {
       // Calculate distance if venue has location
       let distance: number | undefined;
@@ -67,12 +79,19 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // Get preview for first artist
+      const primaryArtist = concert.artists[0]?.toLowerCase();
+      const preview = primaryArtist ? previewsMap.get(primaryArtist) : null;
+
       return {
         ...concert,
         matchScore: undefined, // No match score for anonymous
         matchReasons: undefined, // No match reasons for anonymous
         isSaved: false,
         distance,
+        // Add iTunes preview data
+        previewUrl: preview?.previewUrl || null,
+        topTrackName: preview?.trackName || null,
       };
     });
 
