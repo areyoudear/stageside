@@ -110,6 +110,16 @@ export interface Concert {
   // Added during matching
   matchScore?: number;
   matchReasons?: string[];
+  matchBreakdown?: {
+    artistScore: number;
+    relatedScore: number;
+    audioScore: number;
+    genreScore: number;
+    discoveryBonus: number;
+    socialBonus: number;
+  };
+  matchedArtist?: string;
+  matchedArtistRank?: number;
   isSaved?: boolean;
 }
 

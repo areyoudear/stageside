@@ -170,7 +170,9 @@ export async function GET(request: NextRequest) {
         matchReasons: matchResult.reasons,
         matchType: matchResult.matchType,
         matchConfidence: matchResult.confidence,
-        scoreBreakdown: matchResult.breakdown,
+        matchBreakdown: matchResult.breakdown,
+        matchedArtist: matchResult.matchedArtist,
+        matchedArtistRank: matchResult.matchedArtistRank,
         vibeTags,
         isSaved: savedConcertIds.includes(concert.id),
       };

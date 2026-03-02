@@ -23,6 +23,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { FriendsBadge, type FriendInterest } from "./FriendsBadge";
+import { MatchBadgeWithBreakdown } from "./MatchBreakdown";
 import { InterestButtons, type InterestStatus } from "@/components/InterestButtons";
 import { AudioPreviewButton } from "@/components/AudioPreview";
 import { Card, CardContent } from "@/components/ui/card";
@@ -562,14 +563,24 @@ export function ConcertCard({
 
         {/* Match Score Badge - Always visible on image */}
         <div className="absolute bottom-3 right-3">
-          <MatchScoreBadge 
-            score={matchScore} 
-            isPerfect={isPerfectMatch} 
-            matchReasons={concert.matchReasons}
-            onTooltipHover={handleTooltipHover}
-            hasProfile={hasProfile}
-            isAuthenticated={isAuthenticated}
-          />
+          {hasProfile && matchScore > 0 ? (
+            <MatchBadgeWithBreakdown 
+              score={matchScore}
+              breakdown={concert.matchBreakdown}
+              matchedArtist={concert.matchedArtist}
+              matchedArtistRank={concert.matchedArtistRank}
+              reasons={concert.matchReasons}
+            />
+          ) : (
+            <MatchScoreBadge 
+              score={matchScore} 
+              isPerfect={isPerfectMatch} 
+              matchReasons={concert.matchReasons}
+              onTooltipHover={handleTooltipHover}
+              hasProfile={hasProfile}
+              isAuthenticated={isAuthenticated}
+            />
+          )}
         </div>
       </div>
 

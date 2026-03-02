@@ -30,6 +30,8 @@ import {
 } from "@/components/festivals";
 import { toast } from "sonner";
 import type { FestivalWithMatch, FestivalArtistMatch, ScheduleDay } from "@/lib/festival-types";
+import { CrewWidget } from "@/components/crew";
+import { useFestivalCrew } from "@/hooks/useFestivalCrew";
 
 interface FestivalDetailPageProps {
   params: { id: string };
@@ -48,10 +50,23 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
   const [userAgenda, setUserAgenda] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filter, setFilter] = useState<"all" | "matches" | "discoveries" | "interested" | "mySchedule">("all");
+  const [filter, setFilter] = useState<"all" | "matches" | "discoveries" | "interested" | "mySchedule" | "crewFavorites">("all");
   const [imageError, setImageError] = useState(false);
   const [interestMap, setInterestMap] = useState<InterestMap>({});
   const [debugInfo, setDebugInfo] = useState<any>(null);
+
+  // Festival crew hook
+  const {
+    crew,
+    members: crewMembers,
+    artistInterests: crewArtistInterests,
+    stats: crewStats,
+    userInterests,
+    isLoading: crewLoading,
+    createCrew,
+    joinCrew,
+    setArtistInterest,
+  } = useFestivalCrew(id);
 
   // Load interest status and agenda from localStorage
   useEffect(() => {
@@ -79,6 +94,10 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
 
   // Handle interest change
   const handleInterestChange = useCallback((artistId: string, status: InterestStatus) => {
+    // Find artist name for crew sync
+    const artist = lineup.find(a => a.id === artistId);
+    const artistName = artist?.artist_name || artistId;
+    
     setInterestMap(prev => {
       const newMap = { ...prev };
       if (status === null) {
@@ -90,7 +109,13 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
       localStorage.setItem(`festival-interest-${id}`, JSON.stringify(newMap));
       return newMap;
     });
-  }, [id]);
+    
+    // Sync with crew system (maps "interested" to "interested", "going" to "must-see")
+    if (crew) {
+      const crewLevel = status === "going" ? "must-see" : status === "interested" ? "interested" : null;
+      setArtistInterest(artistId, artistName, crewLevel);
+    }
+  }, [id, crew, lineup, setArtistInterest]);
 
   useEffect(() => {
     fetchFestival();
@@ -164,8 +189,21 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
       return artist.matchType === "discovery" || artist.matchType === "genre";
     if (filter === "interested") return interestMap[artist.id] === "interested";
     if (filter === "mySchedule") return userAgenda.includes(artist.id);
+    if (filter === "crewFavorites") {
+      const crewInterest = crewArtistInterests[artist.id];
+      return crewInterest && crewInterest.length > 1; // Multiple crew members interested
+    }
     return true;
   });
+  
+  // Sort crew favorites by most interest
+  const sortedFilteredLineup = filter === "crewFavorites" 
+    ? [...filteredLineup].sort((a, b) => {
+        const aCount = crewArtistInterests[a.id]?.length || 0;
+        const bCount = crewArtistInterests[b.id]?.length || 0;
+        return bCount - aCount;
+      })
+    : filteredLineup;
   
   // Count for filter badges
   const interestedCount = Object.values(interestMap).filter(s => s === "interested").length;
@@ -361,6 +399,39 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
         </div>
       </div>
 
+      {/* Crew Widget */}
+      {session && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <CrewWidget
+            crewId={crew?.id}
+            crewName={crew?.name || undefined}
+            members={crewMembers}
+            currentUserId={session.user.id}
+            festivalId={id}
+            festivalName={festival.name}
+            stats={crewStats || undefined}
+            inviteCode={crew?.inviteCode || undefined}
+            scheduleReleased={false}
+            scheduleReleaseDate="~4 weeks before festival"
+            onCreateCrew={async () => {
+              const name = prompt("Name your crew (optional):");
+              const success = await createCrew(name || undefined);
+              if (success) {
+                toast.success("Crew created! Share the invite link with friends.");
+              }
+            }}
+            onJoinCrew={async (code) => {
+              const success = await joinCrew(code);
+              if (success) {
+                toast.success("Joined crew!");
+              } else {
+                toast.error("Invalid invite code");
+              }
+            }}
+          />
+        </div>
+      )}
+
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Debug Info Banner (only shown when no matches despite having profile) */}
@@ -512,6 +583,19 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                       My Schedule
                       {scheduleCount > 0 && <span>({scheduleCount})</span>}
                     </button>
+                    {crew && crewMembers.length > 1 && (
+                      <button
+                        onClick={() => setFilter("crewFavorites")}
+                        className={`px-3 py-1.5 rounded text-sm whitespace-nowrap min-w-[44px] flex items-center gap-1 ${
+                          filter === "crewFavorites"
+                            ? "bg-violet-600 text-white"
+                            : "text-zinc-400"
+                        }`}
+                      >
+                        👥 Crew
+                        {crewStats?.allWant ? <span>({crewStats.allWant})</span> : null}
+                      </button>
+                    )}
                   </div>
 
                   {/* View mode */}
@@ -550,7 +634,7 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                 </div>
               ) : viewMode === "grid" ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-                  {filteredLineup.map((artist) => (
+                  {sortedFilteredLineup.map((artist) => (
                     <ArtistCard
                       key={artist.id}
                       artist={artist}
@@ -561,12 +645,15 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                       onInterestChange={handleInterestChange}
                       previewUrl={artist.preview_url}
                       spotifyUrl={artist.spotify_url || (artist.spotify_id ? `https://open.spotify.com/artist/${artist.spotify_id}` : undefined)}
+                      showCrewInterest={Boolean(crew && crewMembers.length > 1)}
+                      crewMembers={crewArtistInterests[artist.id] || []}
+                      totalCrewSize={crewMembers.length}
                     />
                   ))}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredLineup.map((artist) => (
+                  {sortedFilteredLineup.map((artist) => (
                     <ArtistCard
                       key={artist.id}
                       artist={artist}
@@ -578,6 +665,9 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                       onInterestChange={handleInterestChange}
                       previewUrl={artist.preview_url}
                       spotifyUrl={artist.spotify_url || (artist.spotify_id ? `https://open.spotify.com/artist/${artist.spotify_id}` : undefined)}
+                      showCrewInterest={Boolean(crew && crewMembers.length > 1)}
+                      crewMembers={crewArtistInterests[artist.id] || []}
+                      totalCrewSize={crewMembers.length}
                     />
                   ))}
                 </div>

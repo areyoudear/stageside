@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Plus, Check, Music, Star, Sparkles, Heart, Play, Pause, Volume2, ExternalLink } from "lucide-react";
+import { Plus, Check, Music, Star, Sparkles, Heart, Play, Pause, Volume2, ExternalLink, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { FestivalArtistMatch } from "@/lib/festival-types";
+import { CrewInterestBadge, type CrewMember } from "@/components/crew/CrewAvatarStack";
 
 interface ArtistCardProps {
   artist: FestivalArtistMatch;
@@ -18,6 +19,10 @@ interface ArtistCardProps {
   onInterestChange?: (artistId: string, status: "interested" | "going" | null) => void;
   previewUrl?: string;
   spotifyUrl?: string;
+  // Crew feature
+  crewMembers?: CrewMember[]; // Crew members interested in this artist
+  totalCrewSize?: number;
+  showCrewInterest?: boolean;
 }
 
 export function ArtistCard({
@@ -31,6 +36,9 @@ export function ArtistCard({
   onInterestChange,
   previewUrl,
   spotifyUrl,
+  crewMembers = [],
+  totalCrewSize = 0,
+  showCrewInterest = false,
 }: ArtistCardProps) {
   const [imageError, setImageError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -408,8 +416,20 @@ export function ArtistCard({
       <CardContent className="p-3">
         <h4 className="font-semibold text-white truncate">{artist.artist_name}</h4>
 
+        {/* Crew interest badge */}
+        {showCrewInterest && crewMembers.length > 0 && totalCrewSize > 0 && (
+          <div className="mt-1.5">
+            <CrewInterestBadge
+              members={crewMembers}
+              totalCrewSize={totalCrewSize}
+              artistName={artist.artist_name}
+              size="xs"
+            />
+          </div>
+        )}
+
         {/* Match reason with score context */}
-        {artist.matchReason && (
+        {artist.matchReason && !showCrewInterest && (
           <p className="text-xs text-zinc-400 mt-1 flex items-center gap-1">
             {getMatchIcon()}
             <span className="truncate">{artist.matchReason}</span>
