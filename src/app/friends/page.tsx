@@ -146,12 +146,12 @@ export default function FriendsPage() {
     // Update friends with overlap data
     setFriends((currentFriends) =>
       currentFriends.map((friend) => {
-        const overlap = results.find((r) => r?.friendId === friend.id);
-        if (overlap) {
+        const result = results.find((r) => r?.friendId === friend.id);
+        if (result?.overlap) {
           return {
             ...friend,
-            overlapPercentage: overlap.overlapPercentage,
-            sharedArtistCount: overlap.sharedArtists?.length || 0,
+            overlapPercentage: result.overlap.overlapPercentage,
+            sharedArtistCount: result.overlap.sharedArtists?.length || 0,
           };
         }
         return friend;
