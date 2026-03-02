@@ -148,12 +148,13 @@ export async function GET(request: NextRequest) {
           });
 
           if (!eventEmbedding?.embedding) {
+            // Embedding generation pending - assign discovery tier with base score
             return {
               ...concert,
-              matchScore: 0,
-              rawSimilarity: 0,
+              matchScore: 20, // Base discovery score
+              rawSimilarity: 0.20,
               matchTier: 'discovery' as const,
-              matchReasons: ["New event - building taste profile"],
+              matchReasons: ["Discover something new"],
               isSaved: savedConcertIds.includes(concert.id),
             };
           }
@@ -191,8 +192,8 @@ export async function GET(request: NextRequest) {
           console.error(`Error processing concert ${concert.id}:`, error);
           return {
             ...concert,
-            matchScore: 0,
-            rawSimilarity: 0,
+            matchScore: 20, // Base discovery score for failed embeddings
+            rawSimilarity: 0.20,
             matchTier: 'discovery' as const,
             matchReasons: ["Discover something new"],
             isSaved: savedConcertIds.includes(concert.id),
