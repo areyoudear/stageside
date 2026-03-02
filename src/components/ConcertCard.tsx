@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Calendar,
   MapPin,
@@ -128,16 +129,30 @@ function getMatchLabel(score: number): { label: string; sublabel: string } {
 }
 
 // Match score badge component - always visible, more prominent
-function MatchScoreBadge({ score, isPerfect, matchReasons, onTooltipHover, hasProfile = true }: { 
+function MatchScoreBadge({ score, isPerfect, matchReasons, onTooltipHover, hasProfile = true, isAuthenticated = true }: { 
   score: number; 
   isPerfect: boolean; 
   matchReasons?: string[];
   onTooltipHover?: () => void;
   hasProfile?: boolean;
+  isAuthenticated?: boolean;
 }) {
   const matchLabel = getMatchLabel(score);
   
-  // No profile - show CTA
+  // Anonymous user - show "?" with signup prompt
+  if (!isAuthenticated) {
+    return (
+      <Link 
+        href="/signup" 
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800/80 border border-zinc-700 hover:border-cyan-500/50 hover:bg-zinc-700/80 transition-all group"
+      >
+        <span className="text-lg font-bold text-zinc-500 group-hover:text-cyan-400">?</span>
+        <span className="text-xs font-medium text-zinc-400 group-hover:text-cyan-300">See match</span>
+      </Link>
+    );
+  }
+  
+  // No profile - show CTA to connect music
   if (!hasProfile || score === 0) {
     return (
       <a 
@@ -424,60 +439,84 @@ export function ConcertCard({
 
         {/* Save & Share Buttons */}
         <div className="absolute top-3 left-3 flex items-center gap-2">
-          {/* Save Button */}
-          <button
-            onClick={handleSaveToggle}
-            className={cn(
-              "relative p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
-              isSaved 
-                ? "bg-red-500/20 hover:bg-red-500/30" 
-                : "bg-black/30 hover:bg-black/50"
-            )}
-            aria-label={isSaved ? "Remove from saved" : "Save concert"}
-          >
-            <Heart
+          {/* Save Button - Gated for anonymous users */}
+          {isAuthenticated ? (
+            <button
+              onClick={handleSaveToggle}
               className={cn(
-                "w-5 h-5 transition-all",
-                isSaved ? "fill-red-500 text-red-500 scale-110" : "text-white/80 hover:text-white"
+                "relative p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
+                isSaved 
+                  ? "bg-red-500/20 hover:bg-red-500/30" 
+                  : "bg-black/30 hover:bg-black/50"
               )}
-            />
-            {/* Saved feedback toast */}
-            {showSavedFeedback && (
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
-                <Check className="w-3 h-3 inline mr-1" />
-                Saved!
+              aria-label={isSaved ? "Remove from saved" : "Save concert"}
+            >
+              <Heart
+                className={cn(
+                  "w-5 h-5 transition-all",
+                  isSaved ? "fill-red-500 text-red-500 scale-110" : "text-white/80 hover:text-white"
+                )}
+              />
+              {/* Saved feedback toast */}
+              {showSavedFeedback && (
+                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
+                  <Check className="w-3 h-3 inline mr-1" />
+                  Saved!
+                </div>
+              )}
+            </button>
+          ) : (
+            <Link href="/signup" className="group/save relative">
+              <div className="p-2.5 rounded-full backdrop-blur-md bg-black/30 hover:bg-black/50 transition-all duration-300">
+                <Heart className="w-5 h-5 text-white/50" />
               </div>
-            )}
-          </button>
+              {/* Tooltip */}
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-zinc-800 text-white text-xs font-medium rounded-md whitespace-nowrap opacity-0 invisible group-hover/save:opacity-100 group-hover/save:visible transition-all border border-zinc-700 z-10">
+                Sign up to save
+              </div>
+            </Link>
+          )}
 
-          {/* Going Button */}
-          <button
-            onClick={handleGoingToggle}
-            className={cn(
-              "relative p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
-              isGoing 
-                ? "bg-green-500/20 hover:bg-green-500/30" 
-                : "bg-black/30 hover:bg-black/50"
-            )}
-            aria-label={isGoing ? "Not going anymore" : "Mark as going"}
-            title={isGoing ? "Not going anymore" : "I'm going!"}
-          >
-            <CheckCircle2
+          {/* Going Button - Gated for anonymous users */}
+          {isAuthenticated ? (
+            <button
+              onClick={handleGoingToggle}
               className={cn(
-                "w-5 h-5 transition-all",
-                isGoing ? "text-green-400 scale-110" : "text-white/80 hover:text-white"
+                "relative p-2.5 rounded-full backdrop-blur-md transition-all duration-300",
+                isGoing 
+                  ? "bg-green-500/20 hover:bg-green-500/30" 
+                  : "bg-black/30 hover:bg-black/50"
               )}
-            />
-            {/* Going feedback toast */}
-            {showGoingFeedback && (
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
-                <Check className="w-3 h-3 inline mr-1" />
-                Going!
+              aria-label={isGoing ? "Not going anymore" : "Mark as going"}
+              title={isGoing ? "Not going anymore" : "I'm going!"}
+            >
+              <CheckCircle2
+                className={cn(
+                  "w-5 h-5 transition-all",
+                  isGoing ? "text-green-400 scale-110" : "text-white/80 hover:text-white"
+                )}
+              />
+              {/* Going feedback toast */}
+              {showGoingFeedback && (
+                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-md whitespace-nowrap animate-fade-in">
+                  <Check className="w-3 h-3 inline mr-1" />
+                  Going!
+                </div>
+              )}
+            </button>
+          ) : (
+            <Link href="/signup" className="group/going relative">
+              <div className="p-2.5 rounded-full backdrop-blur-md bg-black/30 hover:bg-black/50 transition-all duration-300">
+                <CheckCircle2 className="w-5 h-5 text-white/50" />
               </div>
-            )}
-          </button>
+              {/* Tooltip */}
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-zinc-800 text-white text-xs font-medium rounded-md whitespace-nowrap opacity-0 invisible group-hover/going:opacity-100 group-hover/going:visible transition-all border border-zinc-700 z-10">
+                Sign up to track
+              </div>
+            </Link>
+          )}
 
-          {/* Share Button */}
+          {/* Share Button - Always available */}
           <button
             onClick={handleShare}
             className="p-2.5 rounded-full backdrop-blur-md bg-black/30 hover:bg-black/50 transition-all duration-300"
@@ -507,6 +546,7 @@ export function ConcertCard({
             matchReasons={concert.matchReasons}
             onTooltipHover={handleTooltipHover}
             hasProfile={hasProfile}
+            isAuthenticated={isAuthenticated}
           />
         </div>
       </div>

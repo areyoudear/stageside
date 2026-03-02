@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle, Heart, Check, UserPlus } from "lucide-react";
+import { Music, Filter, Sparkles, ArrowRight, MapPin, Users, Zap, Music2, Flame, X, ArrowUpDown, Calendar, DollarSign, Bookmark, HelpCircle, Heart, Check, UserPlus, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocationSearch, Location } from "@/components/LocationSearch";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
@@ -13,6 +13,7 @@ import { SpotifyUpsellCard } from "@/components/SpotifyUpsellCard";
 import { NoMatchesCard } from "@/components/NoMatchesCard";
 import { FriendsBadge, type FriendInterest } from "@/components/FriendsBadge";
 import { TasteOverlapCard, type TasteOverlap } from "@/components/TasteOverlapCard";
+import { LockedFeatureBadge } from "@/components/PremiumFeatureGate";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import type { Concert } from "@/lib/ticketmaster";
@@ -114,6 +115,8 @@ function DiscoverPageContent() {
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
   const [hasUserProfile, setHasUserProfile] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   
   // Friend-related state
   const [friendData, setFriendData] = useState<FriendData | null>(null);
@@ -167,12 +170,17 @@ function DiscoverPageContent() {
     setGoingIds(going);
   }, []);
 
-  // Auto-load user's music profile (from Spotify connection)
+  // Auto-load user's music profile (from Spotify connection) and detect auth status
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
         const res = await fetch("/api/user/music-profile");
         const data = await res.json();
+        
+        // Check if user is authenticated
+        if (data.isAuthenticated) {
+          setIsAuthenticated(true);
+        }
         
         if (data.hasProfile && data.artists?.length > 0) {
           setHasUserProfile(true);
@@ -182,12 +190,71 @@ function DiscoverPageContent() {
         }
       } catch (error) {
         console.error("Error loading user profile:", error);
+        // Not authenticated or error - that's fine for anonymous browsing
       } finally {
         setIsLoadingProfile(false);
       }
     };
 
     loadUserProfile();
+  }, []);
+
+  // Auto-detect location via browser geolocation
+  useEffect(() => {
+    const detectLocation = async () => {
+      if (!navigator.geolocation) {
+        setIsLoadingLocation(false);
+        return;
+      }
+
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 5000,
+            maximumAge: 300000, // Cache for 5 minutes
+          });
+        });
+
+        const { latitude, longitude } = position.coords;
+        
+        // Reverse geocode to get city name
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`
+          );
+          const data = await res.json();
+          
+          const city = data.address?.city || data.address?.town || data.address?.county || "Your Location";
+          const state = data.address?.state;
+          
+          setLocation({
+            name: state ? `${city}, ${state}` : city,
+            lat: latitude,
+            lng: longitude,
+          });
+          
+          track('location_set', { 
+            city: city, 
+            method: 'geolocation' 
+          });
+        } catch {
+          // If reverse geocoding fails, still use coordinates
+          setLocation({
+            name: "Your Location",
+            lat: latitude,
+            lng: longitude,
+          });
+        }
+      } catch (error) {
+        // User denied geolocation or error - that's fine
+        console.log("Geolocation not available:", error);
+      } finally {
+        setIsLoadingLocation(false);
+      }
+    };
+
+    detectLocation();
   }, []);
 
   // Load friend data when in pair mode (friendId in URL)
@@ -214,7 +281,8 @@ function DiscoverPageContent() {
   }, [friendIdParam]);
 
   const hasEnoughArtists = selectedArtists.length >= 3;
-  const canSearch = hasEnoughArtists && location;
+  // Anonymous users can search with just location; authenticated users need 3+ artists for personalized matches
+  const canSearch = isAuthenticated ? (hasEnoughArtists && location) : !!location;
   
   // In pair mode with both profiles loaded, skip the artist picker UI
   const shouldShowArtistPicker = !hasUserProfile || selectedArtists.length < 3;
@@ -404,9 +472,12 @@ function DiscoverPageContent() {
     }
   }, [location, radius, dateRange]);
 
-  // Fetch concerts matched to user's selected artists
+  // Fetch concerts - personalized for authenticated users, general browse for anonymous
   const fetchConcerts = useCallback(async () => {
-    if (!location || selectedArtists.length < 3) return;
+    if (!location) return;
+    
+    // Authenticated users need artists for personalized matching
+    if (isAuthenticated && selectedArtists.length < 3) return;
 
     // Track search initiated
     track('find_concerts_clicked', {
@@ -416,6 +487,7 @@ function DiscoverPageContent() {
       radius,
       pair_mode: isPairMode,
       friend_id: friendIdParam || undefined,
+      anonymous: !isAuthenticated,
     });
 
     setIsLoading(true);
@@ -432,9 +504,13 @@ function DiscoverPageContent() {
         radius: radius.toString(),
         startDate: dateRange.startDate.toISOString().split("T")[0],
         endDate: dateRange.endDate.toISOString().split("T")[0],
-        artists: selectedArtists.map((a) => a.name).join(","),
-        genres: Array.from(new Set(selectedArtists.flatMap((a) => a.genres))).join(","),
       });
+
+      // Only add artist/genre matching for authenticated users
+      if (isAuthenticated && selectedArtists.length > 0) {
+        params.append("artists", selectedArtists.map((a) => a.name).join(","));
+        params.append("genres", Array.from(new Set(selectedArtists.flatMap((a) => a.genres))).join(","));
+      }
 
       // Add friend params if in pair mode or friends filter is on
       if (friendIdParam) {
@@ -444,7 +520,9 @@ function DiscoverPageContent() {
         params.append("friendsOnly", "true");
       }
 
-      const response = await fetch(`/api/concerts/matched?${params.toString()}`);
+      // Use different endpoint for anonymous vs authenticated
+      const endpoint = isAuthenticated ? "/api/concerts/matched" : "/api/concerts/browse";
+      const response = await fetch(`${endpoint}?${params.toString()}`);
       const data = await response.json();
 
       // Track API call
@@ -474,6 +552,7 @@ function DiscoverPageContent() {
           high_matches: highMatches,
           location: location.name,
           radius,
+          anonymous: !isAuthenticated,
         });
 
         // If no matches found, fetch popular concerts
@@ -496,7 +575,7 @@ function DiscoverPageContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [location, dateRange, selectedArtists, radius, fetchPopularConcerts, isPairMode, friendIdParam, friendsFilter]);
+  }, [location, dateRange, selectedArtists, radius, fetchPopularConcerts, isPairMode, friendIdParam, friendsFilter, isAuthenticated]);
 
   // Save handler (local only for now)
   const handleSaveConcert = async (concertId: string) => {
@@ -585,26 +664,47 @@ function DiscoverPageContent() {
             </Link>
 
             <div className="flex items-center gap-4">
-              <Link href="/saved" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                <Bookmark className="w-4 h-4" />
-                <span className="hidden sm:inline">Saved</span>
-              </Link>
-              <Link href="/friends" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                <Users className="w-4 h-4" />
-                <span className="hidden sm:inline">Friends</span>
-              </Link>
-              {!isPairMode && (
-                <Link href="/friends" className="text-sm text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1">
-                  <UserPlus className="w-4 h-4" />
-                  <span className="hidden sm:inline">Plan with friends</span>
-                </Link>
+              {isAuthenticated ? (
+                <>
+                  <Link href="/saved" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                    <Bookmark className="w-4 h-4" />
+                    <span className="hidden sm:inline">Saved</span>
+                  </Link>
+                  <Link href="/friends" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                    <Users className="w-4 h-4" />
+                    <span className="hidden sm:inline">Friends</span>
+                  </Link>
+                  {!isPairMode && (
+                    <Link href="/friends" className="text-sm text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1">
+                      <UserPlus className="w-4 h-4" />
+                      <span className="hidden sm:inline">Plan with friends</span>
+                    </Link>
+                  )}
+                  <Link href="/dashboard">
+                    <Button variant="outline" className="border-zinc-700 text-zinc-300">
+                      Dashboard
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {/* Grayed out features for anonymous users */}
+                  <div className="hidden sm:flex items-center gap-2">
+                    <LockedFeatureBadge feature="Saved" className="text-xs" />
+                    <LockedFeatureBadge feature="Friends" className="text-xs" />
+                  </div>
+                  <Link href="/login" className="text-sm text-zinc-400 hover:text-white transition-colors">
+                    Sign in
+                  </Link>
+                  <Link href="/signup">
+                    <Button className="bg-green-600 hover:bg-green-500 text-white">
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      <span className="hidden sm:inline">Connect Spotify</span>
+                      <span className="sm:hidden">Sign up</span>
+                    </Button>
+                  </Link>
+                </>
               )}
-              <Link href="/">
-                <Button className="bg-green-600 hover:bg-green-500 text-white">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Connect Spotify
-                </Button>
-              </Link>
             </div>
           </div>
         </div>
@@ -635,10 +735,12 @@ function DiscoverPageContent() {
           ) : (
             <>
               <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                Find concerts you&apos;ll love
+                {isAuthenticated ? "Find concerts you'll love" : "Discover concerts near you"}
               </h1>
               <p className="text-zinc-400">
-                Pick your favorite artists and we&apos;ll find matching concerts near you.
+                {isAuthenticated 
+                  ? "Pick your favorite artists and we'll find matching concerts near you."
+                  : "Browse upcoming concerts in your area. Sign up free to get personalized recommendations."}
               </p>
             </>
           )}
@@ -654,11 +756,56 @@ function DiscoverPageContent() {
           </div>
         )}
 
-        {/* Artist Picker Card - Shows compact view when profile is loaded */}
+        {/* Artist Picker Card - Shows compact view when profile is loaded, or signup prompt for anonymous */}
         {isLoadingProfile ? (
           <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-6 mb-6 flex items-center justify-center">
             <Loader2 className="w-6 h-6 animate-spin text-zinc-500 mr-3" />
-            <span className="text-zinc-400">Loading your music profile...</span>
+            <span className="text-zinc-400">Loading...</span>
+          </div>
+        ) : !isAuthenticated ? (
+          /* Anonymous user - show signup prompt instead of artist picker */
+          <div className="bg-gradient-to-r from-green-900/20 to-emerald-900/20 rounded-2xl border border-green-500/20 p-6 mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold">Want personalized recommendations?</h3>
+                  <p className="text-sm text-zinc-400">
+                    Connect Spotify to see which concerts match your taste
+                  </p>
+                </div>
+              </div>
+              <Link href="/signup">
+                <Button className="bg-green-600 hover:bg-green-500 whitespace-nowrap">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Get Personalized Matches
+                </Button>
+              </Link>
+            </div>
+            
+            {/* Preview of what they'd get */}
+            <div className="mt-4 pt-4 border-t border-green-500/20 grid sm:grid-cols-3 gap-4 text-sm">
+              <div className="flex items-center gap-2 text-zinc-400">
+                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+                  <span className="text-green-400 font-bold">%</span>
+                </div>
+                <span>Match scores for every concert</span>
+              </div>
+              <div className="flex items-center gap-2 text-zinc-400">
+                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+                  <Heart className="w-4 h-4 text-red-400" />
+                </div>
+                <span>Save concerts &amp; get alerts</span>
+              </div>
+              <div className="flex items-center gap-2 text-zinc-400">
+                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+                  <Users className="w-4 h-4 text-violet-400" />
+                </div>
+                <span>Plan with friends</span>
+              </div>
+            </div>
           </div>
         ) : hasUserProfile && selectedArtists.length >= 3 ? (
           /* Compact view when profile is loaded */
@@ -818,8 +965,8 @@ function DiscoverPageContent() {
           {/* Helper text */}
           {!canSearch && (
             <p className="mt-4 text-sm text-zinc-500">
-              {!hasEnoughArtists && "Pick at least 3 artists above. "}
-              {!location && "Then choose a location."}
+              {isAuthenticated && !hasEnoughArtists && "Pick at least 3 artists above. "}
+              {!location && (isLoadingLocation ? "Detecting your location..." : "Choose a location to search.")}
             </p>
           )}
         </div>
@@ -1239,7 +1386,7 @@ function DiscoverPageContent() {
                         onUnsave={handleUnsaveConcert}
                         onGoing={handleGoingConcert}
                         onNotGoing={handleNotGoingConcert}
-                        isAuthenticated={true}
+                        isAuthenticated={isAuthenticated}
                         friendsInterested={extendedConcert.friendsInterested}
                       />
                       

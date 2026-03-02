@@ -6,18 +6,28 @@ import { getUnifiedMusicProfile, getAggregatedArtists } from "@/lib/supabase";
 /**
  * GET /api/user/music-profile
  * Get current user's music profile (artists, genres) from their connected services
+ * Returns isAuthenticated: false for anonymous users (no 401, to support public browse)
  */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
+    
+    // Return anonymous response for unauthenticated users (no 401)
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ 
+        isAuthenticated: false,
+        hasProfile: false,
+        artists: [],
+        genres: [],
+        connectedServices: [],
+      });
     }
 
     const profile = await getUnifiedMusicProfile(session.user.id);
     
     if (!profile || profile.topArtists.length === 0) {
       return NextResponse.json({ 
+        isAuthenticated: true,
         hasProfile: false,
         artists: [],
         genres: [],
@@ -38,6 +48,7 @@ export async function GET() {
     }));
 
     return NextResponse.json({
+      isAuthenticated: true,
       hasProfile: true,
       artists: formattedArtists,
       genres: profile.topGenres,

@@ -110,11 +110,11 @@ export default async function LandingPage() {
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
-              href="/demo"
+              href="/discover"
               className="w-full sm:w-auto bg-white/10 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/20 transition-colors border border-white/20 flex items-center justify-center gap-2"
             >
-              <Play className="w-5 h-5" />
-              See How It Works
+              <MapPin className="w-5 h-5" />
+              Browse Concerts Near Me
             </Link>
           </div>
 
@@ -502,7 +502,7 @@ export default async function LandingPage() {
             Your next favorite concert is waiting
           </h2>
           <p className="text-gray-400 text-lg mb-8">
-            Join thousands of music fans who&apos;ve found their perfect shows with Stageside.
+            Stop scrolling through events you don&apos;t care about. Start discovering shows you&apos;ll actually love.
           </p>
           <Link
             href="/signup"

@@ -10,6 +10,14 @@ const PUBLIC_PATHS = [
   "/api/", // API routes
   "/_next/", // Next.js internals
   "/favicon.ico",
+  "/discover", // Public concert browsing
+  "/concerts", // Public concert pages
+  "/login",
+  "/signup",
+  "/demo",
+  "/about",
+  "/privacy",
+  "/terms",
 ];
 
 export function middleware(request: NextRequest) {
