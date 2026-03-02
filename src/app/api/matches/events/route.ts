@@ -201,8 +201,8 @@ export async function GET(request: NextRequest) {
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
 
-    // Enrich top concerts with audio previews
-    let enrichedConcerts = await enrichConcertsWithPreviews(analyzedConcerts, 30);
+    // Enrich concerts with audio previews (all of them for better UX)
+    let enrichedConcerts = await enrichConcertsWithPreviews(analyzedConcerts, 100);
     
     // Enrich concerts missing prices from SeatGeek
     const parsedLat = lat ? parseFloat(lat) : undefined;

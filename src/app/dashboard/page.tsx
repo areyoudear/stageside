@@ -780,13 +780,13 @@ export default function DashboardPage() {
                       <span className="text-cyan-400">{filteredConcerts.length}</span> concerts
                       {" "}with {minMatchScore}%+ match
                     </>
-                  ) : stats?.highMatches && stats.highMatches > 0 ? (
-                    <>
-                      <span className="text-green-400">{stats.highMatches}</span> perfect
-                      matches found
-                    </>
                   ) : (
-                    `${concerts.length} concerts found`
+                    <>
+                      <span className="text-white">{concerts.length}</span> concerts
+                      {stats?.highMatches && stats.highMatches > 0 && (
+                        <span className="text-zinc-400"> • <span className="text-green-400">{stats.highMatches}</span> great matches</span>
+                      )}
+                    </>
                   )}
                 </h2>
                 <p className="text-sm text-zinc-500">
