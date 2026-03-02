@@ -65,11 +65,17 @@ async function getAnchorVectors(): Promise<Map<string, EmbeddingAnchor>> {
   const anchors = new Map<string, EmbeddingAnchor>();
   for (const row of data) {
     const key = `${row.anchor_type}_${row.anchor_name}`;
+    // Parse embedding from DB (handles string or array)
+    const embedding = parseVectorFromDb(row.embedding);
+    if (!embedding) {
+      console.error(`Invalid embedding for anchor ${key}`);
+      continue;
+    }
     anchors.set(key, {
       id: row.id,
       anchorType: row.anchor_type,
       anchorName: row.anchor_name,
-      embedding: row.embedding,
+      embedding,
       defaultWeight: row.default_weight,
       description: row.description,
     });
