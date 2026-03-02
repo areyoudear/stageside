@@ -812,7 +812,7 @@ function DiscoverPageContent() {
                   </p>
                 </div>
                 <Button className="bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 whitespace-nowrap flex-shrink-0">
-                  Join Stageside
+                  Get Stageside
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
