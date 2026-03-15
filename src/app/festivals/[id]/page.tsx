@@ -58,15 +58,18 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
   // Festival crew hook
   const {
     crew,
+    allCrews,
     members: crewMembers,
     artistInterests: crewArtistInterests,
     stats: crewStats,
     userInterests,
+    conflicts: crewConflicts,
     isLoading: crewLoading,
     createCrew,
     joinCrew,
     leaveCrew,
     updateCrewName,
+    switchCrew,
     setArtistInterest,
   } = useFestivalCrew(id);
 
@@ -416,6 +419,13 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
             scheduleReleased={false}
             scheduleReleaseDate="~4 weeks before festival"
             isAdmin={crew?.isAdmin}
+            allCrews={allCrews}
+            conflicts={crewConflicts.map(c => ({
+              artist1Name: c.artist1Name,
+              artist2Name: c.artist2Name,
+              day: c.day,
+              severity: c.severity,
+            }))}
             onCreateCrew={async () => {
               const name = prompt("Name your crew (optional):");
               const success = await createCrew(name || undefined);
@@ -449,6 +459,7 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
               }
               return success;
             }}
+            onSwitchCrew={switchCrew}
           />
         </div>
       )}

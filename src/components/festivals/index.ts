@@ -4,3 +4,6 @@ export { MatchPercentage, MatchBadge } from './MatchPercentage';
 export { ScheduleGrid } from './ScheduleGrid';
 export { AgendaView } from './AgendaView';
 export { ConflictResolver, InlineConflictWarning } from './ConflictResolver';
+export { ShareSheet, QuickShareButton } from './ShareSheet';
+export { TimelineView } from './TimelineView';
+export { HorizontalTimeline } from './HorizontalTimeline';

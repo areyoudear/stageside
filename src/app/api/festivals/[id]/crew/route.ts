@@ -5,7 +5,9 @@ import { createAdminClient } from "@/lib/supabase";
 
 /**
  * GET /api/festivals/[id]/crew
- * Get user's crew for a festival (if any) with member interests
+ * Get user's crews for a festival (supports multiple crews)
+ * Query params:
+ *   - crewId: specific crew to fetch (optional, defaults to first crew)
  */
 export async function GET(
   request: NextRequest,
@@ -18,10 +20,12 @@ export async function GET(
     }
 
     const festivalId = params.id;
+    const { searchParams } = new URL(request.url);
+    const requestedCrewId = searchParams.get("crewId");
     const supabase = createAdminClient();
 
-  // Find user's crew for this festival
-  const { data: membership } = await supabase
+  // Find ALL user's crews for this festival
+  const { data: memberships } = await supabase
     .from("festival_crew_members")
     .select(`
       crew_id,
@@ -35,11 +39,26 @@ export async function GET(
       )
     `)
     .eq("user_id", session.user.id)
-    .eq("festival_crews.festival_id", festivalId)
-    .single();
+    .eq("festival_crews.festival_id", festivalId);
+
+  if (!memberships || memberships.length === 0) {
+    return NextResponse.json({ crew: null, allCrews: [] });
+  }
+
+  // Build list of all crews
+  const allCrews = memberships.map(m => ({
+    id: (m.festival_crews as any).id,
+    name: (m.festival_crews as any).name,
+    isAdmin: m.role === "admin",
+  }));
+
+  // Find the specific crew to return details for
+  const membership = requestedCrewId 
+    ? memberships.find(m => (m.festival_crews as any).id === requestedCrewId)
+    : memberships[0];
 
   if (!membership) {
-    return NextResponse.json({ crew: null });
+    return NextResponse.json({ crew: null, allCrews });
   }
 
   const crew = membership.festival_crews as any;
@@ -109,6 +128,7 @@ export async function GET(
       festivalId: crew.festival_id,
       isAdmin: membership.role === "admin",
     },
+    allCrews,
     members: members?.map(m => ({
       id: m.user_id,
       displayName: (m.users as any).display_name,
@@ -151,23 +171,8 @@ export async function POST(
 
     const supabase = createAdminClient();
 
-  // Check if user already has a crew for this festival
-  const { data: existingMembership } = await supabase
-    .from("festival_crew_members")
-    .select(`
-      crew_id,
-      festival_crews!inner (festival_id)
-    `)
-    .eq("user_id", session.user.id)
-    .eq("festival_crews.festival_id", festivalId)
-    .single();
-
-  if (existingMembership) {
-    return NextResponse.json(
-      { error: "You already have a crew for this festival" },
-      { status: 400 }
-    );
-  }
+  // Note: Users CAN create multiple crews for the same festival
+  // (e.g., "Weekend 1 Squad" and "Day-trip Friends")
 
   // Create crew
   const { data: crew, error: crewError } = await supabase

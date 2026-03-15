@@ -19,6 +19,7 @@ import {
   Settings,
   LogOut,
   Pencil,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CrewAvatarStack, type CrewMember } from "./CrewAvatarStack";
@@ -28,6 +29,19 @@ interface CrewStats {
   someWant: number;       // Artists some people want
   youOnlyWant: number;    // Artists only you want
   discoverFromCrew: number; // Artists your crew loves that you might discover
+}
+
+interface CrewSummary {
+  id: string;
+  name: string | null;
+  isAdmin: boolean;
+}
+
+interface ScheduleConflict {
+  artist1Name: string;
+  artist2Name: string;
+  day: string;
+  severity: "high" | "medium" | "low";
 }
 
 interface CrewWidgetProps {
@@ -42,11 +56,14 @@ interface CrewWidgetProps {
   scheduleReleased?: boolean;
   scheduleReleaseDate?: string;
   isAdmin?: boolean;
+  allCrews?: CrewSummary[];
+  conflicts?: ScheduleConflict[];
   onInvite?: () => void;
   onCreateCrew?: () => void;
   onJoinCrew?: (code: string) => void;
   onEditCrewName?: (newName: string) => Promise<boolean>;
   onLeaveCrew?: () => Promise<boolean>;
+  onSwitchCrew?: (crewId: string) => void;
   className?: string;
 }
 
@@ -62,11 +79,14 @@ export function CrewWidget({
   scheduleReleased = false,
   scheduleReleaseDate,
   isAdmin = false,
+  allCrews = [],
+  conflicts = [],
   onInvite,
   onCreateCrew,
   onJoinCrew,
   onEditCrewName,
   onLeaveCrew,
+  onSwitchCrew,
   className,
 }: CrewWidgetProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -79,6 +99,8 @@ export function CrewWidget({
   const hasCrew = crewId && members.length > 0;
   const currentUser = members.find(m => m.id === currentUserId);
   const otherMembers = members.filter(m => m.id !== currentUserId);
+  const hasMultipleCrews = allCrews.length > 1;
+  const highConflicts = conflicts.filter(c => c.severity === "high").length;
 
   const handleSaveName = async () => {
     if (!onEditCrewName) return;
@@ -233,8 +255,59 @@ export function CrewWidget({
             </div>
           )}
 
+          {/* Crew switcher (if multiple crews) */}
+          {hasMultipleCrews && (
+            <div className="p-3 bg-violet-500/10 border-b border-violet-500/20">
+              <p className="text-xs text-violet-300 mb-2">Your crews for this festival:</p>
+              <div className="flex flex-wrap gap-2">
+                {allCrews.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => onSwitchCrew?.(c.id)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-sm transition-colors",
+                      c.id === crewId
+                        ? "bg-violet-600 text-white"
+                        : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                    )}
+                  >
+                    {c.name || "Unnamed Crew"}
+                    {c.isAdmin && <span className="ml-1 text-[10px]">👑</span>}
+                  </button>
+                ))}
+                <button
+                  onClick={onCreateCrew}
+                  className="px-3 py-1.5 rounded-full text-sm bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-dashed border-zinc-600"
+                >
+                  + New Crew
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Conflict alert */}
+          {conflicts.length > 0 && (
+            <div className="p-3 bg-red-500/10 border-b border-red-500/20 flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-red-200">
+                  <span className="font-medium">
+                    {conflicts.length} schedule conflict{conflicts.length > 1 ? "s" : ""} detected
+                  </span>
+                  {highConflicts > 0 && (
+                    <span className="text-red-300/70"> ({highConflicts} high priority)</span>
+                  )}
+                </p>
+                <p className="text-xs text-red-200/60 mt-0.5">
+                  {conflicts[0].artist1Name} overlaps with {conflicts[0].artist2Name}
+                  {conflicts.length > 1 && ` and ${conflicts.length - 1} more`}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Schedule status banner */}
-          {!scheduleReleased && (
+          {!scheduleReleased && conflicts.length === 0 && (
             <div className="p-3 bg-amber-500/10 border-b border-amber-500/20 flex items-start gap-3">
               <Clock className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">

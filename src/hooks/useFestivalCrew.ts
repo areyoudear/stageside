@@ -19,12 +19,30 @@ interface Crew {
   isAdmin: boolean;
 }
 
+interface CrewSummary {
+  id: string;
+  name: string | null;
+  isAdmin: boolean;
+}
+
+interface ScheduleConflict {
+  artist1Id: string;
+  artist1Name: string;
+  artist2Id: string;
+  artist2Name: string;
+  day: string;
+  severity: "high" | "medium" | "low";
+  affectedMembers: { id: string; displayName: string }[];
+}
+
 interface UseFestivalCrewReturn {
   crew: Crew | null;
+  allCrews: CrewSummary[]; // All crews user belongs to for this festival
   members: CrewMember[];
   artistInterests: Record<string, CrewMember[]>; // artistId -> members interested
   stats: CrewStats | null;
   userInterests: Record<string, string>; // artistId -> interestLevel
+  conflicts: ScheduleConflict[];
   isLoading: boolean;
   error: string | null;
   
@@ -33,32 +51,44 @@ interface UseFestivalCrewReturn {
   joinCrew: (inviteCode: string) => Promise<boolean>;
   leaveCrew: () => Promise<boolean>;
   updateCrewName: (name: string) => Promise<boolean>;
+  switchCrew: (crewId: string) => Promise<void>;
   setArtistInterest: (artistId: string, artistName: string, level: string | null) => Promise<void>;
   refreshCrew: () => Promise<void>;
+  refreshConflicts: () => Promise<void>;
 }
 
 export function useFestivalCrew(festivalId: string): UseFestivalCrewReturn {
   const { data: session, status } = useSession();
   const [crew, setCrew] = useState<Crew | null>(null);
+  const [allCrews, setAllCrews] = useState<CrewSummary[]>([]);
   const [members, setMembers] = useState<CrewMember[]>([]);
   const [artistInterests, setArtistInterests] = useState<Record<string, CrewMember[]>>({});
   const [stats, setStats] = useState<CrewStats | null>(null);
   const [userInterests, setUserInterests] = useState<Record<string, string>>({});
+  const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeCrewId, setActiveCrewId] = useState<string | null>(null);
 
-  const fetchCrew = useCallback(async () => {
+  const fetchCrew = useCallback(async (crewId?: string) => {
     if (status !== "authenticated" || !session?.user?.id) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const res = await fetch(`/api/festivals/${festivalId}/crew`);
+      const url = crewId 
+        ? `/api/festivals/${festivalId}/crew?crewId=${crewId}`
+        : `/api/festivals/${festivalId}/crew`;
+      const res = await fetch(url);
       const data = await res.json();
+
+      // Always update all crews list
+      setAllCrews(data.allCrews || []);
 
       if (data.crew) {
         setCrew(data.crew);
+        setActiveCrewId(data.crew.id);
         setMembers(data.members?.map((m: any) => ({
           id: m.id,
           displayName: m.displayName || m.username || "Unknown",
@@ -81,6 +111,7 @@ export function useFestivalCrew(festivalId: string): UseFestivalCrewReturn {
         setStats(data.stats);
       } else {
         setCrew(null);
+        setActiveCrewId(null);
         setMembers([]);
         setArtistInterests({});
         setStats(null);
@@ -98,6 +129,41 @@ export function useFestivalCrew(festivalId: string): UseFestivalCrewReturn {
       setIsLoading(false);
     }
   }, [festivalId, session?.user?.id, status]);
+
+  const fetchConflicts = useCallback(async () => {
+    if (!crew?.id) {
+      setConflicts([]);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/festivals/${festivalId}/crew/conflicts?crewId=${crew.id}`);
+      const data = await res.json();
+      
+      if (data.conflicts) {
+        setConflicts(data.conflicts.map((c: any) => ({
+          artist1Id: c.artist1.id,
+          artist1Name: c.artist1.name,
+          artist2Id: c.artist2.id,
+          artist2Name: c.artist2.name,
+          day: c.day,
+          severity: c.severity,
+          affectedMembers: c.affectedMembers,
+        })));
+      } else {
+        setConflicts([]);
+      }
+    } catch (err) {
+      console.error("Error fetching conflicts:", err);
+    }
+  }, [festivalId, crew?.id]);
+
+  // Fetch conflicts when crew changes
+  useEffect(() => {
+    if (crew?.id) {
+      fetchConflicts();
+    }
+  }, [crew?.id, fetchConflicts]);
 
   useEffect(() => {
     fetchCrew();
@@ -190,12 +256,18 @@ export function useFestivalCrew(festivalId: string): UseFestivalCrewReturn {
 
       // Update local state
       setCrew(prev => prev ? { ...prev, name } : null);
+      setAllCrews(prev => prev.map(c => c.id === crew.id ? { ...c, name } : c));
       return true;
     } catch (err) {
       setError("Failed to update crew name");
       return false;
     }
   }, [festivalId, crew]);
+
+  const switchCrew = useCallback(async (crewId: string): Promise<void> => {
+    setIsLoading(true);
+    await fetchCrew(crewId);
+  }, [fetchCrew]);
 
   const setArtistInterest = useCallback(async (
     artistId: string,
@@ -238,17 +310,21 @@ export function useFestivalCrew(festivalId: string): UseFestivalCrewReturn {
 
   return {
     crew,
+    allCrews,
     members,
     artistInterests,
     stats,
     userInterests,
+    conflicts,
     isLoading,
     error,
     createCrew,
     joinCrew,
     leaveCrew,
     updateCrewName,
+    switchCrew,
     setArtistInterest,
-    refreshCrew: fetchCrew,
+    refreshCrew: () => fetchCrew(activeCrewId || undefined),
+    refreshConflicts: fetchConflicts,
   };
 }

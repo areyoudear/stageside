@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Grid, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpotifyConnectButton } from "@/components/SpotifyConnectButton";
-import { AgendaView } from "@/components/festivals";
+import { AgendaView, QuickShareButton } from "@/components/festivals";
 import { toast } from "sonner";
 import type { FestivalWithMatch, FestivalArtistMatch } from "@/lib/festival-types";
 
