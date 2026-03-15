@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Plus, Check, Music, Star, Sparkles, Heart, Play, Pause, Volume2, ExternalLink, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { FestivalArtistMatch } from "@/lib/festival-types";
 import { CrewInterestBadge, type CrewMember } from "@/components/crew/CrewAvatarStack";
+import { audioManager } from "@/lib/audio-manager";
 
 interface ArtistCardProps {
   artist: FestivalArtistMatch;
@@ -44,35 +45,50 @@ export function ArtistCard({
   const [isHovered, setIsHovered] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [localInterestStatus, setLocalInterestStatus] = useState(interestStatus);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Handle audio preview
+  // Sync playing state with audio manager
   useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+    if (!previewUrl) return;
+    
+    // Check if this URL is currently playing
+    const checkPlaying = () => {
+      setIsPlaying(audioManager.isPlaying(previewUrl));
     };
-  }, []);
+    
+    // Check periodically for state changes
+    const interval = setInterval(checkPlaying, 200);
+    checkPlaying();
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [previewUrl]);
 
-  const togglePreview = (e: React.MouseEvent) => {
+  const togglePreview = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!previewUrl) return;
 
-    if (!audioRef.current) {
-      audioRef.current = new Audio(previewUrl);
-      audioRef.current.volume = 0.5;
-      audioRef.current.onended = () => setIsPlaying(false);
-    }
-
-    if (isPlaying) {
-      audioRef.current.pause();
+    // If this URL is currently playing, stop it
+    if (audioManager.isPlaying(previewUrl)) {
+      await audioManager.stop();
       setIsPlaying(false);
     } else {
-      audioRef.current.play();
-      setIsPlaying(true);
+      // Play this URL (audioManager will stop any other playing audio)
+      try {
+        await audioManager.play(previewUrl, 0, {
+          onStateChange: (state) => {
+            setIsPlaying(state === 'playing');
+          },
+          onEnd: () => {
+            setIsPlaying(false);
+          }
+        });
+      } catch (error) {
+        console.error('Failed to play preview:', error);
+        setIsPlaying(false);
+      }
     }
-  };
+  }, [previewUrl]);
 
   const handleInterestClick = (e: React.MouseEvent, status: "interested" | "going") => {
     e.stopPropagation();

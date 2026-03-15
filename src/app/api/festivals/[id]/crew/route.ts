@@ -215,3 +215,65 @@ export async function POST(
     return NextResponse.json({ error: "Failed to create crew" }, { status: 500 });
   }
 }
+
+/**
+ * PATCH /api/festivals/[id]/crew
+ * Update crew name (admin only)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const festivalId = params.id;
+    const body = await request.json();
+    const { name } = body;
+
+    const supabase = createAdminClient();
+
+    // Get user's membership and crew
+    const { data: membership } = await supabase
+      .from("festival_crew_members")
+      .select(`
+        crew_id,
+        role,
+        festival_crews!inner (
+          id,
+          festival_id
+        )
+      `)
+      .eq("user_id", session.user.id)
+      .eq("festival_crews.festival_id", festivalId)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json({ error: "Not a member of any crew" }, { status: 404 });
+    }
+
+    // Check if user is admin
+    if (membership.role !== "admin") {
+      return NextResponse.json({ error: "Only admins can edit crew settings" }, { status: 403 });
+    }
+
+    // Update crew name
+    const { error: updateError } = await supabase
+      .from("festival_crews")
+      .update({ name: name || null })
+      .eq("id", membership.crew_id);
+
+    if (updateError) {
+      console.error("Error updating crew:", updateError);
+      return NextResponse.json({ error: "Failed to update crew" }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error in PATCH /api/festivals/[id]/crew:", error);
+    return NextResponse.json({ error: "Failed to update crew" }, { status: 500 });
+  }
+}

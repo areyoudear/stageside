@@ -65,6 +65,8 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
     isLoading: crewLoading,
     createCrew,
     joinCrew,
+    leaveCrew,
+    updateCrewName,
     setArtistInterest,
   } = useFestivalCrew(id);
 
@@ -413,6 +415,7 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
             inviteCode={crew?.inviteCode || undefined}
             scheduleReleased={false}
             scheduleReleaseDate="~4 weeks before festival"
+            isAdmin={crew?.isAdmin}
             onCreateCrew={async () => {
               const name = prompt("Name your crew (optional):");
               const success = await createCrew(name || undefined);
@@ -427,6 +430,24 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
               } else {
                 toast.error("Invalid invite code");
               }
+            }}
+            onEditCrewName={async (name) => {
+              const success = await updateCrewName(name);
+              if (success) {
+                toast.success("Crew name updated!");
+              } else {
+                toast.error("Failed to update crew name");
+              }
+              return success;
+            }}
+            onLeaveCrew={async () => {
+              const success = await leaveCrew();
+              if (success) {
+                toast.success("Left crew");
+              } else {
+                toast.error("Failed to leave crew");
+              }
+              return success;
             }}
           />
         </div>
@@ -622,15 +643,41 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
 
               {filteredLineup.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-zinc-500">
-                    No artists match this filter.{" "}
-                    <button
-                      onClick={() => setFilter("all")}
-                      className="text-cyan-400 hover:text-cyan-300"
-                    >
-                      Show all artists
-                    </button>
-                  </p>
+                  {filter === "discoveries" && !session ? (
+                    <div className="max-w-md mx-auto">
+                      <Sparkles className="w-12 h-12 text-yellow-400/50 mx-auto mb-4" />
+                      <p className="text-zinc-400 mb-4">
+                        Connect Spotify to discover artists that match your taste!
+                      </p>
+                      <SpotifyConnectButton />
+                    </div>
+                  ) : filter === "discoveries" ? (
+                    <div className="max-w-md mx-auto">
+                      <Sparkles className="w-12 h-12 text-yellow-400/50 mx-auto mb-4" />
+                      <p className="text-zinc-400 mb-2">
+                        No discovery recommendations yet.
+                      </p>
+                      <p className="text-zinc-500 text-sm mb-4">
+                        We couldn't find genre-based matches. Try browsing all artists or check your Spotify connection.
+                      </p>
+                      <button
+                        onClick={() => setFilter("all")}
+                        className="text-cyan-400 hover:text-cyan-300"
+                      >
+                        Show all artists
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500">
+                      No artists match this filter.{" "}
+                      <button
+                        onClick={() => setFilter("all")}
+                        className="text-cyan-400 hover:text-cyan-300"
+                      >
+                        Show all artists
+                      </button>
+                    </p>
+                  )}
                 </div>
               ) : viewMode === "grid" ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">

@@ -26,12 +26,8 @@ export default function AgendaPage({ params }: AgendaPageProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push(`/festivals/${id}`);
-      return;
-    }
-
-    if (status === "authenticated") {
+    // Allow unauthenticated users to view their localStorage agenda
+    if (status !== "loading") {
       fetchAgenda();
     }
   }, [id, status]);
@@ -49,7 +45,29 @@ export default function AgendaPage({ params }: AgendaPageProps) {
       const festivalData = await festivalResponse.json();
       setFestival(festivalData.festival);
       setLineup(festivalData.lineup || []);
-      setUserAgenda(festivalData.userAgenda || []);
+      
+      // Merge server agenda with localStorage agenda
+      let serverAgenda: string[] = festivalData.userAgenda || [];
+      let localAgenda: string[] = [];
+      
+      // Get localStorage agenda
+      try {
+        const storedAgenda = localStorage.getItem(`festival-agenda-${id}`);
+        if (storedAgenda) {
+          localAgenda = JSON.parse(storedAgenda);
+        }
+      } catch (e) {
+        console.error("Error reading localStorage agenda:", e);
+      }
+      
+      // Merge both agendas (union of both)
+      const mergedAgenda = Array.from(new Set([...serverAgenda, ...localAgenda]));
+      setUserAgenda(mergedAgenda);
+      
+      // If there's a difference, sync localStorage to include server data
+      if (JSON.stringify(localAgenda.sort()) !== JSON.stringify(mergedAgenda.sort())) {
+        localStorage.setItem(`festival-agenda-${id}`, JSON.stringify(mergedAgenda));
+      }
     } catch (error) {
       console.error("Error fetching agenda:", error);
       toast.error("Something went wrong. Please try again.");
@@ -66,26 +84,35 @@ export default function AgendaPage({ params }: AgendaPageProps) {
   const removeFromAgenda = async (artistId: string) => {
     // Optimistic update
     const previousAgenda = [...userAgenda];
-    setUserAgenda(userAgenda.filter((id) => id !== artistId));
+    const newAgenda = userAgenda.filter((aid) => aid !== artistId);
+    setUserAgenda(newAgenda);
+    
+    // Update localStorage immediately
+    localStorage.setItem(`festival-agenda-${id}`, JSON.stringify(newAgenda));
 
-    try {
-      const response = await fetch(`/api/festivals/${id}/agenda`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ artistId }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to remove");
+    // If logged in, also sync with server
+    if (status === "authenticated") {
+      try {
+        const response = await fetch(`/api/festivals/${id}/agenda`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ artistId }),
+        });
+        
+        if (!response.ok) {
+          throw new Error("Failed to remove");
+        }
+      } catch (error) {
+        console.error("Error removing from agenda:", error);
+        // Revert on error
+        setUserAgenda(previousAgenda);
+        localStorage.setItem(`festival-agenda-${id}`, JSON.stringify(previousAgenda));
+        toast.error("Failed to remove artist. Please try again.");
+        return;
       }
-      
-      toast.success("Removed from agenda");
-    } catch (error) {
-      console.error("Error removing from agenda:", error);
-      // Revert on error
-      setUserAgenda(previousAgenda);
-      toast.error("Failed to remove artist. Please try again.");
     }
+    
+    toast.success("Removed from agenda");
   };
 
   const exportCalendar = async () => {

@@ -522,13 +522,34 @@ function timeToMinutes(time: string): number {
 // ============================================
 
 /**
+ * Resolve festival ID or slug to UUID
+ */
+async function resolveFestivalId(festivalIdOrSlug: string): Promise<string | null> {
+  // If it looks like a UUID, return as-is
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(festivalIdOrSlug)) {
+    return festivalIdOrSlug;
+  }
+  
+  // Otherwise treat as slug and look up the festival
+  const festival = await getFestival(festivalIdOrSlug);
+  return festival?.id ?? null;
+}
+
+/**
  * Get user's festival agenda
  */
 export async function getUserAgenda(
   userId: string,
-  festivalId: string
+  festivalIdOrSlug: string
 ): Promise<UserFestivalAgenda | null> {
   const adminClient = createAdminClient();
+  
+  // Resolve slug to UUID if needed
+  const festivalId = await resolveFestivalId(festivalIdOrSlug);
+  if (!festivalId) {
+    console.error('Festival not found:', festivalIdOrSlug);
+    return null;
+  }
   
   const { data, error } = await adminClient
     .from('user_festival_agendas')
@@ -551,10 +572,17 @@ export async function getUserAgenda(
  */
 export async function saveUserAgenda(
   userId: string,
-  festivalId: string,
+  festivalIdOrSlug: string,
   artistIds: string[]
 ): Promise<boolean> {
   const adminClient = createAdminClient();
+  
+  // Resolve slug to UUID if needed
+  const festivalId = await resolveFestivalId(festivalIdOrSlug);
+  if (!festivalId) {
+    console.error('Festival not found:', festivalIdOrSlug);
+    return false;
+  }
   
   const { error } = await adminClient
     .from('user_festival_agendas')

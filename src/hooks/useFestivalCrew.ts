@@ -32,6 +32,7 @@ interface UseFestivalCrewReturn {
   createCrew: (name?: string) => Promise<boolean>;
   joinCrew: (inviteCode: string) => Promise<boolean>;
   leaveCrew: () => Promise<boolean>;
+  updateCrewName: (name: string) => Promise<boolean>;
   setArtistInterest: (artistId: string, artistName: string, level: string | null) => Promise<void>;
   refreshCrew: () => Promise<void>;
 }
@@ -171,6 +172,31 @@ export function useFestivalCrew(festivalId: string): UseFestivalCrewReturn {
     }
   }, [festivalId, crew]);
 
+  const updateCrewName = useCallback(async (name: string): Promise<boolean> => {
+    if (!crew) return false;
+
+    try {
+      const res = await fetch(`/api/festivals/${festivalId}/crew`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Failed to update crew name");
+        return false;
+      }
+
+      // Update local state
+      setCrew(prev => prev ? { ...prev, name } : null);
+      return true;
+    } catch (err) {
+      setError("Failed to update crew name");
+      return false;
+    }
+  }, [festivalId, crew]);
+
   const setArtistInterest = useCallback(async (
     artistId: string,
     artistName: string,
@@ -221,6 +247,7 @@ export function useFestivalCrew(festivalId: string): UseFestivalCrewReturn {
     createCrew,
     joinCrew,
     leaveCrew,
+    updateCrewName,
     setArtistInterest,
     refreshCrew: fetchCrew,
   };

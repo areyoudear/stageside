@@ -16,6 +16,9 @@ import {
   Eye,
   Clock,
   Bell,
+  Settings,
+  LogOut,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CrewAvatarStack, type CrewMember } from "./CrewAvatarStack";
@@ -38,9 +41,12 @@ interface CrewWidgetProps {
   inviteCode?: string;
   scheduleReleased?: boolean;
   scheduleReleaseDate?: string;
+  isAdmin?: boolean;
   onInvite?: () => void;
   onCreateCrew?: () => void;
   onJoinCrew?: (code: string) => void;
+  onEditCrewName?: (newName: string) => Promise<boolean>;
+  onLeaveCrew?: () => Promise<boolean>;
   className?: string;
 }
 
@@ -55,18 +61,41 @@ export function CrewWidget({
   inviteCode,
   scheduleReleased = false,
   scheduleReleaseDate,
+  isAdmin = false,
   onInvite,
   onCreateCrew,
   onJoinCrew,
+  onEditCrewName,
+  onLeaveCrew,
   className,
 }: CrewWidgetProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showInviteLink, setShowInviteLink] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(crewName || "");
   const [copied, setCopied] = useState(false);
 
   const hasCrew = crewId && members.length > 0;
   const currentUser = members.find(m => m.id === currentUserId);
   const otherMembers = members.filter(m => m.id !== currentUserId);
+
+  const handleSaveName = async () => {
+    if (!onEditCrewName) return;
+    const success = await onEditCrewName(editedName.trim());
+    if (success) {
+      setIsEditingName(false);
+    }
+  };
+
+  const handleLeaveCrew = async () => {
+    if (!onLeaveCrew) return;
+    if (!confirm(`Are you sure you want to leave this crew?${members.length === 1 ? ' This will delete the crew since you are the only member.' : ''}`)) {
+      return;
+    }
+    await onLeaveCrew();
+    setShowSettings(false);
+  };
 
   const copyInviteLink = async () => {
     if (!inviteCode) return;
@@ -230,16 +259,81 @@ export function CrewWidget({
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium text-zinc-400">Crew Members</h4>
-              <Button 
-                size="sm" 
-                variant="ghost"
-                onClick={() => setShowInviteLink(!showInviteLink)}
-                className="text-violet-400 hover:text-violet-300"
-              >
-                <UserPlus className="w-4 h-4 mr-1.5" />
-                Invite
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => setShowInviteLink(!showInviteLink)}
+                  className="text-violet-400 hover:text-violet-300"
+                >
+                  <UserPlus className="w-4 h-4 mr-1.5" />
+                  Invite
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="text-zinc-400 hover:text-zinc-300"
+                >
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
+
+            {/* Settings panel */}
+            {showSettings && (
+              <div className="mb-4 p-3 bg-zinc-800 rounded-lg space-y-3">
+                {/* Edit crew name */}
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">Crew Name</label>
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editedName}
+                        onChange={(e) => setEditedName(e.target.value)}
+                        placeholder="Enter crew name..."
+                        className="flex-1 px-2 py-1.5 bg-zinc-900 rounded text-sm text-white border border-zinc-700 focus:border-violet-500 focus:outline-none"
+                        autoFocus
+                      />
+                      <Button size="sm" onClick={handleSaveName} className="bg-violet-600 hover:bg-violet-700">
+                        Save
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setIsEditingName(false); setEditedName(crewName || ""); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-white">{crewName || "Unnamed Crew"}</span>
+                      {onEditCrewName && (
+                        <button
+                          onClick={() => setIsEditingName(true)}
+                          className="p-1 text-zinc-500 hover:text-white transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Leave crew */}
+                {onLeaveCrew && (
+                  <div className="pt-2 border-t border-zinc-700">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleLeaveCrew}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    >
+                      <LogOut className="w-4 h-4 mr-1.5" />
+                      Leave Crew
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Invite link */}
             {showInviteLink && inviteCode && (
