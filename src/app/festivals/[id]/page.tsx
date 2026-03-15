@@ -186,12 +186,27 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
     }
   };
 
+  // Check if we have actual genre-based discoveries
+  const hasActualDiscoveries = lineup.some(
+    a => a.matchType === "discovery" || a.matchType === "genre"
+  );
+  
   // Filter lineup
   const filteredLineup = lineup.filter((artist) => {
     if (filter === "all") return true;
     if (filter === "matches") return artist.matchType === "perfect";
-    if (filter === "discoveries")
-      return artist.matchType === "discovery" || artist.matchType === "genre";
+    if (filter === "discoveries") {
+      // If we have actual discoveries, show them
+      if (hasActualDiscoveries) {
+        return artist.matchType === "discovery" || artist.matchType === "genre";
+      }
+      // Otherwise, show headliners and interesting artists as "Festival Highlights"
+      // Exclude perfect matches (those appear in Matches filter)
+      return (
+        artist.matchType !== "perfect" && 
+        (artist.headliner || (artist.matchScore && artist.matchScore > 0))
+      );
+    }
     if (filter === "interested") return interestMap[artist.id] === "interested";
     if (filter === "mySchedule") return userAgenda.includes(artist.id);
     if (filter === "crewFavorites") {
@@ -662,22 +677,6 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                       </p>
                       <SpotifyConnectButton />
                     </div>
-                  ) : filter === "discoveries" ? (
-                    <div className="max-w-md mx-auto">
-                      <Sparkles className="w-12 h-12 text-yellow-400/50 mx-auto mb-4" />
-                      <p className="text-zinc-400 mb-2">
-                        No discovery recommendations yet.
-                      </p>
-                      <p className="text-zinc-500 text-sm mb-4">
-                        We couldn't find genre-based matches. Try browsing all artists or check your Spotify connection.
-                      </p>
-                      <button
-                        onClick={() => setFilter("all")}
-                        className="text-cyan-400 hover:text-cyan-300"
-                      >
-                        Show all artists
-                      </button>
-                    </div>
                   ) : (
                     <p className="text-zinc-500">
                       No artists match this filter.{" "}
@@ -691,24 +690,36 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
                   )}
                 </div>
               ) : viewMode === "grid" ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-                  {sortedFilteredLineup.map((artist) => (
-                    <ArtistCard
-                      key={artist.id}
-                      artist={artist}
-                      isInAgenda={userAgenda.includes(artist.id)}
-                      onToggleAgenda={toggleAgenda}
-                      showScheduleInfo
-                      interestStatus={interestMap[artist.id] || null}
-                      onInterestChange={handleInterestChange}
-                      previewUrl={artist.preview_url}
-                      spotifyUrl={artist.spotify_url || (artist.spotify_id ? `https://open.spotify.com/artist/${artist.spotify_id}` : undefined)}
-                      showCrewInterest={Boolean(crew && crewMembers.length > 1)}
-                      crewMembers={crewArtistInterests[artist.id] || []}
-                      totalCrewSize={crewMembers.length}
-                    />
-                  ))}
-                </div>
+                <>
+                  {/* Festival Highlights banner when showing headliners instead of discoveries */}
+                  {filter === "discoveries" && !hasActualDiscoveries && (
+                    <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center gap-3">
+                      <Sparkles className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+                      <p className="text-sm text-yellow-200">
+                        <span className="font-medium">Festival Highlights</span>
+                        <span className="text-yellow-200/70"> — Connect Spotify for personalized discoveries based on your taste</span>
+                      </p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+                    {sortedFilteredLineup.map((artist) => (
+                      <ArtistCard
+                        key={artist.id}
+                        artist={artist}
+                        isInAgenda={userAgenda.includes(artist.id)}
+                        onToggleAgenda={toggleAgenda}
+                        showScheduleInfo
+                        interestStatus={interestMap[artist.id] || null}
+                        onInterestChange={handleInterestChange}
+                        previewUrl={artist.preview_url}
+                        spotifyUrl={artist.spotify_url || (artist.spotify_id ? `https://open.spotify.com/artist/${artist.spotify_id}` : undefined)}
+                        showCrewInterest={Boolean(crew && crewMembers.length > 1)}
+                        crewMembers={crewArtistInterests[artist.id] || []}
+                        totalCrewSize={crewMembers.length}
+                      />
+                    ))}
+                  </div>
+                </>
               ) : (
                 <div className="space-y-2">
                   {sortedFilteredLineup.map((artist) => (
