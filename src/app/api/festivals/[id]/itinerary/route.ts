@@ -47,8 +47,9 @@ export async function GET(
     }
 
     // Check for saved itinerary (unless forcing regeneration)
+    // Use festival.id (UUID) not festivalId (could be slug)
     if (!forceRegenerate) {
-      const savedItinerary = await getUserItinerary(session.user.id, festivalId);
+      const savedItinerary = await getUserItinerary(session.user.id, festival.id);
       if (savedItinerary) {
         return NextResponse.json({
           festival: {
@@ -180,10 +181,10 @@ export async function POST(
       return NextResponse.json({ error: "Festival not found" }, { status: 404 });
     }
 
-    // Save the itinerary
+    // Save the itinerary (use festival.id UUID, not the original slug)
     const saved = await saveUserItinerary(
       session.user.id,
-      festivalId,
+      festival.id,
       itinerary,
       settings
     );
@@ -226,7 +227,13 @@ export async function DELETE(
 
     const { id: festivalId } = await params;
 
-    const deleted = await deleteUserItinerary(session.user.id, festivalId);
+    // Resolve slug to UUID
+    const festival = await getFestival(festivalId);
+    if (!festival) {
+      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+    }
+
+    const deleted = await deleteUserItinerary(session.user.id, festival.id);
 
     if (!deleted) {
       return NextResponse.json(
