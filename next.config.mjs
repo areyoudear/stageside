@@ -52,6 +52,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.bandsintown.com', // Bandsintown artist images
       },
+      {
+        protocol: 'https',
+        hostname: '*.mzstatic.com', // iTunes/Apple Music images
+      },
     ],
   },
 };
