@@ -12,6 +12,7 @@ const PUBLIC_PATHS = [
   "/favicon.ico",
   "/discover", // Public concert browsing
   "/concerts", // Public concert pages
+  "/festivals", // Festival pages (including join links)
   "/login",
   "/signup",
   "/demo",

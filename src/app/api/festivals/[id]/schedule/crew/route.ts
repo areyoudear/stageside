@@ -69,8 +69,39 @@ export async function GET(
       return NextResponse.json({ error: "Crew not found" }, { status: 404 });
     }
 
-    // Verify crew is for this festival
-    if (crew.festival_id !== festivalId) {
+    // Get festival first (to handle slug vs UUID)
+    // Try by ID first, then by slug
+    let { data: festival, error: festivalError } = await supabase
+      .from("festivals")
+      .select("id, name, slug, dates")
+      .eq("id", festivalId)
+      .single();
+    
+    if (festivalError || !festival) {
+      const slugResult = await supabase
+        .from("festivals")
+        .select("id, name, slug, dates")
+        .eq("slug", festivalId)
+        .single();
+      
+      festival = slugResult.data;
+      festivalError = slugResult.error;
+    }
+
+    if (festivalError || !festival) {
+      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+    }
+
+    // Verify crew is for this festival (compare UUIDs or slugs)
+    console.log("[Schedule Crew] Comparing festival IDs:", {
+      crewFestivalId: crew.festival_id,
+      festivalId: festival.id,
+      festivalSlug: festival.slug,
+      routeFestivalId: festivalId,
+    });
+    
+    // Allow match on ID or slug (crew might store slug)
+    if (crew.festival_id !== festival.id && crew.festival_id !== festival.slug) {
       return NextResponse.json(
         { error: "Crew is not for this festival" },
         { status: 400 }
@@ -111,17 +142,6 @@ export async function GET(
     });
 
     const crewSize = crewMembers.length;
-
-    // Get festival with UUID lookup (festivalId might be a slug)
-    const { data: festival, error: festivalError } = await supabase
-      .from("festivals")
-      .select("id, name, slug, dates")
-      .or(`id.eq.${festivalId},slug.eq.${festivalId}`)
-      .single();
-
-    if (festivalError || !festival) {
-      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
-    }
 
     // Get all artists for this festival with schedule info
     let artistsQuery = supabase

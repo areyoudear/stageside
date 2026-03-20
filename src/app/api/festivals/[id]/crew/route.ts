@@ -4,6 +4,27 @@ import { authOptions } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
 
 /**
+ * Helper: resolve festival slug or UUID to UUID
+ */
+async function resolveFestivalId(supabase: any, idOrSlug: string): Promise<string | null> {
+  // Check if it looks like a UUID
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+  
+  if (isUuid) {
+    return idOrSlug;
+  }
+  
+  // Try to resolve by slug
+  const { data } = await supabase
+    .from("festivals")
+    .select("id")
+    .eq("slug", idOrSlug)
+    .single();
+    
+  return data?.id || null;
+}
+
+/**
  * GET /api/festivals/[id]/crew
  * Get user's crews for a festival (supports multiple crews)
  * Query params:
@@ -14,15 +35,51 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const festivalId = params.id;
     const { searchParams } = new URL(request.url);
     const requestedCrewId = searchParams.get("crewId");
+    const inviteCodeParam = searchParams.get("inviteCode");
     const supabase = createAdminClient();
+    
+    // Resolve slug to UUID
+    const festivalId = await resolveFestivalId(supabase, params.id);
+    if (!festivalId) {
+      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+    }
+
+  // If inviteCode is provided, validate it and return crew info (public, no auth required)
+  if (inviteCodeParam) {
+    const { data: crew, error } = await supabase
+      .from("festival_crews")
+      .select("id, name, festival_id")
+      .eq("invite_code", inviteCodeParam.toLowerCase().trim())
+      .eq("festival_id", festivalId)
+      .single();
+
+    if (error || !crew) {
+      return NextResponse.json({ error: "Invalid invite code" }, { status: 404 });
+    }
+
+    // Get member count
+    const { count } = await supabase
+      .from("festival_crew_members")
+      .select("*", { count: "exact", head: true })
+      .eq("crew_id", crew.id);
+
+    return NextResponse.json({
+      crew: {
+        id: crew.id,
+        name: crew.name,
+        festival_id: crew.festival_id,
+        member_count: count || 1,
+      }
+    });
+  }
+
+  // Auth required for all other operations
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   // Find ALL user's crews for this festival
   const { data: memberships } = await supabase
@@ -165,11 +222,16 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const festivalId = params.id;
     const body = await request.json();
     const { name } = body;
 
     const supabase = createAdminClient();
+    
+    // Resolve slug to UUID
+    const festivalId = await resolveFestivalId(supabase, params.id);
+    if (!festivalId) {
+      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+    }
 
   // Note: Users CAN create multiple crews for the same festival
   // (e.g., "Weekend 1 Squad" and "Day-trip Friends")
@@ -235,11 +297,16 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const festivalId = params.id;
     const body = await request.json();
     const { name } = body;
 
     const supabase = createAdminClient();
+    
+    // Resolve slug to UUID
+    const festivalId = await resolveFestivalId(supabase, params.id);
+    if (!festivalId) {
+      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+    }
 
     // Get user's membership and crew
     const { data: membership } = await supabase

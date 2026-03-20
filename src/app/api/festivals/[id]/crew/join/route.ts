@@ -4,6 +4,22 @@ import { authOptions } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
 
 /**
+ * Helper: resolve festival slug or UUID to UUID
+ */
+async function resolveFestivalId(supabase: any, idOrSlug: string): Promise<string | null> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+  if (isUuid) return idOrSlug;
+  
+  const { data } = await supabase
+    .from("festivals")
+    .select("id")
+    .eq("slug", idOrSlug)
+    .single();
+    
+  return data?.id || null;
+}
+
+/**
  * POST /api/festivals/[id]/crew/join
  * Join an existing crew via invite code
  */
@@ -17,15 +33,20 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const festivalId = params.id;
     const body = await request.json();
     const { inviteCode } = body;
+    
+    const supabase = createAdminClient();
+    
+    // Resolve slug to UUID
+    const festivalId = await resolveFestivalId(supabase, params.id);
+    if (!festivalId) {
+      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+    }
 
   if (!inviteCode) {
     return NextResponse.json({ error: "Invite code required" }, { status: 400 });
   }
-
-  const supabase = createAdminClient();
 
   // Find crew by invite code
   const { data: crew, error: crewError } = await supabase

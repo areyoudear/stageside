@@ -186,25 +186,67 @@ export function calculateArtistMatch(
   );
   
   if (genreOverlap.length > 0) {
-    // Find a user artist with similar genre to make it more personal
-    const similarUserArtist = userArtists.find(ua => 
-      ua.genres?.some(uag => 
-        artistGenres.some(ag => 
-          uag.toLowerCase().includes(ag.toLowerCase()) || 
-          ag.toLowerCase().includes(uag.toLowerCase())
-        )
-      )
-    );
+    // Overly generic genres that shouldn't be used for "Similar to X" reasons
+    const genericGenres = new Set(['pop', 'rock', 'r&b', 'hip hop', 'electronic', 'dance', 'edm']);
+    
+    // Find the BEST matching user artist (most specific genre overlap)
+    // Score each user artist by how specific their genre match is
+    const userArtistMatches = userArtists.slice(0, 30).map(ua => {
+      if (!ua.genres?.length) return { artist: ua, score: 0, matchedGenre: null };
+      
+      let bestScore = 0;
+      let matchedGenre: string | null = null;
+      
+      for (const uag of ua.genres) {
+        const uagLower = uag.toLowerCase();
+        for (const ag of artistGenres) {
+          const agLower = ag.toLowerCase();
+          
+          // Exact match is best
+          if (uagLower === agLower) {
+            if (uag.length > bestScore) {
+              bestScore = uag.length + 100; // Big bonus for exact match
+              matchedGenre = uag;
+            }
+          }
+          // Partial match - prefer longer (more specific) genres
+          else if (uagLower.includes(agLower) || agLower.includes(uagLower)) {
+            const specificityScore = Math.max(uag.length, ag.length);
+            // Penalize generic genres heavily
+            const isGeneric = genericGenres.has(agLower) || genericGenres.has(uagLower);
+            const adjustedScore = isGeneric ? specificityScore * 0.3 : specificityScore;
+            
+            if (adjustedScore > bestScore) {
+              bestScore = adjustedScore;
+              matchedGenre = isGeneric ? null : uag;
+            }
+          }
+        }
+      }
+      
+      return { artist: ua, score: bestScore, matchedGenre };
+    }).filter(m => m.score > 0);
+    
+    // Sort by score (best match first), then by user ranking (higher ranked = better)
+    userArtistMatches.sort((a, b) => {
+      if (Math.abs(a.score - b.score) > 10) return b.score - a.score;
+      return userArtists.indexOf(a.artist) - userArtists.indexOf(b.artist);
+    });
+    
+    const bestMatch = userArtistMatches[0];
     
     let matchReason: string;
     const primaryGenre = genreOverlap[0];
     
-    if (similarUserArtist && userArtists.indexOf(similarUserArtist) < 10) {
-      matchReason = `Similar to ${similarUserArtist.artist_name}`;
+    // Only say "Similar to X" if we have a specific (non-generic) match
+    if (bestMatch && bestMatch.matchedGenre && userArtists.indexOf(bestMatch.artist) < 15) {
+      matchReason = `Similar to ${bestMatch.artist.artist_name}`;
     } else if (genreOverlap.length >= 2) {
       matchReason = `Matches your ${primaryGenre} & ${genreOverlap[1]} taste`;
-    } else {
+    } else if (!genericGenres.has(primaryGenre.toLowerCase())) {
       matchReason = `Perfect for your ${primaryGenre} obsession`;
+    } else {
+      matchReason = `Matches your ${primaryGenre} taste`;
     }
     
     const matchScore = Math.min(75, 40 + genreOverlap.length * 12);
@@ -214,7 +256,7 @@ export function calculateArtistMatch(
       matchType: 'genre',
       matchScore,
       matchReason,
-      similarTo: similarUserArtist?.artist_name,
+      similarTo: bestMatch?.artist.artist_name,
     };
   }
   

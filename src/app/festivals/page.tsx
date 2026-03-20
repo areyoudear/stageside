@@ -72,16 +72,27 @@ export default function FestivalsPage() {
     return matchesSearch && matchesGenre;
   });
 
-  // Group festivals
-  const popularFestivals = filteredFestivals
-    .filter((f) => f.capacity === "massive" || f.capacity === "large")
-    .slice(0, 6);
-  const upcomingFestivals = filteredFestivals.slice(0, 12);
+  // Group festivals - avoid duplicates across sections
+  const shownIds = new Set<string>();
+  
+  // Top matches first (if personalized)
   const topMatches = personalized
     ? [...filteredFestivals]
         .sort((a, b) => b.matchPercentage - a.matchPercentage)
         .slice(0, 6)
     : [];
+  topMatches.forEach(f => shownIds.add(f.id));
+  
+  // Popular festivals (excluding already shown)
+  const popularFestivals = filteredFestivals
+    .filter((f) => !shownIds.has(f.id) && (f.capacity === "massive" || f.capacity === "large"))
+    .slice(0, 6);
+  popularFestivals.forEach(f => shownIds.add(f.id));
+  
+  // Upcoming festivals (excluding already shown)
+  const upcomingFestivals = filteredFestivals
+    .filter((f) => !shownIds.has(f.id))
+    .slice(0, 12);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950">
@@ -254,7 +265,8 @@ export default function FestivalsPage() {
               </section>
             )}
 
-            {/* All upcoming */}
+            {/* All upcoming - only show if there are festivals not already shown */}
+            {upcomingFestivals.length > 0 && (
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-white">
@@ -271,6 +283,7 @@ export default function FestivalsPage() {
                 ))}
               </div>
             </section>
+            )}
           </div>
         )}
       </div>

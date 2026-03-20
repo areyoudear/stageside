@@ -371,7 +371,7 @@ export default function FestivalDetailPage({ params }: FestivalDetailPageProps) 
 
               {/* Action buttons */}
               <div className="flex flex-wrap gap-3">
-                <Link href={`/festivals/${id}/schedule`}>
+                <Link href={crew ? `/festivals/${id}/schedule?crewId=${crew.id}` : `/festivals/${id}/schedule`}>
                   <Button className="bg-cyan-600 hover:bg-cyan-700">
                     <Grid className="w-4 h-4 mr-2" />
                     Build My Schedule

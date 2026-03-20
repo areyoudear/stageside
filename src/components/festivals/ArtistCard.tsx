@@ -9,6 +9,16 @@ import type { FestivalArtistMatch } from "@/lib/festival-types";
 import { CrewInterestBadge, type CrewMember } from "@/components/crew/CrewAvatarStack";
 import { audioManager } from "@/lib/audio-manager";
 
+// Normalize image URLs: convert http:// to https:// for Next.js Image compatibility
+function normalizeImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  // Convert http:// to https:// for domains that support it
+  if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  return url;
+}
+
 interface ArtistCardProps {
   artist: FestivalArtistMatch;
   isInAgenda?: boolean;
@@ -167,9 +177,9 @@ export function ArtistCard({
       >
         {/* Image */}
         <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-          {!imageError && artist.image_url ? (
+          {!imageError && normalizeImageUrl(artist.image_url) ? (
             <Image
-              src={artist.image_url}
+              src={normalizeImageUrl(artist.image_url)!}
               alt={artist.artist_name}
               fill
               className="object-cover"
@@ -288,9 +298,9 @@ export function ArtistCard({
     >
       {/* Image */}
       <div className="relative aspect-square overflow-hidden">
-        {!imageError && artist.image_url ? (
+        {!imageError && normalizeImageUrl(artist.image_url) ? (
           <Image
-            src={artist.image_url}
+            src={normalizeImageUrl(artist.image_url)!}
             alt={artist.artist_name}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
