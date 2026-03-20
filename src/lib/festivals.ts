@@ -187,7 +187,12 @@ export function calculateArtistMatch(
   
   if (genreOverlap.length > 0) {
     // Overly generic genres that shouldn't be used for "Similar to X" reasons
-    const genericGenres = new Set(['pop', 'rock', 'r&b', 'hip hop', 'electronic', 'dance', 'edm']);
+    // Include common variations (hyphenated, spaced, etc.)
+    const genericGenrePatterns = ['pop', 'rock', 'r&b', 'rnb', 'hip hop', 'hip-hop', 'hiphop', 'rap', 'electronic', 'dance', 'edm', 'k-pop', 'kpop'];
+    const isGenericGenre = (genre: string) => {
+      const g = genre.toLowerCase().trim();
+      return genericGenrePatterns.some(pattern => g === pattern || g === pattern.replace('-', ' ') || g === pattern.replace(' ', '-'));
+    };
     
     // Find the BEST matching user artist (most specific genre overlap)
     // Score each user artist by how specific their genre match is
@@ -213,7 +218,7 @@ export function calculateArtistMatch(
           else if (uagLower.includes(agLower) || agLower.includes(uagLower)) {
             const specificityScore = Math.max(uag.length, ag.length);
             // Penalize generic genres heavily
-            const isGeneric = genericGenres.has(agLower) || genericGenres.has(uagLower);
+            const isGeneric = isGenericGenre(agLower) || isGenericGenre(uagLower);
             const adjustedScore = isGeneric ? specificityScore * 0.3 : specificityScore;
             
             if (adjustedScore > bestScore) {
@@ -243,7 +248,7 @@ export function calculateArtistMatch(
       matchReason = `Similar to ${bestMatch.artist.artist_name}`;
     } else if (genreOverlap.length >= 2) {
       matchReason = `Matches your ${primaryGenre} & ${genreOverlap[1]} taste`;
-    } else if (!genericGenres.has(primaryGenre.toLowerCase())) {
+    } else if (!isGenericGenre(primaryGenre)) {
       matchReason = `Perfect for your ${primaryGenre} obsession`;
     } else {
       matchReason = `Matches your ${primaryGenre} taste`;
