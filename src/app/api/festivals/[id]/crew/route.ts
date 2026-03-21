@@ -136,7 +136,7 @@ export async function GET(
     `)
     .eq("crew_id", crew.id);
 
-  // Get all artist interests for crew members
+  // Get all artist interests for crew members (manual heart taps)
   const memberIds = members?.map(m => m.user_id) || [];
   
   const { data: interests } = await supabase
@@ -145,21 +145,63 @@ export async function GET(
     .eq("festival_id", festivalId)
     .in("user_id", memberIds);
 
-  // Group interests by artist
+  // Get festival lineup to match against user libraries
+  const { data: lineup } = await supabase
+    .from("festival_artists")
+    .select("id, artist_name")
+    .eq("festival_id", festivalId);
+
+  // Normalize artist name for matching
+  const normalizeArtistName = (name: string) => 
+    name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  // Create lookup map for lineup artists
+  const lineupByNormalizedName = new Map<string, { id: string; name: string }>();
+  lineup?.forEach(a => {
+    lineupByNormalizedName.set(normalizeArtistName(a.artist_name), { id: a.id, name: a.artist_name });
+  });
+
+  // Get each member's Spotify library artists that match the lineup ("perfect matches")
+  const { data: memberArtists } = await supabase
+    .from("user_artists")
+    .select("user_id, artist_name")
+    .in("user_id", memberIds);
+
+  // Group interests by artist (combining manual interests + Spotify matches)
   const artistInterestMap = new Map<string, any[]>();
+  
+  // Helper to add interest
+  const addInterest = (artistId: string, userId: string, source: 'manual' | 'spotify') => {
+    const member = members?.find(m => m.user_id === userId);
+    if (!member) return;
+    
+    const existing = artistInterestMap.get(artistId) || [];
+    // Don't add duplicates
+    if (existing.some(e => e.userId === userId)) return;
+    
+    existing.push({
+      userId: userId,
+      displayName: (member.users as any).display_name,
+      username: (member.users as any).username,
+      avatarUrl: (member.users as any).avatar_url,
+      interestLevel: source === 'manual' ? 'interested' : 'spotify-match',
+      source,
+    });
+    artistInterestMap.set(artistId, existing);
+  };
+
+  // Add manual interests
   interests?.forEach(interest => {
-    const existing = artistInterestMap.get(interest.artist_id) || [];
-    const member = members?.find(m => m.user_id === interest.user_id);
-    if (member) {
-      existing.push({
-        userId: interest.user_id,
-        displayName: (member.users as any).display_name,
-        username: (member.users as any).username,
-        avatarUrl: (member.users as any).avatar_url,
-        interestLevel: interest.interest_level,
-      });
+    addInterest(interest.artist_id, interest.user_id, 'manual');
+  });
+
+  // Add Spotify library matches (perfect matches)
+  memberArtists?.forEach(ua => {
+    const normalizedName = normalizeArtistName(ua.artist_name);
+    const lineupArtist = lineupByNormalizedName.get(normalizedName);
+    if (lineupArtist) {
+      addInterest(lineupArtist.id, ua.user_id, 'spotify');
     }
-    artistInterestMap.set(interest.artist_id, existing);
   });
 
   // Calculate stats
@@ -167,11 +209,21 @@ export async function GET(
   const artistsWithAllInterested = Array.from(artistInterestMap.entries())
     .filter(([_, interested]) => interested.length === totalMembers).length;
   
-  const currentUserInterests = interests?.filter(i => i.user_id === session.user.id) || [];
-  const otherMemberInterests = interests?.filter(i => i.user_id !== session.user.id) || [];
-  const uniqueOtherArtists = new Set(otherMemberInterests.map(i => i.artist_id));
-  const currentUserArtists = new Set(currentUserInterests.map(i => i.artist_id));
-  const discoverFromCrew = Array.from(uniqueOtherArtists).filter(a => !currentUserArtists.has(a)).length;
+  // Get current user's artists (from both sources)
+  const currentUserArtists = new Set<string>();
+  const otherMemberArtists = new Set<string>();
+  
+  artistInterestMap.forEach((interested, artistId) => {
+    interested.forEach(i => {
+      if (i.userId === session.user.id) {
+        currentUserArtists.add(artistId);
+      } else {
+        otherMemberArtists.add(artistId);
+      }
+    });
+  });
+  
+  const discoverFromCrew = Array.from(otherMemberArtists).filter(a => !currentUserArtists.has(a)).length;
   const youOnlyWant = Array.from(currentUserArtists).filter(a => {
     const interested = artistInterestMap.get(a);
     return interested?.length === 1 && interested[0].userId === session.user.id;
