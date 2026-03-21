@@ -202,12 +202,22 @@ export function ArtistCard({
           <p className="font-medium text-white text-sm truncate">
             {artist.artist_name}
           </p>
-          {artist.matchReason && (
+          {/* Crew interest badge for compact view */}
+          {showCrewInterest && crewMembers.length > 0 && totalCrewSize > 0 ? (
+            <div className="mt-0.5">
+              <CrewInterestBadge
+                members={crewMembers}
+                totalCrewSize={totalCrewSize}
+                artistName={artist.artist_name}
+                size="xs"
+              />
+            </div>
+          ) : artist.matchReason ? (
             <p className="text-xs text-zinc-500 flex items-center gap-1 truncate">
               {getMatchIcon()}
               {artist.matchReason}
             </p>
-          )}
+          ) : null}
         </div>
 
         {/* Match Score */}
