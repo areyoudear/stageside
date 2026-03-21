@@ -4,6 +4,22 @@ import { authOptions } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
 
 /**
+ * Helper: resolve festival slug or UUID to UUID
+ */
+async function resolveFestivalId(supabase: any, idOrSlug: string): Promise<string | null> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+  if (isUuid) return idOrSlug;
+  
+  const { data } = await supabase
+    .from("festivals")
+    .select("id")
+    .eq("slug", idOrSlug)
+    .single();
+    
+  return data?.id || null;
+}
+
+/**
  * GET /api/festivals/[id]/artist-interest
  * Get current user's artist interests for this festival
  */
@@ -17,8 +33,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const festivalId = params.id;
     const supabase = createAdminClient();
+    const festivalId = await resolveFestivalId(supabase, params.id);
+    if (!festivalId) {
+      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+    }
 
     const { data: interests, error } = await supabase
       .from("festival_artist_interests")
@@ -58,7 +77,12 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const festivalId = params.id;
+    const supabase = createAdminClient();
+    const festivalId = await resolveFestivalId(supabase, params.id);
+    if (!festivalId) {
+      return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+    }
+    
     const body = await request.json();
     const { artistId, artistName, interestLevel } = body;
 
@@ -70,8 +94,6 @@ export async function POST(
   if (interestLevel && !validLevels.includes(interestLevel)) {
     return NextResponse.json({ error: "Invalid interest level" }, { status: 400 });
   }
-
-  const supabase = createAdminClient();
 
   if (!interestLevel) {
     // Remove interest
@@ -133,15 +155,18 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-  const festivalId = params.id;
+  const supabase = createAdminClient();
+  const festivalId = await resolveFestivalId(supabase, params.id);
+  if (!festivalId) {
+    return NextResponse.json({ error: "Festival not found" }, { status: 404 });
+  }
+  
   const body = await request.json();
   const { interests } = body; // Array of { artistId, artistName, interestLevel }
 
   if (!interests || !Array.isArray(interests)) {
     return NextResponse.json({ error: "Interests array required" }, { status: 400 });
   }
-
-  const supabase = createAdminClient();
   const validLevels = ["must-see", "interested", "maybe"];
 
   // Split into upserts and deletes
