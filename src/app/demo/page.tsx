@@ -29,11 +29,19 @@ export default function DemoPage() {
     setError(null);
 
     try {
+      // Format dates using local timezone (not UTC) to avoid date shifting
+      const formatLocalDate = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      };
+      
       const params = new URLSearchParams({
         lat: location.lat.toString(),
         lng: location.lng.toString(),
-        startDate: dateRange.startDate.toISOString().split("T")[0],
-        endDate: dateRange.endDate.toISOString().split("T")[0],
+        startDate: formatLocalDate(dateRange.startDate),
+        endDate: formatLocalDate(dateRange.endDate),
       });
 
       const response = await fetch(`/api/demo-concerts?${params.toString()}`);

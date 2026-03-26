@@ -24,17 +24,37 @@ export function formatDate(date: Date | string): string {
 
 /**
  * Format date for API calls (YYYY-MM-DD)
+ * Uses local timezone to avoid date shifting
  */
 export function formatDateForAPI(date: Date): string {
-  return date.toISOString().split("T")[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Parse a date string as local midnight (not UTC)
+ * Handles "YYYY-MM-DD" format from concert APIs
+ */
+export function parseLocalDate(dateStr: string): Date {
+  // Split and parse as local date components
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day); // month is 0-indexed
 }
 
 /**
  * Calculate days until event
+ * Compares dates in user's local timezone
  */
 export function daysUntil(date: Date | string): number {
-  const eventDate = new Date(date);
+  // Parse event date as local midnight
+  const eventDate = typeof date === "string" ? parseLocalDate(date) : date;
+  
+  // Get today at local midnight for fair comparison
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
   const diffTime = eventDate.getTime() - today.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
@@ -142,9 +162,10 @@ function toRad(deg: number): number {
 
 /**
  * Get day of week from date string
+ * Uses parseLocalDate to avoid timezone shifting
  */
 export function getDayOfWeek(dateStr: string): "weekday" | "weekend" {
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   const day = date.getDay();
   return day === 0 || day === 5 || day === 6 ? "weekend" : "weekday"; // Fri, Sat, Sun = weekend
 }

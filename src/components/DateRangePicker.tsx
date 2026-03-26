@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, formatDateForAPI, parseLocalDate } from "@/lib/utils";
 
 // Preset date ranges
 const PRESETS = [
@@ -43,7 +43,8 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
   };
 
   const handleCustomDateChange = (type: "start" | "end", dateStr: string) => {
-    const date = new Date(dateStr);
+    // Parse as local date to avoid timezone shifting
+    const date = parseLocalDate(dateStr);
     if (type === "start") {
       onChange({
         ...value,
@@ -121,9 +122,9 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                 <label className="text-xs text-zinc-500 mb-1 block">From</label>
                 <input
                   type="date"
-                  value={value.startDate.toISOString().split("T")[0]}
+                  value={formatDateForAPI(value.startDate)}
                   onChange={(e) => handleCustomDateChange("start", e.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
+                  min={formatDateForAPI(new Date())}
                   className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
@@ -131,9 +132,9 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                 <label className="text-xs text-zinc-500 mb-1 block">To</label>
                 <input
                   type="date"
-                  value={value.endDate.toISOString().split("T")[0]}
+                  value={formatDateForAPI(value.endDate)}
                   onChange={(e) => handleCustomDateChange("end", e.target.value)}
-                  min={value.startDate.toISOString().split("T")[0]}
+                  min={formatDateForAPI(value.startDate)}
                   className="w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>

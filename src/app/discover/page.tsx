@@ -14,7 +14,7 @@ import { NoMatchesCard } from "@/components/NoMatchesCard";
 import { FriendsBadge, type FriendInterest } from "@/components/FriendsBadge";
 import { TasteOverlapCard, type TasteOverlap } from "@/components/TasteOverlapCard";
 import { LockedFeatureBadge } from "@/components/PremiumFeatureGate";
-import { cn } from "@/lib/utils";
+import { cn, formatDateForAPI } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import type { Concert } from "@/lib/ticketmaster";
 
@@ -280,8 +280,8 @@ function DiscoverPageContent() {
             lat: location.lat.toString(),
             lng: location.lng.toString(),
             radius: radius.toString(),
-            startDate: dateRange.startDate.toISOString().split("T")[0],
-            endDate: dateRange.endDate.toISOString().split("T")[0],
+            startDate: formatDateForAPI(dateRange.startDate),
+            endDate: formatDateForAPI(dateRange.endDate),
           });
           const response = await fetch(`/api/concerts/browse?${params.toString()}`);
           const data = await response.json();
@@ -343,8 +343,8 @@ function DiscoverPageContent() {
   const handleDateRangeChange = (newRange: DateRange) => {
     track('date_range_selected', {
       range: newRange.label || 'custom',
-      start_date: newRange.startDate.toISOString().split('T')[0],
-      end_date: newRange.endDate.toISOString().split('T')[0],
+      start_date: formatDateForAPI(newRange.startDate),
+      end_date: formatDateForAPI(newRange.endDate),
     });
     setDateRange(newRange);
   };
@@ -492,8 +492,8 @@ function DiscoverPageContent() {
         lat: location.lat.toString(),
         lng: location.lng.toString(),
         radius: radius.toString(),
-        startDate: dateRange.startDate.toISOString().split("T")[0],
-        endDate: dateRange.endDate.toISOString().split("T")[0],
+        startDate: formatDateForAPI(dateRange.startDate),
+        endDate: formatDateForAPI(dateRange.endDate),
       });
 
       const response = await fetch(`/api/demo-concerts?${params.toString()}`);
@@ -543,8 +543,8 @@ function DiscoverPageContent() {
         lat: location.lat.toString(),
         lng: location.lng.toString(),
         radius: radius.toString(),
-        startDate: dateRange.startDate.toISOString().split("T")[0],
-        endDate: dateRange.endDate.toISOString().split("T")[0],
+        startDate: formatDateForAPI(dateRange.startDate),
+        endDate: formatDateForAPI(dateRange.endDate),
       });
 
       // Only add artist/genre matching for authenticated users
